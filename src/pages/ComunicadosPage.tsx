@@ -86,6 +86,8 @@ export function ComunicadosPage({ initialId, onBack }: Props) {
                 src={selected.pdfUrl}
                 className="w-full h-full rounded-[12px] border border-border"
                 title={selected.title}
+                referrerPolicy="no-referrer"
+                sandbox="allow-scripts allow-same-origin allow-popups"
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] text-text-faint">

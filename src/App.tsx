@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
-import type { ActiveCat } from './types'
+import type { ActiveCat, App as AppType } from './types'
 import type { AuthUser } from './services/auth'
+import { getMe, fetchApps, logout as apiLogout } from './services/auth'
+import { getToken } from './services/api'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { LoginPage } from './pages/LoginPage'
@@ -19,21 +21,43 @@ import { RightPanel } from './components/RightPanel'
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [restoring, setRestoring] = useState(true)
+
+  // Restaura sessão a partir do token salvo
+  useEffect(() => {
+    if (!getToken()) {
+      setRestoring(false)
+      return
+    }
+    getMe()
+      .then(u => setUser(u))
+      .finally(() => setRestoring(false))
+  }, [])
+
+  const handleLogout = async () => {
+    await apiLogout()
+    setUser(null)
+  }
+
+  if (restoring) {
+    return <div className="h-screen bg-bg-app" />
+  }
 
   if (!user) {
     return <LoginPage onLogin={setUser} />
   }
 
-  return <Hub user={user} onLogout={() => setUser(null)} />
+  return <Hub user={user} onLogout={handleLogout} onUserChange={setUser} />
 }
 
-function Hub({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+function Hub({ user, onLogout, onUserChange }: { user: AuthUser; onLogout: () => void; onUserChange: (u: AuthUser) => void }) {
   const [page, setPage] = useState<{ name: 'home' } | { name: 'comunicados'; id: number } | { name: 'profile' }>({ name: 'home' })
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState<ActiveCat>('all')
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
   const [menuOpen, setMenuOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [apps, setApps] = useState<AppType[]>(APPS)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isNarrow = useNarrow(860)
@@ -43,8 +67,16 @@ function Hub({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
     if (!isNarrow) setMenuOpen(false)
   }, [isNarrow])
 
+  // Catálogo de apps vem da API (apps que o usuário pode acessar);
+  // mantém o estático como fallback se a API falhar.
+  useEffect(() => {
+    fetchApps().then(list => {
+      if (list && list.length) setApps(list)
+    })
+  }, [])
+
   const openApp = (name: string) => {
-    const app = APPS.find(a => a.name === name)
+    const app = apps.find(a => a.name === name)
     if (app?.url) {
       window.open(app.url, '_blank', 'noopener,noreferrer')
       return
@@ -60,20 +92,20 @@ function Hub({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
 
   const q = query.trim().toLowerCase()
 
-  const match = (app: typeof APPS[0]) =>
+  const match = (app: AppType) =>
     q === '' || app.name.toLowerCase().includes(q) || app.desc.toLowerCase().includes(q)
 
   const groups = CAT_ORDER
     .map(cat => ({
       cat,
       label: CAT_LABELS[cat],
-      apps: APPS.filter(a => a.cat === cat && (activeCat === 'all' || activeCat === cat) && match(a)),
+      apps: apps.filter(a => a.cat === cat && (activeCat === 'all' || activeCat === cat) && match(a)),
     }))
     .filter(g => g.apps.length > 0)
 
   const showExtras = q === '' && activeCat === 'all'
-  const favApps = APPS.filter(a => favs.includes(a.id))
-  const recentApps = RECENT_IDS.map(id => APPS.find(a => a.id === id)!).filter(Boolean)
+  const favApps = apps.filter(a => favs.includes(a.id))
+  const recentApps = RECENT_IDS.map(id => apps.find(a => a.id === id)!).filter(Boolean)
   const isEmpty = groups.length === 0
 
   return (
@@ -90,6 +122,7 @@ function Hub({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
         isNarrow={isNarrow}
         menuOpen={menuOpen}
         user={user}
+        apps={apps}
         onSetCat={setActiveCat}
         onClose={() => setMenuOpen(false)}
         onLogout={onLogout}
@@ -118,6 +151,7 @@ function Hub({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
               <ProfilePage
                 user={user}
                 onBack={() => setPage({ name: 'home' })}
+                onUserChange={onUserChange}
               />
             </div>
           )}

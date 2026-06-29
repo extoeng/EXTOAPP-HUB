@@ -1,7 +1,6 @@
 import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList } from 'lucide-react'
-import type { ActiveCat, Category } from '../types'
+import type { ActiveCat, Category, App } from '../types'
 import type { AuthUser } from '../services/auth'
-import { APPS } from '../data/apps'
 import logoUrl from '../assets/exto-logo-transparent.png'
 
 const NAV_MENU = [
@@ -18,14 +17,12 @@ const ALL_CATS: { id: Category; label: string; Icon: React.ElementType }[] = [
   { id: 'juridico', label: 'Jurídico',           Icon: Scale },
 ]
 
-const ACTIVE_CATS = new Set(APPS.map(a => a.cat))
-const NAV_CATS = ALL_CATS.filter(c => ACTIVE_CATS.has(c.id))
-
 interface Props {
   activeCat: ActiveCat
   isNarrow: boolean
   menuOpen: boolean
   user: AuthUser
+  apps: App[]
   onSetCat: (cat: ActiveCat) => void
   onClose: () => void
   onLogout: () => void
@@ -61,7 +58,10 @@ function NavItem({ id, label, Icon, activeCat, onClick }: {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose, onLogout, onOpenProfile }: Props) {
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onClose, onLogout, onOpenProfile }: Props) {
+  const activeCats = new Set(apps.map(a => a.cat))
+  const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
+
   const handleCat = (cat: ActiveCat) => {
     onSetCat(cat)
     if (isNarrow) onClose()
@@ -112,7 +112,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose
         <div className="font-archivo font-semibold text-[11px] leading-none tracking-[0.13em] uppercase text-label-2 px-[12px] pt-[18px] pb-[8px]">
           Categorias
         </div>
-        {NAV_CATS.map(({ id, label, Icon }) => (
+        {navCats.map(({ id, label, Icon }) => (
           <NavItem key={id} id={id} label={label} Icon={Icon} activeCat={activeCat} onClick={() => handleCat(id)} />
         ))}
       </nav>

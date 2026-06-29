@@ -1,0 +1,14 @@
+# Firebase App Hosting — config do HUB EXTOAPP (Vite SPA)
+# Docs: https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  minInstances: 0
+  maxInstances: 1
+
+env:
+  # A base da API de SSO. Como o Vite injeta as env vars NO BUILD,
+  # a disponibilidade precisa ser BUILD (senão o bundle sai sem ela).
+  - variable: VITE_API_BASE
+    value: https://extoapp-api-582146265415.southamerica-east1.run.app/api
+    availability:
+      - BUILD

@@ -1,10 +1,12 @@
 import { ArrowLeft, Mail, Briefcase, User, Phone, Smartphone, Lock, Eye, EyeOff, Check } from 'lucide-react'
 import { useState } from 'react'
 import type { AuthUser } from '../services/auth'
+import { updateProfile, changePassword } from '../services/auth'
 
 interface Props {
   user: AuthUser
   onBack: () => void
+  onUserChange?: (u: AuthUser) => void
 }
 
 function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
@@ -21,7 +23,48 @@ function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label
   )
 }
 
-export function ProfilePage({ user, onBack }: Props) {
+function ContactField({ icon: Icon, label, value, onChange, placeholder }: {
+  icon: React.ElementType; label: string; value: string
+  onChange: (v: string) => void; placeholder: string
+}) {
+  return (
+    <div className="flex-1 bg-surface border border-border rounded-[14px] px-[20px] py-[16px] flex items-center gap-[14px]">
+      <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
+        <Icon size={18} strokeWidth={1.7} className="text-icon-default" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[2px]">{label}</div>
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-transparent font-hanken text-[14px] text-ink outline-none border-none p-0"
+        />
+      </div>
+    </div>
+  )
+}
+
+export function ProfilePage({ user, onBack, onUserChange }: Props) {
+  // Contato
+  const [ext, setExt] = useState(user.phoneExtension)
+  const [mob, setMob] = useState(user.mobile)
+  const [savingContact, setSavingContact] = useState(false)
+  const [contactSaved, setContactSaved] = useState(false)
+  const contactDirty = ext !== user.phoneExtension || mob !== user.mobile
+
+  const saveContact = async () => {
+    setSavingContact(true)
+    const updated = await updateProfile({ phone_extension: ext, mobile: mob })
+    setSavingContact(false)
+    if (updated) {
+      onUserChange?.(updated)
+      setContactSaved(true)
+      setTimeout(() => setContactSaved(false), 1800)
+    }
+  }
+
+  // Senha
   const [showChange, setShowChange] = useState(false)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -29,18 +72,28 @@ export function ProfilePage({ user, onBack }: Props) {
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNext, setShowNext] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [pwError, setPwError] = useState<string | null>(null)
 
-  const canSave = current.length > 0 && next.length >= 6 && next === confirm
+  const canSave = current.length > 0 && next.length >= 6 && next === confirm && !saving
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSave) return
-    setSaved(true)
-    setTimeout(() => {
-      setSaved(false)
-      setShowChange(false)
-      setCurrent(''); setNext(''); setConfirm('')
-    }, 1800)
+    setSaving(true)
+    setPwError(null)
+    const res = await changePassword(current, next)
+    setSaving(false)
+    if (res.ok) {
+      setSaved(true)
+      setTimeout(() => {
+        setSaved(false)
+        setShowChange(false)
+        setCurrent(''); setNext(''); setConfirm('')
+      }, 1800)
+    } else {
+      setPwError(res.detail ?? 'Não foi possível alterar a senha.')
+    }
   }
 
   return (
@@ -76,29 +129,26 @@ export function ProfilePage({ user, onBack }: Props) {
           <div className="flex flex-col gap-[10px]">
             <InfoCard icon={User}     label="Nome"   value={user.name} />
             <InfoCard icon={Briefcase} label="Cargo" value={user.role} />
-            <InfoCard icon={Mail}     label="E-mail" value={user.email ?? ''} />
+            <InfoCard icon={Mail}     label="E-mail" value={user.email} />
 
-            {/* Ramal + Celular lado a lado */}
+            {/* Ramal + Celular lado a lado (editáveis) */}
             <div className="flex gap-[10px]">
-              <div className="flex-1 bg-surface border border-border rounded-[14px] px-[20px] py-[16px] flex items-center gap-[14px]">
-                <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
-                  <Phone size={18} strokeWidth={1.7} className="text-icon-default" />
-                </div>
-                <div>
-                  <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[2px]">Ramal</div>
-                  <div className="font-hanken text-[14px] text-ink">—</div>
-                </div>
-              </div>
-              <div className="flex-1 bg-surface border border-border rounded-[14px] px-[20px] py-[16px] flex items-center gap-[14px]">
-                <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
-                  <Smartphone size={18} strokeWidth={1.7} className="text-icon-default" />
-                </div>
-                <div>
-                  <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[2px]">Celular</div>
-                  <div className="font-hanken text-[14px] text-ink">—</div>
-                </div>
-              </div>
+              <ContactField icon={Phone} label="Ramal" value={ext}
+                            onChange={setExt} placeholder="ex: 2042" />
+              <ContactField icon={Smartphone} label="Celular" value={mob}
+                            onChange={setMob} placeholder="(11) 90000-0000" />
             </div>
+
+            {(contactDirty || contactSaved) && (
+              <button
+                onClick={saveContact}
+                disabled={savingContact || !contactDirty}
+                className="self-start inline-flex items-center gap-[8px] bg-accent text-white border-none rounded-[10px] px-[16px] py-[9px] font-hanken font-semibold text-[13px] cursor-pointer transition-all duration-150 hover:brightness-[0.93] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {contactSaved ? <><Check size={15} strokeWidth={2} /> Salvo!</>
+                  : savingContact ? 'Salvando…' : 'Salvar contato'}
+              </button>
+            )}
           </div>
 
           {/* Trocar senha */}
@@ -147,12 +197,15 @@ export function ProfilePage({ user, onBack }: Props) {
                   )
                 })}
 
+                {pwError && <p className="font-hanken text-[13px] text-red-500">{pwError}</p>}
+
                 <button
                   onClick={handleSave}
                   disabled={!canSave}
                   className="mt-[4px] inline-flex items-center justify-center gap-[8px] bg-accent text-white border-none rounded-[10px] px-[20px] py-[11px] font-hanken font-semibold text-[14px] cursor-pointer transition-all duration-150 hover:brightness-[0.93] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {saved ? <><Check size={16} strokeWidth={2} /> Senha alterada!</> : 'Salvar nova senha'}
+                  {saved ? <><Check size={16} strokeWidth={2} /> Senha alterada!</>
+                    : saving ? 'Salvando…' : 'Salvar nova senha'}
                 </button>
               </div>
             )}
