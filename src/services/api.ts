@@ -2,9 +2,9 @@
 // Estratégia: token Bearer guardado em localStorage; em 401 tenta /auth/refresh
 // (via cookie) uma vez e repete a chamada. Cookies não são obrigatórios.
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE ??
-  'https://extoapp-api-582146265415.southamerica-east1.run.app/api'
+// Mesmo domínio: em produção o Firebase Hosting faz rewrite de /api → Cloud Run;
+// em dev o Vite faz proxy de /api (ver vite.config.ts). Sem CORS, cookies OK.
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 const TOKEN_KEY = 'exto_access'
 

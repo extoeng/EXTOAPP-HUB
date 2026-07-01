@@ -2,7 +2,7 @@ import type { App, Category } from '../types'
 
 export const APPS: App[] = [
   { id: 'copa-exto',          cat: 'geral',    name: 'Copa Exto',            desc: 'Acompanhe a tabela, resultados e classificação da Copa Exto.', url: 'https://copa.extoapp.com.br', icon: '/copa-exto-icon.png' },
-  { id: 'controle-recepcao', cat: 'geral',    name: 'Controle Recepção',    desc: 'Gerencie o fluxo de visitantes e registros da recepção.', url: 'https://recepcao.extoapp.com.br/login.php', icon: '/recepcao-icon.ico' },
+  { id: 'controle-recepcao', cat: 'geral',    name: 'Controle Recepção',    desc: 'Gerencie o fluxo de visitantes e registros da recepção.', url: 'https://extoapp-11650.web.app', icon: '/recepcao-icon.ico' },
   { id: 'listjur',           cat: 'juridico', name: 'ListJur',              desc: 'Gestão e consulta de processos jurídicos internos.',       icon: '/listjur-icon.svg' },
   { id: 'listjur-gr8',       cat: 'juridico', name: 'ListJur GR8',          desc: 'Módulo GR8 de acompanhamento jurídico especializado.',      icon: '/listjur-icon.svg' },
   { id: 'carimbo-digital',   cat: 'admin',    name: 'Carimbo Digital',      desc: 'Assine e carimbe documentos digitalmente com validade.' },
