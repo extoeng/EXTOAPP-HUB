@@ -3,7 +3,7 @@ import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react'
 import type { AuthUser, LoginCredentials } from '../services/auth'
 import { login } from '../services/auth'
 import logoUrl from '../assets/exto-logo-transparent.png'
-import sedeUrl from '../assets/exto-sede.jpg'
+import sedeUrl from '../assets/exto-sede.webp'
 
 interface Props {
   onLogin: (user: AuthUser) => void
