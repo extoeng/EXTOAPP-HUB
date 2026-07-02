@@ -108,10 +108,15 @@ export async function fetchApps(): Promise<App[] | null> {
 /**
  * Pede um code de curta duração para autenticar num app satélite (SSO
  * cross-domain). O app satélite troca esse code pelos próprios tokens
- * chamando /auth/exchange-code no backend.
+ * chamando /auth/exchange-code no backend. `appSlug` é opcional e só serve
+ * pra popular o `app_slug` da trilha de auditoria (AuthEvent) — não afeta
+ * a validação do code em si.
  */
-export async function getSatelliteCode(): Promise<string | null> {
-  const res = await apiFetch('/auth/satellite-code', { method: 'POST' })
+export async function getSatelliteCode(appSlug?: string): Promise<string | null> {
+  const res = await apiFetch('/auth/satellite-code', {
+    method: 'POST',
+    body: JSON.stringify({ app_slug: appSlug ?? '' }),
+  })
   if (!res.ok) return null
   const data = await res.json()
   return data?.code ?? null

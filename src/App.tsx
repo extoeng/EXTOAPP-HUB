@@ -110,7 +110,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
       // bloqueada como pop-up — o navegador só permite window.open sem bloqueio
       // se ele ocorrer antes de qualquer await.
       const janela = window.open('', '_blank')
-      const code = await getSatelliteCode()
+      const code = await getSatelliteCode(app.id)
       if (!code) {
         // apiFetch já tentou renovar o access e falhou — sessão está morta.
         // Não navega pro satélite sem code; volta pro login (fluxo já existente).
