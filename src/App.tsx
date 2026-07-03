@@ -74,6 +74,11 @@ interface HubProps {
   onSessionExpired: () => void
 }
 
+// Apps que existem no catálogo da API mas não devem virar card no grid/sidebar —
+// o acesso a eles é só pelo atalho dedicado em "Informações úteis" (ver Agendas).
+const HIDDEN_CATALOG_SLUGS = ['agenda-publica']
+const hideCatalogOnly = (list: AppType[]) => list.filter(a => !HIDDEN_CATALOG_SLUGS.includes(a.id))
+
 function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const [page, setPage] = useState<
     { name: 'home' } | { name: 'comunicados'; id: number } | { name: 'manuais'; id: number } | { name: 'profile' }
@@ -83,7 +88,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
   const [menuOpen, setMenuOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [apps, setApps] = useState<AppType[]>(APPS)
+  const [apps, setApps] = useState<AppType[]>(() => hideCatalogOnly(APPS))
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isNarrow = useNarrow(860)
@@ -97,7 +102,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // mantém o estático como fallback se a API falhar.
   useEffect(() => {
     fetchApps().then(list => {
-      if (list && list.length) setApps(list)
+      if (list && list.length) setApps(hideCatalogOnly(list))
     })
   }, [])
 
