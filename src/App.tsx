@@ -79,6 +79,15 @@ interface HubProps {
 const HIDDEN_CATALOG_SLUGS = ['agenda-publica']
 const hideCatalogOnly = (list: AppType[]) => list.filter(a => !HIDDEN_CATALOG_SLUGS.includes(a.id))
 
+// A API pode devolver os apps em outra ordem (ex.: alfabética) — sem isso, o
+// grid "pisca" trocando de posição assim que a resposta chega e substitui o
+// fallback estático. Reordena sempre pela posição definida em data/apps.ts,
+// mantendo apps novos (ainda não catalogados localmente) no fim, na ordem
+// em que a API os enviou.
+const CATALOG_ORDER = new Map(APPS.map((a, i) => [a.id, i]))
+const sortByCatalogOrder = (list: AppType[]) =>
+  [...list].sort((a, b) => (CATALOG_ORDER.get(a.id) ?? Infinity) - (CATALOG_ORDER.get(b.id) ?? Infinity))
+
 function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const [page, setPage] = useState<
     { name: 'home' } | { name: 'comunicados'; id: number } | { name: 'manuais'; id: number } | { name: 'profile' }
@@ -102,7 +111,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // mantém o estático como fallback se a API falhar.
   useEffect(() => {
     fetchApps().then(list => {
-      if (list && list.length) setApps(hideCatalogOnly(list))
+      if (list && list.length) setApps(sortByCatalogOrder(hideCatalogOnly(list)))
     })
   }, [])
 
