@@ -74,11 +74,11 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           </span>
         </button>
 
-        {/* Consultor de Obras — página interna com os dados gerais das obras */}
+        {/* Dados das Obras — página interna com os dados gerais das obras */}
         <button onClick={onOpenObras} className={chipClass}>
           <Building2 size={19} strokeWidth={1.7} className="text-icon-default" />
           <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Consultor de Obras
+            Dados das Obras
           </span>
         </button>
 

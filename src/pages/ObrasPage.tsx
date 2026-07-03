@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft, Search, Building2, MapPin, FileText, Phone, Mail,
   Users, Copy, Check, Hash, Briefcase, X, ChevronRight,
-  HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive,
+  HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive, Handshake,
 } from 'lucide-react'
 import { OBRAS, OBRAS_REVISAO, type Obra, type EquipeMembro } from '../data/obras'
 
@@ -60,7 +60,10 @@ type CategoriaMeta = { label: string; color: string; bg: string; Icon: React.Ele
 
 const CATEGORIA_META: Record<string, CategoriaMeta> = {
   'EXTO - GERAL - STANDS FIXOS': {
-    label: 'Stands Fixos', color: '#6B7280', bg: 'rgba(107,114,128,0.10)', Icon: Building2,
+    label: 'Exto Geral', color: '#6B7280', bg: 'rgba(107,114,128,0.10)', Icon: Building2,
+  },
+  'PARCEIROS': {
+    label: 'Parceiros', color: '#7A5C99', bg: 'rgba(122,92,153,0.10)', Icon: Handshake,
   },
   'OBRAS EM ANDAMENTO': {
     label: 'Em Andamento', color: '#2F8F5B', bg: 'rgba(47,143,91,0.10)', Icon: HardHat,
@@ -88,15 +91,47 @@ function categoriaMeta(categoria: string): CategoriaMeta {
   return CATEGORIA_META[categoria] || CATEGORIA_PADRAO
 }
 
-// Agrupa obras por categoria, respeitando a ordem definida em CATEGORIA_META
-// (categorias desconhecidas vão para o fim, na ordem em que aparecerem).
+// Curadoria de exibição (independente da categoria vinda da planilha):
+// reenquadra obras específicas em grupos de negócio definidos por Wendel.
+// Chave = nome exato da obra; valor = categoria de destino.
+const GRUPO_OVERRIDE: Record<string, string> = {
+  'Casa Viva': 'PARCEIROS',
+  'GR8': 'PARCEIROS',
+  'Espaço Exto Morumbi': 'OBRAS FINALIZADAS',
+}
+
+// Ordem manual dentro de um grupo (quem não estiver na lista vai pro fim,
+// em ordem alfabética). Grupos sem entrada aqui ficam 100% alfabéticos.
+const ORDEM_MANUAL: Record<string, string[]> = {
+  'EXTO - GERAL - STANDS FIXOS': ['Exto Engenharia', 'Exto Incorporações', 'Espaço Exto Perdizes'],
+}
+
+// Categoria efetiva de uma obra (aplica o override de curadoria).
+function catEfetiva(o: Obra): string {
+  return GRUPO_OVERRIDE[o.nome] ?? o.categoria ?? 'Outras'
+}
+
+function ordenarGrupo(key: string, itens: Obra[]): Obra[] {
+  const manual = ORDEM_MANUAL[key]
+  const idx = (nome: string) => {
+    const i = manual ? manual.indexOf(nome) : -1
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i
+  }
+  return [...itens].sort((a, b) => {
+    const d = idx(a.nome) - idx(b.nome)
+    return d !== 0 ? d : a.nome.localeCompare(b.nome, 'pt-BR')
+  })
+}
+
+// Agrupa obras pela categoria efetiva, respeitando a ordem definida em
+// CATEGORIA_META (categorias desconhecidas vão para o fim, na ordem em que aparecerem).
 function agruparPorCategoria(obras: Obra[]): { key: string; meta: CategoriaMeta; itens: Obra[] }[] {
   const porChave = new Map<string, Obra[]>()
   const ordemConhecida = Object.keys(CATEGORIA_META)
   const desconhecidas: string[] = []
 
   for (const o of obras) {
-    const key = o.categoria || 'Outras'
+    const key = catEfetiva(o)
     if (!porChave.has(key)) {
       porChave.set(key, [])
       if (!ordemConhecida.includes(key)) desconhecidas.push(key)
@@ -109,7 +144,7 @@ function agruparPorCategoria(obras: Obra[]): { key: string; meta: CategoriaMeta;
     .map(key => ({
       key,
       meta: categoriaMeta(key),
-      itens: [...porChave.get(key)!].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      itens: ordenarGrupo(key, porChave.get(key)!),
     }))
 }
 
@@ -363,7 +398,7 @@ function ObraDrawer({ obra, onClose }: { obra: Obra; onClose: () => void }) {
             </div>
             <h2 className="m-0 font-archivo font-semibold text-[19px] leading-[1.2] text-ink break-words">{obra.nome}</h2>
             {obra.categoria && (() => {
-              const meta = categoriaMeta(obra.categoria)
+              const meta = categoriaMeta(catEfetiva(obra))
               const CatIcon = meta.Icon
               return (
                 <span
@@ -424,7 +459,7 @@ export function ObrasPage({ onBack }: Props) {
           Voltar
         </button>
         <span className="text-border">|</span>
-        <span className="font-archivo font-semibold text-[14px] text-ink">Consultor de Obras</span>
+        <span className="font-archivo font-semibold text-[14px] text-ink">Dados das Obras</span>
         <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{OBRAS_REVISAO}</span>
       </div>
 
