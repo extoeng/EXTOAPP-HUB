@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft, Search, Building2, MapPin, FileText, Phone, Mail,
-  Users, Copy, Check, Hash, Briefcase, X,
+  Users, Copy, Check, Hash, Briefcase, X, ChevronRight,
 } from 'lucide-react'
-import { OBRAS, OBRAS_REVISAO, type Obra } from '../data/obras'
+import { OBRAS, OBRAS_REVISAO, type Obra, type EquipeMembro } from '../data/obras'
 
 interface Props {
   onBack: () => void
@@ -27,11 +27,40 @@ function haystack(o: Obra): string {
   ].join(' ').toLowerCase()
 }
 
-function CopyButton({ value }: { value: string }) {
+// Extrai "Cidade/UF" de um endereço no formato usado na planilha
+// (ex.: "Av. X nº 1 - Bairro - São Paulo/SP, CEP: ...") → "São Paulo/SP".
+// Cai para um trecho curto do endereço se o padrão não bater.
+function cidadeUF(endereco: string): string {
+  if (!endereco) return ''
+  const m = endereco.match(/([A-Za-zÀ-ú.\s]+\/[A-Z]{2})/)
+  if (m) return m[1].trim()
+  return endereco.split(' - ')[0].slice(0, 40)
+}
+
+// Endereço de fatura (chave "Fatura", senão o primeiro endereço disponível).
+function enderecoFatura(o: Obra): string {
+  return o.enderecos['Fatura'] || Object.values(o.enderecos)[0] || ''
+}
+
+// Escolhe o responsável principal da equipe por prioridade de cargo.
+const CARGO_PRIORIDADE = ['gerente', 'coordenador', 'residente', 'engenh']
+function responsavel(o: Obra): EquipeMembro | null {
+  const equipe = o.equipe.filter(e => e.nome)
+  if (equipe.length === 0) return null
+  for (const termo of CARGO_PRIORIDADE) {
+    const achou = equipe.find(e => e.cargo.toLowerCase().includes(termo))
+    if (achou) return achou
+  }
+  return equipe[0]
+}
+
+function CopyButton({ value, onClick }: { value: string; onClick?: (e: React.MouseEvent) => void }) {
   const [copied, setCopied] = useState(false)
   return (
     <button
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick?.(e)
         navigator.clipboard?.writeText(value).then(() => {
           setCopied(true)
           setTimeout(() => setCopied(false), 1400)
@@ -72,22 +101,6 @@ function ObraDetail({ obra }: { obra: Obra }) {
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-      {/* Cabeçalho da obra */}
-      <div className="px-[28px] py-[22px] border-b border-border bg-surface">
-        <div className="flex items-center gap-[10px] mb-[8px]">
-          {obra.numero && (
-            <span className="inline-flex items-center gap-[3px] font-hanken font-semibold text-[12px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[7px] px-[8px] py-[3px]">
-              <Hash size={11} strokeWidth={2.4} />{obra.numero}
-            </span>
-          )}
-          <span className="font-hanken text-[11.5px] text-text-faint uppercase tracking-[0.05em]">{obra.aba}</span>
-        </div>
-        <h2 className="m-0 font-archivo font-semibold text-[20px] leading-[1.2] text-ink">{obra.nome}</h2>
-        {obra.categoria && (
-          <p className="m-0 mt-[5px] font-hanken text-[12.5px] text-text-muted">{obra.categoria}</p>
-        )}
-      </div>
-
       <div className="px-[28px] py-[20px]">
         <SectionTitle Icon={Building2}>Organização</SectionTitle>
         <Field label="Razão social" value={obra.organizacao || '—'} />
@@ -159,6 +172,142 @@ function ObraDetail({ obra }: { obra: Obra }) {
   )
 }
 
+// ── Cartão da grade ──────────────────────────────────────────────────────────
+function ObraCard({ obra, onOpen }: { obra: Obra; onOpen: () => void }) {
+  const cnpj = obra.documentos['CNPJ'] || ''
+  const tel = obra.telefones.filter(Boolean)[0] || ''
+  const fatura = enderecoFatura(obra)
+  const resp = responsavel(obra)
+
+  return (
+    <button
+      onClick={onOpen}
+      className="group text-left flex flex-col bg-surface border border-border rounded-[14px] p-[16px] cursor-pointer transition-all duration-150 ease-out hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]"
+    >
+      {/* Cabeçalho */}
+      <div className="flex items-start gap-[10px] mb-[12px]">
+        {obra.numero && (
+          <span className="flex-shrink-0 inline-flex items-center gap-[3px] font-hanken font-semibold text-[11.5px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[7px] px-[7px] py-[3px] mt-[1px]">
+            <Hash size={10} strokeWidth={2.6} />{obra.numero}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="font-archivo font-semibold text-[15px] leading-[1.25] text-ink truncate" title={obra.nome}>
+            {obra.nome}
+          </div>
+          <div className="font-hanken text-[12px] text-text-muted leading-[1.35] truncate" title={obra.organizacao}>
+            {obra.organizacao || '—'}
+          </div>
+        </div>
+        <ChevronRight size={16} strokeWidth={1.8} className="flex-shrink-0 text-text-faint opacity-0 group-hover:opacity-100 transition-opacity mt-[2px]" />
+      </div>
+
+      {/* Dados principais */}
+      <div className="flex flex-col gap-[7px] pt-[12px] border-t border-border">
+        {/* CNPJ */}
+        <div className="flex items-center gap-[8px]">
+          <FileText size={14} strokeWidth={1.8} className="flex-shrink-0 text-text-faint" />
+          <span className="flex-1 font-hanken text-[13px] text-ink-soft tabular-nums tracking-[0.01em] truncate">
+            {cnpj || <span className="text-text-faint">sem CNPJ</span>}
+          </span>
+          {cnpj && <CopyButton value={cnpj} />}
+        </div>
+
+        {/* Telefone */}
+        <div className="flex items-center gap-[8px]">
+          <Phone size={14} strokeWidth={1.8} className="flex-shrink-0 text-text-faint" />
+          <span className="flex-1 font-hanken text-[13px] text-ink-soft truncate">
+            {tel || <span className="text-text-faint">—</span>}
+          </span>
+          {tel && <CopyButton value={tel} />}
+        </div>
+
+        {/* Endereço de fatura (cidade/UF) */}
+        <div className="flex items-center gap-[8px]" title={fatura}>
+          <MapPin size={14} strokeWidth={1.8} className="flex-shrink-0 text-text-faint" />
+          <span className="flex-1 font-hanken text-[13px] text-ink-soft truncate">
+            {cidadeUF(fatura) || <span className="text-text-faint">—</span>}
+          </span>
+        </div>
+      </div>
+
+      {/* Responsável */}
+      <div className="flex items-center gap-[9px] mt-[12px] pt-[12px] border-t border-border">
+        {resp ? (
+          <>
+            <div className="flex-shrink-0 w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[11px]">
+              {(resp.nome[0] || '?').toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-hanken font-medium text-[12.5px] text-ink truncate">{resp.nome}</div>
+              <div className="font-hanken text-[11px] text-text-faint truncate">{resp.cargo || 'Responsável'}</div>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center gap-[9px] text-text-faint">
+            <Users size={15} strokeWidth={1.7} />
+            <span className="font-hanken text-[12px]">Sem equipe cadastrada</span>
+          </div>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// ── Gaveta lateral com o detalhe completo ─────────────────────────────────────
+function ObraDrawer({ obra, onClose }: { obra: Obra; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="absolute inset-0 z-[40] flex justify-end">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-[rgba(22,20,18,0.35)] animate-ex-float"
+        onClick={onClose}
+      />
+      {/* Painel */}
+      <div
+        className="relative w-[440px] max-w-[92%] h-full bg-surface border-l border-border flex flex-col shadow-card-hover"
+        style={{ animation: 'exSlideIn 0.22s ease' }}
+      >
+        <style>{`@keyframes exSlideIn { from { transform: translateX(24px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }`}</style>
+
+        {/* Cabeçalho da gaveta */}
+        <div className="flex items-start gap-[12px] px-[28px] py-[20px] border-b border-border flex-shrink-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-[10px] mb-[6px]">
+              {obra.numero && (
+                <span className="inline-flex items-center gap-[3px] font-hanken font-semibold text-[12px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[7px] px-[8px] py-[3px]">
+                  <Hash size={11} strokeWidth={2.4} />{obra.numero}
+                </span>
+              )}
+              <span className="font-hanken text-[11.5px] text-text-faint uppercase tracking-[0.05em] truncate">{obra.aba}</span>
+            </div>
+            <h2 className="m-0 font-archivo font-semibold text-[19px] leading-[1.2] text-ink break-words">{obra.nome}</h2>
+            {obra.categoria && (
+              <p className="m-0 mt-[5px] font-hanken text-[12.5px] text-text-muted break-words">{obra.categoria}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            title="Fechar (Esc)"
+            className="flex-shrink-0 inline-flex items-center justify-center w-[30px] h-[30px] rounded-[9px] border-none bg-tile-bg cursor-pointer text-text-muted hover:text-ink hover:bg-border transition-colors"
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
+        </div>
+
+        <ObraDetail obra={obra} />
+      </div>
+    </div>
+  )
+}
+
+// ── Página ────────────────────────────────────────────────────────────────────
 export function ObrasPage({ onBack }: Props) {
   const [query, setQuery] = useState('')
   const [aba, setAba] = useState<'all' | typeof ABAS[number]>('all')
@@ -174,12 +323,12 @@ export function ObrasPage({ onBack }: Props) {
     })
   }, [q, aba])
 
-  const selected = results.find(o => o.nome === selectedNome) ?? results[0] ?? null
+  const selected = selectedNome ? OBRAS.find(o => o.nome === selectedNome) ?? null : null
 
   const abaCount = (a: typeof ABAS[number]) => OBRAS.filter(o => o.aba === a).length
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="relative flex flex-col h-full overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center gap-[14px] px-[24px] py-[16px] border-b border-border flex-shrink-0">
         <button
@@ -194,92 +343,73 @@ export function ObrasPage({ onBack }: Props) {
         <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{OBRAS_REVISAO}</span>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Lista */}
-        <aside className="flex-shrink-0 flex flex-col border-r border-border" style={{ width: '340px' }}>
-          {/* Busca */}
-          <div className="px-[16px] pt-[14px] pb-[10px] flex-shrink-0">
-            <div className="relative">
-              <Search size={15} strokeWidth={1.8} className="absolute left-[11px] top-1/2 -translate-y-1/2 text-text-faint pointer-events-none" />
+      {/* Toolbar: busca + filtros */}
+      <div className="px-[24px] pt-[16px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
+        <div className="max-w-[1180px] mx-auto">
+          <div className="flex flex-wrap items-center gap-[12px]">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search size={16} strokeWidth={1.8} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-text-faint pointer-events-none" />
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Buscar obra, CNPJ, endereço, equipe…"
-                className="w-full font-hanken text-[13px] text-ink bg-tile-bg border border-transparent rounded-[10px] pl-[34px] pr-[30px] py-[9px] outline-none focus:border-border-hover focus:bg-surface transition-colors placeholder:text-text-faint"
+                placeholder="Buscar obra, CNPJ, endereço, responsável…"
+                className="w-full font-hanken text-[13.5px] text-ink bg-surface border border-border rounded-[11px] pl-[38px] pr-[34px] py-[10px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint"
               />
               {query && (
                 <button
                   onClick={() => setQuery('')}
-                  className="absolute right-[8px] top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[20px] h-[20px] rounded-full border-none bg-transparent cursor-pointer text-text-faint hover:text-ink"
+                  className="absolute right-[9px] top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border-none bg-transparent cursor-pointer text-text-faint hover:text-ink"
                 >
-                  <X size={13} strokeWidth={2} />
+                  <X size={14} strokeWidth={2} />
                 </button>
               )}
             </div>
+            <span className="font-hanken text-[12.5px] text-text-muted whitespace-nowrap">
+              {results.length} de {OBRAS.length} obras · fonte {OBRAS_REVISAO}
+            </span>
+          </div>
 
-            {/* Filtros por aba */}
-            <div className="flex flex-wrap gap-[6px] mt-[10px]">
-              <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={OBRAS.length} />
-              {ABAS.map(a => (
-                <FilterChip key={a} active={aba === a} onClick={() => setAba(a)} label={a} count={abaCount(a)} />
-              ))}
+          {/* Filtros por aba */}
+          <div className="flex flex-wrap gap-[7px] mt-[12px]">
+            <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={OBRAS.length} />
+            {ABAS.map(a => (
+              <FilterChip key={a} active={aba === a} onClick={() => setAba(a)} label={a} count={abaCount(a)} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Grade de cartões */}
+      <div className="flex-1 overflow-y-auto scrollbar-none px-[24px] py-[20px]" style={{ scrollbarWidth: 'none' }}>
+        <div className="max-w-[1180px] mx-auto">
+          {results.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-[12px] py-[80px] text-center text-text-faint">
+              <Briefcase size={44} strokeWidth={1.2} />
+              <span className="font-hanken text-[14px]">Nenhuma obra encontrada</span>
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  className="font-hanken text-[13px] text-accent border-none bg-transparent cursor-pointer hover:underline"
+                >
+                  Limpar busca
+                </button>
+              )}
             </div>
-          </div>
-
-          {/* Resultados */}
-          <div className="flex-1 overflow-y-auto scrollbar-none border-t border-border" style={{ scrollbarWidth: 'none' }}>
-            {results.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-[10px] py-[48px] px-[20px] text-center text-text-faint">
-                <Search size={32} strokeWidth={1.2} />
-                <span className="font-hanken text-[13px]">Nenhuma obra encontrada</span>
-              </div>
-            ) : (
-              results.map(o => {
-                const isSel = selected?.nome === o.nome
-                return (
-                  <button
-                    key={o.nome + o.numero}
-                    onClick={() => setSelectedNome(o.nome)}
-                    className={`w-full text-left px-[16px] py-[12px] border-none cursor-pointer transition-colors duration-150 flex items-center gap-[11px] border-b border-border last:border-b-0 ${isSel ? 'bg-[rgba(174,58,35,0.06)]' : 'bg-transparent hover:bg-tile-bg'}`}
-                  >
-                    <div
-                      className="flex-shrink-0 w-[36px] h-[36px] rounded-[10px] flex items-center justify-center"
-                      style={{ background: isSel ? 'rgba(174,58,35,0.12)' : '#F0EDE8' }}
-                    >
-                      <Building2 size={16} strokeWidth={1.7} style={{ color: isSel ? '#AE3A23' : '#9A958F' }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-hanken font-medium text-[13px] leading-[1.3] truncate" style={{ color: isSel ? '#AE3A23' : 'var(--color-ink)' }}>
-                        {o.nome}
-                      </div>
-                      <div className="font-hanken text-[11.5px] text-text-faint truncate">
-                        {o.organizacao}{o.numero ? ` · Nº ${o.numero}` : ''}
-                      </div>
-                    </div>
-                    {isSel && <div className="flex-shrink-0 w-[3px] self-stretch rounded-full bg-accent -mr-[16px]" />}
-                  </button>
-                )
-              })
-            )}
-          </div>
-
-          <div className="flex-shrink-0 px-[16px] py-[9px] border-t border-border font-hanken text-[11px] text-text-faint">
-            {results.length} de {OBRAS.length} obras · fonte {OBRAS_REVISAO}
-          </div>
-        </aside>
-
-        {/* Detalhe */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-[#F5F3F0]">
-          {selected ? (
-            <ObraDetail obra={selected} />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-[12px] text-text-faint">
-              <Briefcase size={48} strokeWidth={1.2} />
-              <span className="font-hanken text-[14px]">Selecione uma obra</span>
+            <div
+              className="grid gap-[16px]"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}
+            >
+              {results.map(o => (
+                <ObraCard key={o.nome + o.numero} obra={o} onOpen={() => setSelectedNome(o.nome)} />
+              ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Gaveta de detalhe */}
+      {selected && <ObraDrawer obra={selected} onClose={() => setSelectedNome(null)} />}
     </div>
   )
 }
@@ -288,7 +418,7 @@ function FilterChip({ active, onClick, label, count }: { active: boolean; onClic
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-[5px] font-hanken font-medium text-[11.5px] rounded-[8px] px-[9px] py-[4px] cursor-pointer border transition-colors duration-150 ${
+      className={`inline-flex items-center gap-[6px] font-hanken font-medium text-[12px] rounded-[8px] px-[11px] py-[6px] cursor-pointer border transition-colors duration-150 ${
         active
           ? 'bg-accent text-white border-accent'
           : 'bg-surface text-text-muted border-border hover:border-border-hover'
