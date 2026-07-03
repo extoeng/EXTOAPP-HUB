@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
+import { COMUNICADOS } from './data/comunicados'
+import { MANUAIS } from './data/manuais'
 import type { ActiveCat, App as AppType } from './types'
 import type { AuthUser } from './services/auth'
 import { getMe, fetchApps, getSatelliteCode, logout as apiLogout } from './services/auth'
@@ -8,6 +10,7 @@ import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { LoginPage } from './pages/LoginPage'
 import { ComunicadosPage } from './pages/ComunicadosPage'
+import { ManuaisPage } from './pages/ManuaisPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
@@ -72,7 +75,9 @@ interface HubProps {
 }
 
 function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
-  const [page, setPage] = useState<{ name: 'home' } | { name: 'comunicados'; id: number } | { name: 'profile' }>({ name: 'home' })
+  const [page, setPage] = useState<
+    { name: 'home' } | { name: 'comunicados'; id: number } | { name: 'manuais'; id: number } | { name: 'profile' }
+  >({ name: 'home' })
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState<ActiveCat>('all')
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
@@ -96,6 +101,27 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     })
   }, [])
 
+  // Handoff SSO cross-domain (Fase 1, interina): abre o satélite já autenticado
+  // via code de curta duração. Reutilizado por qualquer app/atalho com SSO,
+  // esteja ele no catálogo (apps[]) ou seja um atalho estático (ex.: Agendas).
+  const openViaSatelliteHandoff = async (appSlug: string, url: string) => {
+    // Abre a aba já (síncrono, dentro do gesto de clique) para não ser
+    // bloqueada como pop-up — o navegador só permite window.open sem bloqueio
+    // se ele ocorrer antes de qualquer await.
+    const janela = window.open('', '_blank')
+    const code = await getSatelliteCode(appSlug)
+    if (!code) {
+      // apiFetch já tentou renovar o access e falhou — sessão está morta.
+      // Não navega pro satélite sem code; volta pro login (fluxo já existente).
+      onSessionExpired()
+      janela?.close()
+      return
+    }
+    const target = `${url}${url.includes('?') ? '&' : '?'}code=${encodeURIComponent(code)}`
+    if (janela) janela.location.href = target
+    else window.open(target, '_blank', 'noopener,noreferrer') // fallback se a 1ª chamada foi bloqueada
+  }
+
   const openApp = async (name: string) => {
     const app = apps.find(a => a.name === name)
     if (!app?.url) {
@@ -106,26 +132,14 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     }
 
     if (app.ssoEnabled) {
-      // Abre a aba já (síncrono, dentro do gesto de clique) para não ser
-      // bloqueada como pop-up — o navegador só permite window.open sem bloqueio
-      // se ele ocorrer antes de qualquer await.
-      const janela = window.open('', '_blank')
-      const code = await getSatelliteCode(app.id)
-      if (!code) {
-        // apiFetch já tentou renovar o access e falhou — sessão está morta.
-        // Não navega pro satélite sem code; volta pro login (fluxo já existente).
-        onSessionExpired()
-        janela?.close()
-        return
-      }
-      const target = `${app.url}${app.url.includes('?') ? '&' : '?'}code=${encodeURIComponent(code)}`
-      if (janela) janela.location.href = target
-      else window.open(target, '_blank', 'noopener,noreferrer') // fallback se a 1ª chamada foi bloqueada
+      await openViaSatelliteHandoff(app.id, app.url)
       return
     }
 
     window.open(app.url, '_blank', 'noopener,noreferrer')
   }
+
+  const openAgenda = () => openViaSatelliteHandoff('agenda-publica', 'https://extoapp-agenda.web.app')
 
   const toggleFav = (id: string) => {
     setFavs(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id])
@@ -165,6 +179,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         user={user}
         apps={apps}
         onSetCat={setActiveCat}
+        onOpenApp={openApp}
         onClose={() => setMenuOpen(false)}
         onLogout={onLogout}
         onOpenProfile={() => setPage({ name: 'profile' })}
@@ -182,6 +197,14 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           {page.name === 'comunicados' && (
             <div className="flex-1 overflow-hidden bg-bg-app">
               <ComunicadosPage
+                initialId={page.id}
+                onBack={() => setPage({ name: 'home' })}
+              />
+            </div>
+          )}
+          {page.name === 'manuais' && (
+            <div className="flex-1 overflow-hidden bg-bg-app">
+              <ManuaisPage
                 initialId={page.id}
                 onBack={() => setPage({ name: 'home' })}
               />
@@ -217,7 +240,15 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               </div>
             )}
 
-            {showExtras && <RecentShortcuts apps={recentApps} onOpen={openApp} />}
+            {showExtras && (
+              <RecentShortcuts
+                apps={recentApps}
+                onOpen={openApp}
+                onOpenComunicados={() => setPage({ name: 'comunicados', id: COMUNICADOS[0].id })}
+                onOpenManuais={() => setPage({ name: 'manuais', id: MANUAIS[0].id })}
+                onOpenAgenda={openAgenda}
+              />
+            )}
 
             {showExtras && favApps.length > 0 && (
               <div className="mt-[30px]">

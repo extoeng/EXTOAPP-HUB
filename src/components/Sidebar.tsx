@@ -1,4 +1,5 @@
-import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList } from 'lucide-react'
+import { useState } from 'react'
+import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList, ChevronRight } from 'lucide-react'
 import type { ActiveCat, Category, App } from '../types'
 import type { AuthUser } from '../services/auth'
 import logoUrl from '../assets/exto-logo-transparent.png'
@@ -24,6 +25,7 @@ interface Props {
   user: AuthUser
   apps: App[]
   onSetCat: (cat: ActiveCat) => void
+  onOpenApp: (name: string) => void
   onClose: () => void
   onLogout: () => void
   onOpenProfile: () => void
@@ -58,12 +60,88 @@ function NavItem({ id, label, Icon, activeCat, onClick }: {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onClose, onLogout, onOpenProfile }: Props) {
+function CategoryNavItem({ id, label, Icon, apps, activeCat, expanded, onToggle, onOpenApp }: {
+  id: Category
+  label: string
+  Icon: React.ElementType
+  apps: App[]
+  activeCat: ActiveCat
+  expanded: boolean
+  onToggle: () => void
+  onOpenApp: (name: string) => void
+}) {
+  const active = activeCat === id
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={`
+          w-full flex items-center gap-[12px] px-[12px] py-[10px] rounded-[10px] cursor-pointer
+          font-hanken font-medium text-[14px] leading-none
+          transition-colors duration-150
+          hover:bg-tile-bg border-none
+          ${active ? 'bg-[rgba(174,58,35,0.08)] text-ink' : 'bg-transparent text-text-muted'}
+        `}
+      >
+        <Icon size={19} strokeWidth={1.7} style={{ color: active ? '#AE3A23' : '#9C978F' }} />
+        <span className="flex-1 text-left">{label}</span>
+        <ChevronRight
+          size={15}
+          strokeWidth={2}
+          className="transition-transform duration-150 flex-shrink-0"
+          style={{ color: '#B9B4AC', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
+      </button>
+
+      {expanded && (
+        <div className="flex flex-col gap-[1px] mt-[2px] ml-[19px] pl-[13px] border-l border-border-3">
+          {apps.map(app => (
+            <button
+              key={app.id}
+              onClick={() => onOpenApp(app.name)}
+              className="
+                w-full flex items-center gap-[9px] px-[10px] py-[8px] rounded-[8px] cursor-pointer
+                font-hanken font-normal text-[13px] leading-none text-text-muted
+                transition-colors duration-150 hover:bg-tile-bg hover:text-ink border-none bg-transparent
+                text-left
+              "
+            >
+              {app.icon
+                ? <img src={app.icon} alt="" className="w-[16px] h-[16px] rounded-[4px] object-cover flex-shrink-0" />
+                : <span className="w-[5px] h-[5px] rounded-full bg-[#CBC6BE] flex-shrink-0" />
+              }
+              <span className="truncate">{app.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile }: Props) {
   const activeCats = new Set(apps.map(a => a.cat))
   const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
+  const [expanded, setExpanded] = useState<Set<Category>>(new Set())
+
+  const toggleCat = (cat: Category) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+    onSetCat(cat)
+  }
 
   const handleCat = (cat: ActiveCat) => {
     onSetCat(cat)
+    if (isNarrow) onClose()
+  }
+
+  const handleOpenApp = (name: string) => {
+    onOpenApp(name)
     if (isNarrow) onClose()
   }
 
@@ -113,7 +191,17 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
           Categorias
         </div>
         {navCats.map(({ id, label, Icon }) => (
-          <NavItem key={id} id={id} label={label} Icon={Icon} activeCat={activeCat} onClick={() => handleCat(id)} />
+          <CategoryNavItem
+            key={id}
+            id={id}
+            label={label}
+            Icon={Icon}
+            apps={apps.filter(a => a.cat === id)}
+            activeCat={activeCat}
+            expanded={expanded.has(id)}
+            onToggle={() => toggleCat(id)}
+            onOpenApp={handleOpenApp}
+          />
         ))}
       </nav>
 

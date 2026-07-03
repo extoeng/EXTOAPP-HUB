@@ -1,16 +1,16 @@
 import { DocumentLibrary } from '../components/DocumentLibrary'
-import { COMUNICADOS } from '../data/comunicados'
+import { MANUAIS } from '../data/manuais'
 
 interface Props {
   initialId?: number
   onBack: () => void
 }
 
-export function ComunicadosPage({ initialId, onBack }: Props) {
+export function ManuaisPage({ initialId, onBack }: Props) {
   return (
     <DocumentLibrary
-      title="Comunicados"
-      items={COMUNICADOS}
+      title="Manuais"
+      items={MANUAIS}
       initialId={initialId}
       onBack={onBack}
     />

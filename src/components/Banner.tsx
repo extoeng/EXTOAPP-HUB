@@ -2,7 +2,8 @@ import { ArrowRight, Calendar } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { COMUNICADOS } from '../data/comunicados'
 
-const INTERVAL_MS = 5000
+const INTERVAL_MS = 8000
+const TRANSITION_MS = 650
 
 interface Props {
   onRead: (id: number) => void
@@ -18,7 +19,7 @@ export function Banner({ onRead }: Props) {
       setTimeout(() => {
         setIndex(i => (i + 1) % COMUNICADOS.length)
         setVisible(true)
-      }, 350)
+      }, TRANSITION_MS)
     }, INTERVAL_MS)
     return () => clearInterval(timer)
   }, [])
@@ -26,15 +27,20 @@ export function Banner({ onRead }: Props) {
   const c = COMUNICADOS[index]
 
   const goTo = (i: number) => {
+    if (i === index) return
     setVisible(false)
-    setTimeout(() => { setIndex(i); setVisible(true) }, 350)
+    setTimeout(() => { setIndex(i); setVisible(true) }, TRANSITION_MS)
   }
 
   return (
     <div>
       <div
         className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[22px] flex items-center gap-[26px]"
-        style={{ transition: 'opacity 0.35s ease', opacity: visible ? 1 : 0 }}
+        style={{
+          transition: `opacity ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(6px)',
+        }}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-[12px] mb-[11px]">

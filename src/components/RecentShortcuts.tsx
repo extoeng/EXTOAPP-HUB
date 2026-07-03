@@ -1,4 +1,4 @@
-import { Clock, Receipt, Building2, LifeBuoy, Phone, CalendarDays } from 'lucide-react'
+import { Clock, Receipt, Building2, LifeBuoy, Phone, CalendarDays, Megaphone, BookOpen } from 'lucide-react'
 import type { App } from '../types'
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -9,16 +9,18 @@ const ICON_MAP: Record<string, React.ElementType> = {
 }
 
 const QUICK_CARDS = [
-  { id: 'ramais',  label: 'Ramais',  Icon: Phone,        url: '' },
-  { id: 'agendas', label: 'Agendas', Icon: CalendarDays, url: 'https://recepcao.extoapp.com.br' },
+  { id: 'ramais', label: 'Ramais', Icon: Phone, url: '' },
 ]
 
 interface Props {
   apps: App[]
   onOpen: (name: string) => void
+  onOpenComunicados: () => void
+  onOpenManuais: () => void
+  onOpenAgenda: () => void
 }
 
-export function RecentShortcuts({ apps, onOpen }: Props) {
+export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda }: Props) {
   return (
     <div>
       <div className="mt-[30px] mb-[14px]">
@@ -47,6 +49,51 @@ export function RecentShortcuts({ apps, onOpen }: Props) {
             </button>
           )
         })}
+
+        <button
+          onClick={onOpenComunicados}
+          className="
+            flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
+            px-[15px] py-[11px] cursor-pointer
+            transition-all duration-150 ease-out
+            hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
+          "
+        >
+          <Megaphone size={19} strokeWidth={1.7} className="text-icon-default" />
+          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+            Comunicados
+          </span>
+        </button>
+
+        <button
+          onClick={onOpenManuais}
+          className="
+            flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
+            px-[15px] py-[11px] cursor-pointer
+            transition-all duration-150 ease-out
+            hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
+          "
+        >
+          <BookOpen size={19} strokeWidth={1.7} className="text-icon-default" />
+          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+            Manuais
+          </span>
+        </button>
+
+        <button
+          onClick={onOpenAgenda}
+          className="
+            flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
+            px-[15px] py-[11px] cursor-pointer
+            transition-all duration-150 ease-out
+            hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
+          "
+        >
+          <CalendarDays size={19} strokeWidth={1.7} className="text-icon-default" />
+          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+            Agendas
+          </span>
+        </button>
 
         {QUICK_CARDS.map(({ id, label, Icon, url }) => (
           <button

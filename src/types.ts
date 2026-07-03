@@ -23,3 +23,13 @@ export interface AppState {
   isNarrow: boolean
   toast: string | null
 }
+
+/** Item de uma biblioteca de documentos (Comunicados, Manuais...). */
+export interface LibraryDoc {
+  id: number
+  date: string
+  dateISO: string
+  title: string
+  desc: string
+  pdfUrl?: string
+}
