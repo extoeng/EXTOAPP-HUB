@@ -11,6 +11,7 @@ import { useGreeting } from './hooks/useGreeting'
 import { LoginPage } from './pages/LoginPage'
 import { ComunicadosPage } from './pages/ComunicadosPage'
 import { ManuaisPage } from './pages/ManuaisPage'
+import { ObrasPage } from './pages/ObrasPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
@@ -90,7 +91,7 @@ const sortByCatalogOrder = (list: AppType[]) =>
 
 function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const [page, setPage] = useState<
-    { name: 'home' } | { name: 'comunicados'; id: number } | { name: 'manuais'; id: number } | { name: 'profile' }
+    { name: 'home' } | { name: 'comunicados'; id: number } | { name: 'manuais'; id: number } | { name: 'profile' } | { name: 'obras' }
   >({ name: 'home' })
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState<ActiveCat>('all')
@@ -233,6 +234,11 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               />
             </div>
           )}
+          {page.name === 'obras' && (
+            <div className="flex-1 overflow-hidden bg-bg-app">
+              <ObrasPage onBack={() => setPage({ name: 'home' })} />
+            </div>
+          )}
           <main className={`flex-1 overflow-y-auto px-[24px] pt-[26px] pb-[64px] scrollbar-none${page.name !== 'home' ? ' hidden' : ''}`} style={{ scrollbarWidth: 'none' as const }}>
           <div className="max-w-[1180px] mx-auto">
 
@@ -261,6 +267,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
                 onOpenComunicados={() => setPage({ name: 'comunicados', id: COMUNICADOS[0].id })}
                 onOpenManuais={() => setPage({ name: 'manuais', id: MANUAIS[0].id })}
                 onOpenAgenda={openAgenda}
+                onOpenObras={() => setPage({ name: 'obras' })}
               />
             )}
 

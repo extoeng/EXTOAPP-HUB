@@ -20,6 +20,9 @@ dist-ssr
 .env.*
 !.env.example
 
+# Ferramentas locais (Claude Code) — não fazem parte do projeto
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

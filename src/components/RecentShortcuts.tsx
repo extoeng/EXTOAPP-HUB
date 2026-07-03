@@ -18,9 +18,17 @@ interface Props {
   onOpenComunicados: () => void
   onOpenManuais: () => void
   onOpenAgenda: () => void
+  onOpenObras: () => void
 }
 
-export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda }: Props) {
+const chipClass = `
+  flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
+  px-[15px] py-[11px] cursor-pointer
+  transition-all duration-150 ease-out
+  hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
+`
+
+export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras }: Props) {
   return (
     <div>
       <div className="mt-[30px] mb-[14px]">
@@ -35,12 +43,7 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
             <button
               key={app.id}
               onClick={() => onOpen(app.name)}
-              className="
-                flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
-                px-[15px] py-[11px] cursor-pointer
-                transition-all duration-150 ease-out
-                hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
-              "
+              className={chipClass}
             >
               {Icon && <Icon size={19} strokeWidth={1.7} className="text-icon-default" />}
               <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
@@ -50,48 +53,32 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           )
         })}
 
-        <button
-          onClick={onOpenComunicados}
-          className="
-            flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
-            px-[15px] py-[11px] cursor-pointer
-            transition-all duration-150 ease-out
-            hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
-          "
-        >
+        <button onClick={onOpenComunicados} className={chipClass}>
           <Megaphone size={19} strokeWidth={1.7} className="text-icon-default" />
           <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
             Comunicados
           </span>
         </button>
 
-        <button
-          onClick={onOpenManuais}
-          className="
-            flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
-            px-[15px] py-[11px] cursor-pointer
-            transition-all duration-150 ease-out
-            hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
-          "
-        >
+        <button onClick={onOpenManuais} className={chipClass}>
           <BookOpen size={19} strokeWidth={1.7} className="text-icon-default" />
           <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
             Manuais
           </span>
         </button>
 
-        <button
-          onClick={onOpenAgenda}
-          className="
-            flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
-            px-[15px] py-[11px] cursor-pointer
-            transition-all duration-150 ease-out
-            hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
-          "
-        >
+        <button onClick={onOpenAgenda} className={chipClass}>
           <CalendarDays size={19} strokeWidth={1.7} className="text-icon-default" />
           <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
             Agendas
+          </span>
+        </button>
+
+        {/* Consultor de Obras — página interna com os dados gerais das obras */}
+        <button onClick={onOpenObras} className={chipClass}>
+          <Building2 size={19} strokeWidth={1.7} className="text-icon-default" />
+          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+            Consultor de Obras
           </span>
         </button>
 
@@ -99,12 +86,7 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           <button
             key={id}
             onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
-            className="
-              flex-none flex items-center gap-[11px] bg-surface border border-border rounded-[12px]
-              px-[15px] py-[11px] cursor-pointer
-              transition-all duration-150 ease-out
-              hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
-            "
+            className={chipClass}
           >
             <Icon size={19} strokeWidth={1.7} className="text-icon-default" />
             <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
