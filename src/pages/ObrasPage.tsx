@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft, Search, Building2, MapPin, FileText, Phone, Mail,
   Users, Copy, Check, Hash, Briefcase, X, ChevronRight,
+  HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive,
 } from 'lucide-react'
 import { OBRAS, OBRAS_REVISAO, type Obra, type EquipeMembro } from '../data/obras'
 
@@ -27,19 +28,18 @@ function haystack(o: Obra): string {
   ].join(' ').toLowerCase()
 }
 
-// Extrai "Cidade/UF" de um endereço no formato usado na planilha
-// (ex.: "Av. X nº 1 - Bairro - São Paulo/SP, CEP: ...") → "São Paulo/SP".
-// Cai para um trecho curto do endereço se o padrão não bater.
-function cidadeUF(endereco: string): string {
-  if (!endereco) return ''
-  const m = endereco.match(/([A-Za-zÀ-ú.\s]+\/[A-Z]{2})/)
-  if (m) return m[1].trim()
-  return endereco.split(' - ')[0].slice(0, 40)
+// Endereço do local físico da obra. "Fatura" é o endereço da sede
+// corporativa (repetido em quase todas as obras) — "Entrega"/"Cobrança"
+// é o que de fato diferencia cada obra/stand.
+function enderecoPrincipal(o: Obra): string {
+  return o.enderecos['Entrega'] || o.enderecos['Cobrança'] || o.enderecos['Fatura'] || Object.values(o.enderecos)[0] || ''
 }
 
-// Endereço de fatura (chave "Fatura", senão o primeiro endereço disponível).
-function enderecoFatura(o: Obra): string {
-  return o.enderecos['Fatura'] || Object.values(o.enderecos)[0] || ''
+// Rua + número, sem bairro/cidade/CEP — é o trecho que realmente muda
+// de obra pra obra (a cidade é quase sempre "São Paulo/SP").
+function enderecoResumo(endereco: string): string {
+  if (!endereco) return ''
+  return endereco.split(' - ')[0].trim()
 }
 
 // Escolhe o responsável principal da equipe por prioridade de cargo.
@@ -52,6 +52,65 @@ function responsavel(o: Obra): EquipeMembro | null {
     if (achou) return achou
   }
   return equipe[0]
+}
+
+// Diferenciação visual por estágio da obra (campo "categoria" da planilha).
+// A ordem das chaves define a ordem em que os grupos aparecem na tela.
+type CategoriaMeta = { label: string; color: string; bg: string; Icon: React.ElementType }
+
+const CATEGORIA_META: Record<string, CategoriaMeta> = {
+  'EXTO - GERAL - STANDS FIXOS': {
+    label: 'Stands Fixos', color: '#6B7280', bg: 'rgba(107,114,128,0.10)', Icon: Building2,
+  },
+  'OBRAS EM ANDAMENTO': {
+    label: 'Em Andamento', color: '#2F8F5B', bg: 'rgba(47,143,91,0.10)', Icon: HardHat,
+  },
+  'PRÓXIMOS LANÇAMENTOS': {
+    label: 'Próximo Lançamento', color: '#3D6FB4', bg: 'rgba(61,111,180,0.10)', Icon: Rocket,
+  },
+  'SPEs EM ABERTO': {
+    label: 'SPE em Aberto', color: '#B8862B', bg: 'rgba(184,134,43,0.10)', Icon: Hourglass,
+  },
+  'OBRAS RECÉM FINALIZADAS - ASSITENCIA TECNICA': {
+    label: 'Assistência Técnica', color: '#2596A1', bg: 'rgba(37,150,161,0.10)', Icon: Wrench,
+  },
+  'OBRAS FINALIZADAS': {
+    label: 'Finalizada', color: '#57534E', bg: 'rgba(87,83,78,0.10)', Icon: CheckCircle2,
+  },
+  'SPEs FINALIZADAS / NÃO UTILIZADAS': {
+    label: 'SPE Inativa', color: '#9A958D', bg: 'rgba(154,149,141,0.10)', Icon: Archive,
+  },
+}
+const CATEGORIA_PADRAO: CategoriaMeta = {
+  label: 'Outras', color: '#9A958D', bg: 'rgba(154,149,141,0.10)', Icon: Briefcase,
+}
+function categoriaMeta(categoria: string): CategoriaMeta {
+  return CATEGORIA_META[categoria] || CATEGORIA_PADRAO
+}
+
+// Agrupa obras por categoria, respeitando a ordem definida em CATEGORIA_META
+// (categorias desconhecidas vão para o fim, na ordem em que aparecerem).
+function agruparPorCategoria(obras: Obra[]): { key: string; meta: CategoriaMeta; itens: Obra[] }[] {
+  const porChave = new Map<string, Obra[]>()
+  const ordemConhecida = Object.keys(CATEGORIA_META)
+  const desconhecidas: string[] = []
+
+  for (const o of obras) {
+    const key = o.categoria || 'Outras'
+    if (!porChave.has(key)) {
+      porChave.set(key, [])
+      if (!ordemConhecida.includes(key)) desconhecidas.push(key)
+    }
+    porChave.get(key)!.push(o)
+  }
+
+  return [...ordemConhecida, ...desconhecidas]
+    .filter(key => porChave.has(key))
+    .map(key => ({
+      key,
+      meta: categoriaMeta(key),
+      itens: [...porChave.get(key)!].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    }))
 }
 
 function CopyButton({ value, onClick }: { value: string; onClick?: (e: React.MouseEvent) => void }) {
@@ -173,21 +232,28 @@ function ObraDetail({ obra }: { obra: Obra }) {
 }
 
 // ── Cartão da grade ──────────────────────────────────────────────────────────
-function ObraCard({ obra, onOpen }: { obra: Obra; onOpen: () => void }) {
+function ObraCard({ obra, meta, onOpen }: { obra: Obra; meta: CategoriaMeta; onOpen: () => void }) {
   const cnpj = obra.documentos['CNPJ'] || ''
   const tel = obra.telefones.filter(Boolean)[0] || ''
-  const fatura = enderecoFatura(obra)
+  const endereco = enderecoPrincipal(obra)
   const resp = responsavel(obra)
+  const CatIcon = meta.Icon
 
   return (
     <button
       onClick={onOpen}
-      className="group text-left flex flex-col bg-surface border border-border rounded-[14px] p-[16px] cursor-pointer transition-all duration-150 ease-out hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]"
+      className="group text-left flex flex-col bg-surface border border-border rounded-[14px] p-[16px] cursor-pointer transition-all duration-150 ease-out hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px] overflow-hidden"
     >
+      {/* Barra de categoria — reforça a diferenciação mesmo sem ler o selo */}
+      <div className="h-[4px] w-full -mt-[16px] -mx-[16px] mb-[13px]" style={{ background: meta.color }} />
+
       {/* Cabeçalho */}
-      <div className="flex items-start gap-[10px] mb-[12px]">
+      <div className="flex items-start gap-[10px] mb-[10px]">
         {obra.numero && (
-          <span className="flex-shrink-0 inline-flex items-center gap-[3px] font-hanken font-semibold text-[11.5px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[7px] px-[7px] py-[3px] mt-[1px]">
+          <span
+            className="flex-shrink-0 inline-flex items-center gap-[3px] font-hanken font-semibold text-[11.5px] rounded-[7px] px-[7px] py-[3px] mt-[1px]"
+            style={{ color: meta.color, background: meta.bg }}
+          >
             <Hash size={10} strokeWidth={2.6} />{obra.numero}
           </span>
         )}
@@ -201,6 +267,14 @@ function ObraCard({ obra, onOpen }: { obra: Obra; onOpen: () => void }) {
         </div>
         <ChevronRight size={16} strokeWidth={1.8} className="flex-shrink-0 text-text-faint opacity-0 group-hover:opacity-100 transition-opacity mt-[2px]" />
       </div>
+
+      {/* Selo de categoria */}
+      <span
+        className="self-start inline-flex items-center gap-[4px] font-hanken font-semibold text-[10px] uppercase tracking-[0.04em] rounded-[5px] px-[6px] py-[2.5px] mb-[12px]"
+        style={{ color: meta.color, background: meta.bg }}
+      >
+        <CatIcon size={10} strokeWidth={2.4} />{meta.label}
+      </span>
 
       {/* Dados principais */}
       <div className="flex flex-col gap-[7px] pt-[12px] border-t border-border">
@@ -222,11 +296,11 @@ function ObraCard({ obra, onOpen }: { obra: Obra; onOpen: () => void }) {
           {tel && <CopyButton value={tel} />}
         </div>
 
-        {/* Endereço de fatura (cidade/UF) */}
-        <div className="flex items-center gap-[8px]" title={fatura}>
+        {/* Endereço da obra (rua + número — a cidade é quase sempre SP) */}
+        <div className="flex items-center gap-[8px]" title={endereco}>
           <MapPin size={14} strokeWidth={1.8} className="flex-shrink-0 text-text-faint" />
           <span className="flex-1 font-hanken text-[13px] text-ink-soft truncate">
-            {cidadeUF(fatura) || <span className="text-text-faint">—</span>}
+            {enderecoResumo(endereco) || <span className="text-text-faint">—</span>}
           </span>
         </div>
       </div>
@@ -288,9 +362,18 @@ function ObraDrawer({ obra, onClose }: { obra: Obra; onClose: () => void }) {
               <span className="font-hanken text-[11.5px] text-text-faint uppercase tracking-[0.05em] truncate">{obra.aba}</span>
             </div>
             <h2 className="m-0 font-archivo font-semibold text-[19px] leading-[1.2] text-ink break-words">{obra.nome}</h2>
-            {obra.categoria && (
-              <p className="m-0 mt-[5px] font-hanken text-[12.5px] text-text-muted break-words">{obra.categoria}</p>
-            )}
+            {obra.categoria && (() => {
+              const meta = categoriaMeta(obra.categoria)
+              const CatIcon = meta.Icon
+              return (
+                <span
+                  className="inline-flex items-center gap-[4px] font-hanken font-semibold text-[10.5px] uppercase tracking-[0.04em] rounded-[5px] px-[7px] py-[3px] mt-[8px]"
+                  style={{ color: meta.color, background: meta.bg }}
+                >
+                  <CatIcon size={11} strokeWidth={2.4} />{meta.label}
+                </span>
+              )
+            })()}
           </div>
           <button
             onClick={onClose}
@@ -327,6 +410,8 @@ export function ObrasPage({ onBack }: Props) {
 
   const abaCount = (a: typeof ABAS[number]) => OBRAS.filter(o => o.aba === a).length
 
+  const grupos = useMemo(() => agruparPorCategoria(results), [results])
+
   return (
     <div className="relative flex flex-col h-full overflow-hidden">
       {/* Top bar */}
@@ -345,7 +430,7 @@ export function ObrasPage({ onBack }: Props) {
 
       {/* Toolbar: busca + filtros */}
       <div className="px-[24px] pt-[16px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
-        <div className="max-w-[1180px] mx-auto">
+        <div className="max-w-[1760px] mx-auto">
           <div className="flex flex-wrap items-center gap-[12px]">
             <div className="relative flex-1 min-w-[240px]">
               <Search size={16} strokeWidth={1.8} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-text-faint pointer-events-none" />
@@ -381,7 +466,7 @@ export function ObrasPage({ onBack }: Props) {
 
       {/* Grade de cartões */}
       <div className="flex-1 overflow-y-auto scrollbar-none px-[24px] py-[20px]" style={{ scrollbarWidth: 'none' }}>
-        <div className="max-w-[1180px] mx-auto">
+        <div className="max-w-[1760px] mx-auto">
           {results.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-[12px] py-[80px] text-center text-text-faint">
               <Briefcase size={44} strokeWidth={1.2} />
@@ -396,14 +481,36 @@ export function ObrasPage({ onBack }: Props) {
               )}
             </div>
           ) : (
-            <div
-              className="grid gap-[16px]"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}
-            >
-              {results.map(o => (
-                <ObraCard key={o.nome + o.numero} obra={o} onOpen={() => setSelectedNome(o.nome)} />
-              ))}
-            </div>
+            grupos.map(g => (
+              <div key={g.key} className="mb-[30px] last:mb-0">
+                {grupos.length > 1 && (
+                  <div className="flex items-center gap-[9px] mb-[13px]">
+                    <span
+                      className="inline-flex items-center justify-center w-[24px] h-[24px] rounded-[7px]"
+                      style={{ background: g.meta.bg }}
+                    >
+                      <g.meta.Icon size={13} strokeWidth={2.2} style={{ color: g.meta.color }} />
+                    </span>
+                    <h4
+                      className="m-0 font-archivo font-semibold text-[12.5px] tracking-[0.05em] uppercase"
+                      style={{ color: g.meta.color }}
+                    >
+                      {g.meta.label}
+                    </h4>
+                    <span className="font-hanken text-[11.5px] text-text-faint">{g.itens.length}</span>
+                    <div className="flex-1 h-px" style={{ background: g.meta.bg }} />
+                  </div>
+                )}
+                <div
+                  className="grid gap-[16px]"
+                  style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
+                >
+                  {g.itens.map(o => (
+                    <ObraCard key={o.nome + o.numero} obra={o} meta={g.meta} onOpen={() => setSelectedNome(o.nome)} />
+                  ))}
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
