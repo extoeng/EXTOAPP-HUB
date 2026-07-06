@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList, ChevronRight } from 'lucide-react'
+import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList, ChevronRight, ShieldCheck } from 'lucide-react'
 import type { ActiveCat, Category, App } from '../types'
 import type { AuthUser } from '../services/auth'
 import logoUrl from '../assets/exto-logo-transparent.png'
@@ -29,6 +29,9 @@ interface Props {
   onClose: () => void
   onLogout: () => void
   onOpenProfile: () => void
+  /** Painel Administrativo: só quem tem acesso (MASTER) vê esse botão fixo. */
+  showPainelAdmin: boolean
+  onOpenPainelAdmin: () => void
 }
 
 function NavItem({ id, label, Icon, activeCat, onClick }: {
@@ -118,7 +121,7 @@ function CategoryNavItem({ label, Icon, apps, expanded, onToggle, onOpenApp }: {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile }: Props) {
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, showPainelAdmin, onOpenPainelAdmin }: Props) {
   const activeCats = new Set(apps.map(a => a.cat))
   const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
   const [expanded, setExpanded] = useState<Set<Category>>(new Set())
@@ -201,6 +204,24 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
           />
         ))}
       </nav>
+
+      {/* Painel Administrativo — botão fixo, só pra quem tem acesso MASTER */}
+      {showPainelAdmin && (
+        <div className="px-[14px] pt-[6px]">
+          <button
+            onClick={() => { onOpenPainelAdmin(); if (isNarrow) onClose() }}
+            className="
+              w-full flex items-center gap-[10px] px-[12px] py-[10px] rounded-[10px] cursor-pointer
+              font-hanken font-medium text-[13px] leading-none text-ink
+              bg-[rgba(174,58,35,0.06)] border border-[rgba(174,58,35,0.15)]
+              hover:bg-[rgba(174,58,35,0.1)] transition-colors duration-150
+            "
+          >
+            <ShieldCheck size={18} strokeWidth={1.8} style={{ color: '#AE3A23' }} />
+            Painel Administrativo
+          </button>
+        </div>
+      )}
 
       {/* User card */}
       <div className="p-[14px]">

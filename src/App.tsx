@@ -76,8 +76,9 @@ interface HubProps {
 }
 
 // Apps que existem no catálogo da API mas não devem virar card no grid/sidebar —
-// o acesso a eles é só pelo atalho dedicado em "Informações úteis" (ver Agendas).
-const HIDDEN_CATALOG_SLUGS = ['agenda-publica']
+// o acesso a eles é só pelo atalho dedicado em "Informações úteis" (ver Agendas)
+// ou pelo botão fixo do menu (ver Painel Administrativo, acima do usuário).
+const HIDDEN_CATALOG_SLUGS = ['agenda-publica', 'painel-admin']
 const hideCatalogOnly = (list: AppType[]) => list.filter(a => !HIDDEN_CATALOG_SLUGS.includes(a.id))
 
 // A API pode devolver os apps em outra ordem (ex.: alfabética) — sem isso, o
@@ -98,7 +99,10 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
   const [menuOpen, setMenuOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [apps, setApps] = useState<AppType[]>(() => hideCatalogOnly(APPS))
+  // Lista completa (não filtrada) — precisa dela crua pra saber se o usuário
+  // tem acesso a apps escondidos do grid (ex.: Painel Administrativo), já que
+  // `apps` abaixo remove esses antes de renderizar grid/sidebar.
+  const [allApps, setAllApps] = useState<AppType[]>(APPS)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isNarrow = useNarrow(860)
@@ -112,9 +116,15 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // mantém o estático como fallback se a API falhar.
   useEffect(() => {
     fetchApps().then(list => {
-      if (list && list.length) setApps(sortByCatalogOrder(hideCatalogOnly(list)))
+      if (list && list.length) setAllApps(sortByCatalogOrder(list))
     })
   }, [])
+
+  const apps = hideCatalogOnly(allApps)
+  // Painel Administrativo não é um app de card comum — vira um botão fixo no
+  // menu, acima do usuário, visível só pra quem a API já concedeu acesso
+  // (o app só aparece em allApps se o usuário tiver capability lá).
+  const hasPainelAdmin = allApps.some(a => a.id === 'painel-admin')
 
   // Handoff SSO cross-domain (Fase 1, interina): abre o satélite já autenticado
   // via code de curta duração. Reutilizado por qualquer app/atalho com SSO,
@@ -155,6 +165,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   }
 
   const openAgenda = () => openViaSatelliteHandoff('agenda-publica', 'https://extoapp-agenda.web.app')
+  const openPainelAdmin = () => openViaSatelliteHandoff('painel-admin', 'https://extoapp-painel-adm.web.app')
 
   const toggleFav = (id: string) => {
     setFavs(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id])
@@ -198,6 +209,8 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         onClose={() => setMenuOpen(false)}
         onLogout={onLogout}
         onOpenProfile={() => setPage({ name: 'profile' })}
+        showPainelAdmin={hasPainelAdmin}
+        onOpenPainelAdmin={openPainelAdmin}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
