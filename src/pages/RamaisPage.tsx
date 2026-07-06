@@ -34,40 +34,47 @@ function todosDepartamentos(): string[] {
   return ordem
 }
 
-function layoutPadrao(): string[][] {
-  const deptos = todosDepartamentos()
-  const cols: string[][] = Array.from({ length: NUM_COLS }, () => [])
-  deptos.forEach((d, i) => cols[i % NUM_COLS].push(d))
+// Organização padrão definida pelo usuário (substituiu o round-robin automático).
+const DEFAULT_LAYOUT: string[][] = [
+  ['Guarita', 'Administração', 'Arquitetura', 'Engenharia', 'GR8', 'Restaurante', 'Espaço Beauty'],
+  ['Presidência', 'Diplayers', 'Financeiro', 'Controladoria', 'Contabilidade', 'Fiscal', 'Marketing', 'Novos Negócios', 'Operações', 'Jurídico', 'Incorporação'],
+  ['Gestão de Pessoas', 'Recursos Humanos', 'Sala de Reunião', 'Suprimentos', 'T.I', 'Casa Viva', 'Comercial'],
+]
+
+// Reconcilia um layout (padrão ou salvo) com os departamentos que existem hoje —
+// se a lista de ramais mudar, departamentos novos entram na coluna mais curta e
+// departamentos removidos somem, sem quebrar a organização.
+function reconciliarLayout(base: string[][]): string[][] {
+  const atuais = new Set(todosDepartamentos())
+  const colocados = new Set<string>()
+  const cols = base.map(col =>
+    col.filter(d => {
+      if (!atuais.has(d) || colocados.has(d)) return false
+      colocados.add(d)
+      return true
+    })
+  )
+  for (const d of todosDepartamentos()) {
+    if (colocados.has(d)) continue
+    let menor = 0
+    for (let i = 1; i < cols.length; i++) if (cols[i].length < cols[menor].length) menor = i
+    cols[menor].push(d)
+    colocados.add(d)
+  }
   return cols
 }
 
-// Carrega a organização salva, reconciliando com os departamentos que existem
-// hoje (se a lista de ramais mudar, departamentos novos entram na coluna mais
-// curta e departamentos removidos somem, sem quebrar o layout salvo).
+function layoutPadrao(): string[][] {
+  return reconciliarLayout(DEFAULT_LAYOUT)
+}
+
 function carregarLayout(): string[][] {
   try {
     const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
     if (!raw) return layoutPadrao()
     const salvo = JSON.parse(raw) as string[][]
     if (!Array.isArray(salvo) || salvo.length !== NUM_COLS) return layoutPadrao()
-
-    const atuais = new Set(todosDepartamentos())
-    const colocados = new Set<string>()
-    const cols = salvo.map(col =>
-      col.filter(d => {
-        if (!atuais.has(d) || colocados.has(d)) return false
-        colocados.add(d)
-        return true
-      })
-    )
-    for (const d of todosDepartamentos()) {
-      if (colocados.has(d)) continue
-      let menor = 0
-      for (let i = 1; i < cols.length; i++) if (cols[i].length < cols[menor].length) menor = i
-      cols[menor].push(d)
-      colocados.add(d)
-    }
-    return cols
+    return reconciliarLayout(salvo)
   } catch {
     return layoutPadrao()
   }
