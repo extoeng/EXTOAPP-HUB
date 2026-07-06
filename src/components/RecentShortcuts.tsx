@@ -53,6 +53,14 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           )
         })}
 
+        {/* Dados das Obras — página interna com os dados gerais das obras */}
+        <button onClick={onOpenObras} className={chipClass}>
+          <Building2 size={19} strokeWidth={1.7} className="text-icon-default" />
+          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+            Dados das Obras
+          </span>
+        </button>
+
         <button onClick={onOpenComunicados} className={chipClass}>
           <Megaphone size={19} strokeWidth={1.7} className="text-icon-default" />
           <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
@@ -71,14 +79,6 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           <CalendarDays size={19} strokeWidth={1.7} className="text-icon-default" />
           <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
             Agendas
-          </span>
-        </button>
-
-        {/* Dados das Obras — página interna com os dados gerais das obras */}
-        <button onClick={onOpenObras} className={chipClass}>
-          <Building2 size={19} strokeWidth={1.7} className="text-icon-default" />
-          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Dados das Obras
           </span>
         </button>
 
