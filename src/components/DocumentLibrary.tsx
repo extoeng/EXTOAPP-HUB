@@ -219,7 +219,6 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                 className="w-full h-full border-none"
                 title={selected.title}
                 referrerPolicy="no-referrer"
-                sandbox="allow-scripts allow-same-origin allow-popups"
               />
               <a
                 href={selected.pdfUrl}
