@@ -1,32 +1,69 @@
-import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryDoc } from '../types'
+import { fetchDocuments, uploadDocument, type DocType } from '../services/documents'
 
 interface Props {
   title: string
-  items: LibraryDoc[]
+  tipo: DocType
+  /** Estado inicial/fallback enquanto a API não responde (ou se falhar). */
+  fallbackItems: LibraryDoc[]
   initialId?: number
   onBack: () => void
   emptyMessage?: string
+  /** Exibe o botão "Adicionar documento" — decidido pelo chamador conforme permissão do usuário. */
+  canUpload?: boolean
 }
 
 const PAGE_SIZE = 10
 
-export function DocumentLibrary({ title, items, initialId, onBack, emptyMessage = 'Nenhum documento anexado' }: Props) {
-  const [selected, setSelected] = useState<LibraryDoc>(
-    items.find(c => c.id === initialId) ?? items[0]
+export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack, emptyMessage = 'Nenhum documento anexado', canUpload = false }: Props) {
+  const [docs, setDocs] = useState<LibraryDoc[]>(fallbackItems)
+  const [selected, setSelected] = useState<LibraryDoc | undefined>(
+    fallbackItems.find(c => c.id === initialId) ?? fallbackItems[0]
   )
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // API é a fonte de verdade quando disponível; fallbackItems só cobre o
+  // instante antes da resposta chegar (ou uma eventual falha de rede).
+  useEffect(() => {
+    fetchDocuments(tipo).then(list => {
+      if (!list) return
+      setDocs(list)
+      setSelected(list.find(c => c.id === initialId) ?? list[0])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipo])
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setUploading(true)
+    setUploadError(null)
+    const doc = await uploadDocument(tipo, file)
+    setUploading(false)
+    if (!doc) {
+      setUploadError('Não foi possível enviar o documento. Tente novamente.')
+      return
+    }
+    setDocs(prev => [doc, ...prev])
+    setSelected(doc)
+    setVisibleCount(PAGE_SIZE)
+  }
 
   const filtered = useMemo(() => {
-    return items.filter(c => {
+    return docs.filter(c => {
       if (dateFrom && c.dateISO < dateFrom) return false
       if (dateTo && c.dateISO > dateTo) return false
       return true
     })
-  }, [items, dateFrom, dateTo])
+  }, [docs, dateFrom, dateTo])
 
   const visible = filtered.slice(0, visibleCount)
   const hasMore = filtered.length > visibleCount
@@ -52,6 +89,36 @@ export function DocumentLibrary({ title, items, initialId, onBack, emptyMessage 
         </button>
         <span className="text-border">|</span>
         <span className="font-archivo font-semibold text-[20px] text-ink">{title}</span>
+
+        {canUpload && (
+          <>
+            <div className="ml-auto flex items-center gap-[10px]">
+              {uploadError && (
+                <span className="font-hanken text-[12px] text-red-600">{uploadError}</span>
+              )}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="
+                  inline-flex items-center gap-[6px] px-[14px] py-[8px] rounded-[9px]
+                  border-none bg-accent text-white cursor-pointer disabled:opacity-60 disabled:cursor-default
+                  font-hanken font-medium text-[13px]
+                  hover:brightness-95 transition-[filter] duration-150
+                "
+              >
+                <Plus size={15} strokeWidth={2.2} />
+                {uploading ? 'Enviando...' : 'Adicionar documento'}
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileSelected}
+              className="hidden"
+            />
+          </>
+        )}
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -103,19 +170,19 @@ export function DocumentLibrary({ title, items, initialId, onBack, emptyMessage 
                 className={`
                   w-full text-left px-[16px] py-[14px] border-none cursor-pointer transition-colors duration-150
                   flex items-start gap-[12px] border-b border-border
-                  ${selected.id === c.id ? 'bg-[rgba(174,58,35,0.06)]' : 'bg-transparent hover:bg-tile-bg'}
+                  ${selected?.id === c.id ? 'bg-[rgba(174,58,35,0.06)]' : 'bg-transparent hover:bg-tile-bg'}
                 `}
               >
                 <div
                   className="flex-shrink-0 w-[36px] h-[36px] rounded-[10px] flex items-center justify-center mt-[1px]"
-                  style={{ background: selected.id === c.id ? 'rgba(174,58,35,0.12)' : '#F0EDE8' }}
+                  style={{ background: selected?.id === c.id ? 'rgba(174,58,35,0.12)' : '#F0EDE8' }}
                 >
-                  <FileText size={16} strokeWidth={1.7} style={{ color: selected.id === c.id ? '#AE3A23' : '#9A958F' }} />
+                  <FileText size={16} strokeWidth={1.7} style={{ color: selected?.id === c.id ? '#AE3A23' : '#9A958F' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div
                     className="font-hanken font-medium text-[13px] leading-[1.35] mb-[4px] line-clamp-2"
-                    style={{ color: selected.id === c.id ? '#AE3A23' : 'var(--color-ink)' }}
+                    style={{ color: selected?.id === c.id ? '#AE3A23' : 'var(--color-ink)' }}
                   >
                     {c.title}
                   </div>
@@ -124,7 +191,7 @@ export function DocumentLibrary({ title, items, initialId, onBack, emptyMessage 
                     {c.date}
                   </div>
                 </div>
-                {selected.id === c.id && (
+                {selected?.id === c.id && (
                   <div className="flex-shrink-0 w-[3px] self-stretch rounded-full bg-accent -mr-[16px]" />
                 )}
               </button>

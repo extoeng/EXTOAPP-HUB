@@ -60,17 +60,15 @@ function NavItem({ id, label, Icon, activeCat, onClick }: {
   )
 }
 
-function CategoryNavItem({ id, label, Icon, apps, activeCat, expanded, onToggle, onOpenApp }: {
-  id: Category
+function CategoryNavItem({ label, Icon, apps, expanded, onToggle, onOpenApp }: {
   label: string
   Icon: React.ElementType
   apps: App[]
-  activeCat: ActiveCat
   expanded: boolean
   onToggle: () => void
   onOpenApp: (name: string) => void
 }) {
-  const active = activeCat === id
+  const active = expanded
 
   return (
     <div>
@@ -125,6 +123,8 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
   const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
   const [expanded, setExpanded] = useState<Set<Category>>(new Set())
 
+  // Categoria no menu só expande/recolhe os apps dela — não filtra a tela
+  // central, que continua mostrando comunicados, informações úteis etc.
   const toggleCat = (cat: Category) => {
     setExpanded(prev => {
       const next = new Set(prev)
@@ -132,7 +132,6 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
       else next.add(cat)
       return next
     })
-    onSetCat(cat)
   }
 
   const handleCat = (cat: ActiveCat) => {
@@ -193,11 +192,9 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         {navCats.map(({ id, label, Icon }) => (
           <CategoryNavItem
             key={id}
-            id={id}
             label={label}
             Icon={Icon}
             apps={apps.filter(a => a.cat === id)}
-            activeCat={activeCat}
             expanded={expanded.has(id)}
             onToggle={() => toggleCat(id)}
             onOpenApp={handleOpenApp}

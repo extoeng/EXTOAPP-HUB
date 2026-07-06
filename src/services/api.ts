@@ -44,7 +44,8 @@ export async function apiFetch(
   retryOn401 = true,
 ): Promise<Response> {
   const headers = new Headers(opts.headers)
-  if (opts.body && !headers.has('Content-Type')) {
+  // FormData: o browser define o Content-Type (com boundary) sozinho — não sobrescrever.
+  if (opts.body && !(opts.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)

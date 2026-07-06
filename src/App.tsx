@@ -214,6 +214,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               <ComunicadosPage
                 initialId={page.id}
                 onBack={() => setPage({ name: 'home' })}
+                user={user}
               />
             </div>
           )}
@@ -222,6 +223,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               <ManuaisPage
                 initialId={page.id}
                 onBack={() => setPage({ name: 'home' })}
+                user={user}
               />
             </div>
           )}
