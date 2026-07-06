@@ -29,6 +29,8 @@ interface Props {
   onClose: () => void
   onLogout: () => void
   onOpenProfile: () => void
+  /** Início: sempre volta pra home, mesmo estando em outra aba (Comunicados, Perfil...). */
+  onGoHome: () => void
   /** Painel Administrativo: só quem tem acesso (MASTER) vê esse botão fixo. */
   showPainelAdmin: boolean
   onOpenPainelAdmin: () => void
@@ -108,10 +110,6 @@ function CategoryNavItem({ label, Icon, apps, expanded, onToggle, onOpenApp }: {
                 text-left
               "
             >
-              {app.icon
-                ? <img src={app.icon} alt="" className="w-[16px] h-[16px] rounded-[4px] object-cover flex-shrink-0" />
-                : <span className="w-[5px] h-[5px] rounded-full bg-[#CBC6BE] flex-shrink-0" />
-              }
               <span className="truncate">{app.name}</span>
             </button>
           ))}
@@ -121,7 +119,7 @@ function CategoryNavItem({ label, Icon, apps, expanded, onToggle, onOpenApp }: {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, showPainelAdmin, onOpenPainelAdmin }: Props) {
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, onGoHome, showPainelAdmin, onOpenPainelAdmin }: Props) {
   const activeCats = new Set(apps.map(a => a.cat))
   const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
   const [expanded, setExpanded] = useState<Set<Category>>(new Set())
@@ -139,6 +137,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
 
   const handleCat = (cat: ActiveCat) => {
     onSetCat(cat)
+    if (cat === 'all') onGoHome()
     if (isNarrow) onClose()
   }
 
