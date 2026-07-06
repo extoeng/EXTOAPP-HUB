@@ -1,18 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RotateCcw,
+  ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2, Plus,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import { RAMAIS, RAMAIS_REVISAO, type RamalEntry } from '../data/ramais'
+import { RAMAIS, type RamalEntry } from '../data/ramais'
 
 interface Props {
   onBack: () => void
+}
+
+interface Pessoa {
+  id: string
+  nome: string
+  ramal: string
+}
+
+// departamento -> ids das pessoas, na ordem em que aparecem no card.
+type PessoasPorDepto = Record<string, string[]>
+
+interface EstadoPessoas {
+  pessoas: Record<string, Pessoa>
+  porDepto: PessoasPorDepto
 }
 
 const NUM_COLS = 3
 // Guarda a organização (coluna + ordem) que o usuário escolheu pros cards de
 // departamento — sem isso, toda visita voltaria pra ordem automática.
 const LAYOUT_STORAGE_KEY = 'exto_ramais_layout'
+// Guarda as pessoas (incluindo as adicionadas pelo usuário) e em qual
+// departamento/posição cada uma está — sem isso, mover alguém de lugar ou
+// cadastrar gente nova não sobreviveria a um reload.
+const PESSOAS_STORAGE_KEY = 'exto_ramais_pessoas'
 
 function initialsOf(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean)
@@ -32,6 +50,30 @@ function todosDepartamentos(): string[] {
     }
   }
   return ordem
+}
+
+function estadoPadraoPessoas(): EstadoPessoas {
+  const pessoas: Record<string, Pessoa> = {}
+  const porDepto: PessoasPorDepto = {}
+  RAMAIS.forEach((e, i) => {
+    const id = `p${i}`
+    pessoas[id] = { id, nome: e.nome, ramal: e.ramal }
+    if (!porDepto[e.departamento]) porDepto[e.departamento] = []
+    porDepto[e.departamento].push(id)
+  })
+  return { pessoas, porDepto }
+}
+
+function carregarPessoas(): EstadoPessoas {
+  try {
+    const raw = localStorage.getItem(PESSOAS_STORAGE_KEY)
+    if (!raw) return estadoPadraoPessoas()
+    const salvo = JSON.parse(raw)
+    if (!salvo || typeof salvo !== 'object' || !salvo.pessoas || !salvo.porDepto) return estadoPadraoPessoas()
+    return salvo as EstadoPessoas
+  } catch {
+    return estadoPadraoPessoas()
+  }
 }
 
 // Organização padrão definida pelo usuário (substituiu o round-robin automático).
@@ -130,6 +172,89 @@ function ContatoModal({ entry, onClose }: { entry: RamalEntry; onClose: () => vo
   )
 }
 
+function AdicionarPessoaModal({ departamentos, onClose, onAdd }: {
+  departamentos: string[]
+  onClose: () => void
+  onAdd: (nome: string, ramal: string, departamento: string) => void
+}) {
+  const [nome, setNome] = useState('')
+  const [ramal, setRamal] = useState('')
+  const [departamento, setDepartamento] = useState(departamentos[0] ?? '')
+
+  const podeSalvar = nome.trim().length > 0 && ramal.trim().length > 0 && departamento.length > 0
+
+  const salvar = () => {
+    if (!podeSalvar) return
+    onAdd(nome.trim(), ramal.trim(), departamento)
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[50] flex items-center justify-center bg-[rgba(22,20,18,0.45)] px-[16px]"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[380px] bg-surface border border-border rounded-[16px] shadow-card-hover overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-[12px] px-[20px] py-[16px] border-b border-border">
+          <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
+            <Plus size={18} strokeWidth={1.8} className="text-icon-default" />
+          </div>
+          <span className="flex-1 font-archivo font-semibold text-[15px] text-ink">Adicionar pessoa</span>
+          <button
+            onClick={onClose}
+            className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-faint hover:bg-tile-bg hover:text-ink border-none bg-transparent transition-colors duration-150"
+          >
+            <X size={16} strokeWidth={1.8} />
+          </button>
+        </div>
+
+        <div className="px-[20px] pb-[20px] pt-[16px] flex flex-col gap-[12px]">
+          <div>
+            <label className="block font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[6px]">Nome</label>
+            <input
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              autoFocus
+              className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[11px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+              placeholder="Nome completo"
+            />
+          </div>
+          <div>
+            <label className="block font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[6px]">Ramal</label>
+            <input
+              value={ramal}
+              onChange={e => setRamal(e.target.value)}
+              className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[11px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+              placeholder="ex: 9500"
+            />
+          </div>
+          <div>
+            <label className="block font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[6px]">Departamento</label>
+            <select
+              value={departamento}
+              onChange={e => setDepartamento(e.target.value)}
+              className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[11px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+            >
+              {departamentos.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+
+          <button
+            onClick={salvar}
+            disabled={!podeSalvar}
+            className="mt-[4px] inline-flex items-center justify-center gap-[8px] bg-accent text-white border-none rounded-[10px] px-[20px] py-[11px] font-hanken font-semibold text-[14px] cursor-pointer transition-all duration-150 hover:brightness-[0.93] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Adicionar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MoveButton({ Icon, disabled, onClick, title }: {
   Icon: React.ElementType; disabled: boolean; onClick: () => void; title: string
 }) {
@@ -149,36 +274,44 @@ export function RamaisPage({ onBack }: Props) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<RamalEntry | null>(null)
   const [layout, setLayout] = useState<string[][]>(carregarLayout)
+  const [dados, setDados] = useState<EstadoPessoas>(carregarPessoas)
+  const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
     localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout))
   }, [layout])
 
+  useEffect(() => {
+    localStorage.setItem(PESSOAS_STORAGE_KEY, JSON.stringify(dados))
+  }, [dados])
+
   const q = query.trim().toLowerCase()
 
-  const results = useMemo(() => {
-    if (!q) return RAMAIS
-    return RAMAIS.filter(e =>
-      e.nome.toLowerCase().includes(q) ||
-      e.departamento.toLowerCase().includes(q) ||
-      e.ramal.includes(q)
-    )
-  }, [q])
+  // Departamentos existentes de verdade hoje (podem ter mudado desde o
+  // carregamento salvo — ex.: um departamento ficou sem ninguém).
+  const departamentosAtuais = useMemo(() => Object.keys(dados.porDepto), [dados])
 
-  const itensPorDepto = useMemo(() => {
-    const map = new Map<string, RamalEntry[]>()
-    for (const e of results) {
-      if (!map.has(e.departamento)) map.set(e.departamento, [])
-      map.get(e.departamento)!.push(e)
+  const pessoasFiltradasPorDepto = useMemo(() => {
+    const map: Record<string, Pessoa[]> = {}
+    for (const [depto, ids] of Object.entries(dados.porDepto)) {
+      map[depto] = ids
+        .map(id => dados.pessoas[id])
+        .filter((p): p is Pessoa => !!p)
+        .filter(p =>
+          !q ||
+          p.nome.toLowerCase().includes(q) ||
+          p.ramal.includes(q) ||
+          depto.toLowerCase().includes(q)
+        )
     }
     return map
-  }, [results])
+  }, [dados, q])
 
-  const temResultado = [...itensPorDepto.values()].some(itens => itens.length > 0)
+  const temResultado = Object.values(pessoasFiltradasPorDepto).some(lista => lista.length > 0)
 
-  // Move o card na vertical (troca de posição com o vizinho de cima/baixo,
-  // dentro da mesma coluna) ou na horizontal (muda de coluna, entra no fim).
-  const moverVertical = (departamento: string, direcao: -1 | 1) => {
+  // Move o card de departamento na vertical (troca de posição com o vizinho de
+  // cima/baixo, dentro da mesma coluna) ou na horizontal (muda de coluna).
+  const moverDeptoVertical = (departamento: string, direcao: -1 | 1) => {
     setLayout(prev => {
       const next = prev.map(col => [...col])
       const colIdx = next.findIndex(col => col.includes(departamento))
@@ -192,7 +325,7 @@ export function RamaisPage({ onBack }: Props) {
     })
   }
 
-  const moverColuna = (departamento: string, direcao: -1 | 1) => {
+  const moverDeptoColuna = (departamento: string, direcao: -1 | 1) => {
     setLayout(prev => {
       const next = prev.map(col => [...col])
       const colIdx = next.findIndex(col => col.includes(departamento))
@@ -204,7 +337,39 @@ export function RamaisPage({ onBack }: Props) {
     })
   }
 
-  const resetarLayout = () => setLayout(layoutPadrao())
+  // Troca a posição de uma pessoa com o vizinho de cima/baixo, dentro do
+  // mesmo departamento.
+  const moverPessoaVertical = (departamento: string, id: string, direcao: -1 | 1) => {
+    setDados(prev => {
+      const lista = [...(prev.porDepto[departamento] ?? [])]
+      const i = lista.indexOf(id)
+      const j = i + direcao
+      if (i === -1 || j < 0 || j >= lista.length) return prev
+      ;[lista[i], lista[j]] = [lista[j], lista[i]]
+      return { ...prev, porDepto: { ...prev.porDepto, [departamento]: lista } }
+    })
+  }
+
+  // Joga uma pessoa pra outro departamento (entra no fim da lista de lá).
+  const moverPessoaDeDepartamento = (id: string, origem: string, destino: string) => {
+    if (origem === destino) return
+    setDados(prev => ({
+      ...prev,
+      porDepto: {
+        ...prev.porDepto,
+        [origem]: (prev.porDepto[origem] ?? []).filter(x => x !== id),
+        [destino]: [...(prev.porDepto[destino] ?? []), id],
+      },
+    }))
+  }
+
+  const adicionarPessoa = (nome: string, ramal: string, departamento: string) => {
+    const id = `novo-${Date.now()}-${Math.round(Math.random() * 1e6)}`
+    setDados(prev => ({
+      pessoas: { ...prev.pessoas, [id]: { id, nome, ramal } },
+      porDepto: { ...prev.porDepto, [departamento]: [...(prev.porDepto[departamento] ?? []), id] },
+    }))
+  }
 
   return (
     <div className="relative flex flex-col h-full overflow-hidden">
@@ -218,8 +383,7 @@ export function RamaisPage({ onBack }: Props) {
           Voltar
         </button>
         <span className="text-border">|</span>
-        <span className="font-archivo font-semibold text-[14px] text-ink">Ramais</span>
-        <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{RAMAIS_REVISAO}</span>
+        <span className="font-archivo font-semibold text-[20px] text-ink">Ramais</span>
       </div>
 
       {/* Busca */}
@@ -243,12 +407,11 @@ export function RamaisPage({ onBack }: Props) {
             )}
           </div>
           <button
-            onClick={resetarLayout}
-            title="Voltar pra organização padrão dos departamentos"
-            className="flex-shrink-0 inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] text-text-muted border border-border rounded-[10px] px-[12px] py-[9px] bg-surface cursor-pointer hover:border-border-hover hover:text-ink transition-colors duration-150"
+            onClick={() => setShowAdd(true)}
+            className="flex-shrink-0 inline-flex items-center gap-[6px] font-hanken font-semibold text-[13px] text-white bg-accent border-none rounded-[10px] px-[14px] py-[10px] cursor-pointer hover:brightness-95 transition-[filter] duration-150"
           >
-            <RotateCcw size={13} strokeWidth={2} />
-            Redefinir
+            <Plus size={15} strokeWidth={2.2} />
+            Adicionar pessoa
           </button>
         </div>
       </div>
@@ -266,39 +429,61 @@ export function RamaisPage({ onBack }: Props) {
               {layout.map((col, colIdx) => (
                 <div key={colIdx} className="flex-1 min-w-0 flex flex-col gap-[16px]">
                   {col.map((departamento, idxInCol) => {
-                    const itens = itensPorDepto.get(departamento)
-                    if (!itens || itens.length === 0) return null
+                    const pessoasVisiveis = pessoasFiltradasPorDepto[departamento] ?? []
+                    if (pessoasVisiveis.length === 0) return null
+                    const listaCompleta = dados.porDepto[departamento] ?? []
 
                     return (
-                      <div key={departamento} className="group bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden">
+                      <div key={departamento} className="group/depto bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden">
                         <div className="flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg">
                           <Building2 size={14} strokeWidth={1.9} className="text-accent flex-shrink-0" />
                           <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
                             {departamento}
                           </h4>
-                          <span className="font-hanken text-[11px] text-text-faint flex-shrink-0">{itens.length}</span>
+                          <span className="font-hanken text-[11px] text-text-faint flex-shrink-0">{pessoasVisiveis.length}</span>
 
-                          <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                            <MoveButton Icon={ChevronLeft} title="Mover pra coluna anterior" disabled={colIdx === 0} onClick={() => moverColuna(departamento, -1)} />
-                            <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={idxInCol === 0} onClick={() => moverVertical(departamento, -1)} />
-                            <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={idxInCol === col.length - 1} onClick={() => moverVertical(departamento, 1)} />
-                            <MoveButton Icon={ChevronRight} title="Mover pra próxima coluna" disabled={colIdx === layout.length - 1} onClick={() => moverColuna(departamento, 1)} />
+                          <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover/depto:opacity-100 transition-opacity duration-150">
+                            <MoveButton Icon={ChevronLeft} title="Mover pra coluna anterior" disabled={colIdx === 0} onClick={() => moverDeptoColuna(departamento, -1)} />
+                            <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={idxInCol === 0} onClick={() => moverDeptoVertical(departamento, -1)} />
+                            <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={idxInCol === col.length - 1} onClick={() => moverDeptoVertical(departamento, 1)} />
+                            <MoveButton Icon={ChevronRight} title="Mover pra próxima coluna" disabled={colIdx === layout.length - 1} onClick={() => moverDeptoColuna(departamento, 1)} />
                           </div>
                         </div>
                         <div>
-                          {itens.map((e, i) => (
-                            <button
-                              key={e.nome + e.ramal + i}
-                              onClick={() => setSelected(e)}
-                              className="w-full flex items-center gap-[10px] px-[16px] py-[10px] border-none bg-transparent cursor-pointer text-left transition-colors duration-150 hover:bg-tile-bg border-b border-border last:border-b-0"
-                            >
-                              <div className="w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px] flex-shrink-0">
-                                {initialsOf(e.nome)}
+                          {pessoasVisiveis.map(pessoa => {
+                            const idx = listaCompleta.indexOf(pessoa.id)
+                            return (
+                              <div
+                                key={pessoa.id}
+                                className="group/pessoa flex items-center gap-[6px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150"
+                              >
+                                <button
+                                  onClick={() => setSelected({ nome: pessoa.nome, ramal: pessoa.ramal, departamento })}
+                                  className="flex-1 min-w-0 flex items-center gap-[10px] border-none bg-transparent cursor-pointer text-left p-0"
+                                >
+                                  <div className="w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px] flex-shrink-0">
+                                    {initialsOf(pessoa.nome)}
+                                  </div>
+                                  <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{pessoa.nome}</span>
+                                </button>
+                                <span className="flex-shrink-0 font-hanken text-[12.5px] text-text-muted tabular-nums">{pessoa.ramal}</span>
+
+                                <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover/pessoa:opacity-100 transition-opacity duration-150">
+                                  <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={idx <= 0} onClick={() => moverPessoaVertical(departamento, pessoa.id, -1)} />
+                                  <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={idx === -1 || idx >= listaCompleta.length - 1} onClick={() => moverPessoaVertical(departamento, pessoa.id, 1)} />
+                                  <select
+                                    value={departamento}
+                                    onClick={e => e.stopPropagation()}
+                                    onChange={e => moverPessoaDeDepartamento(pessoa.id, departamento, e.target.value)}
+                                    title="Mover pra outro departamento"
+                                    className="max-w-[64px] font-hanken text-[10px] text-text-muted border border-border rounded-[6px] bg-surface px-[2px] py-[2px] cursor-pointer outline-none"
+                                  >
+                                    {departamentosAtuais.map(d => <option key={d} value={d}>{d}</option>)}
+                                  </select>
+                                </div>
                               </div>
-                              <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{e.nome}</span>
-                              <span className="flex-shrink-0 font-hanken text-[12.5px] text-text-muted tabular-nums">{e.ramal}</span>
-                            </button>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     )
@@ -311,6 +496,13 @@ export function RamaisPage({ onBack }: Props) {
       </div>
 
       {selected && <ContatoModal entry={selected} onClose={() => setSelected(null)} />}
+      {showAdd && (
+        <AdicionarPessoaModal
+          departamentos={departamentosAtuais}
+          onClose={() => setShowAdd(false)}
+          onAdd={adicionarPessoa}
+        />
+      )}
     </div>
   )
 }
