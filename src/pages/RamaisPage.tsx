@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2, Plus, Pencil,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, GripVertical,
 } from 'lucide-react'
 import { RAMAIS } from '../data/ramais'
 
@@ -144,11 +144,13 @@ interface SalvarPessoaPatch {
   ramal: string
   email: string
   celular: string
+  departamento: string
 }
 
-function ContatoModal({ pessoa, departamento, podeEditar, onClose, onSave }: {
+function ContatoModal({ pessoa, departamento, departamentosAtuais, podeEditar, onClose, onSave }: {
   pessoa: Pessoa
   departamento: string
+  departamentosAtuais: string[]
   podeEditar: boolean
   onClose: () => void
   onSave: (patch: SalvarPessoaPatch) => void
@@ -158,13 +160,15 @@ function ContatoModal({ pessoa, departamento, podeEditar, onClose, onSave }: {
   const [ramal, setRamal] = useState(pessoa.ramal)
   const [email, setEmail] = useState(pessoa.email ?? '')
   const [celular, setCelular] = useState(pessoa.celular ?? '')
+  const [depto, setDepto] = useState(departamento)
 
-  const cancelar = () => {
+  const iniciarEdicao = () => {
     setNome(pessoa.nome)
     setRamal(pessoa.ramal)
     setEmail(pessoa.email ?? '')
     setCelular(pessoa.celular ?? '')
-    setEditando(false)
+    setDepto(departamento)
+    setEditando(true)
   }
 
   const salvar = () => {
@@ -173,6 +177,7 @@ function ContatoModal({ pessoa, departamento, podeEditar, onClose, onSave }: {
       ramal: ramal.trim(),
       email: email.trim(),
       celular: celular.trim(),
+      departamento: depto,
     })
     setEditando(false)
   }
@@ -207,7 +212,7 @@ function ContatoModal({ pessoa, departamento, podeEditar, onClose, onSave }: {
 
           {podeEditar && !editando && (
             <button
-              onClick={() => setEditando(true)}
+              onClick={iniciarEdicao}
               title="Editar (perfil MASTER)"
               className="absolute top-[14px] left-[14px] w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-faint hover:bg-tile-bg hover:text-ink border-none bg-transparent transition-colors duration-150"
             >
@@ -250,9 +255,19 @@ function ContatoModal({ pessoa, departamento, podeEditar, onClose, onSave }: {
                 className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[10px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
               />
             </div>
+            <div>
+              <label className="block font-archivo font-semibold text-[10.5px] tracking-[0.08em] uppercase text-label mb-[6px]">Departamento</label>
+              <select
+                value={depto}
+                onChange={e => setDepto(e.target.value)}
+                className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[10px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+              >
+                {departamentosAtuais.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
             <div className="flex gap-[8px] mt-[4px]">
               <button
-                onClick={cancelar}
+                onClick={() => setEditando(false)}
                 className="flex-1 font-hanken font-medium text-[13px] text-text-muted border border-border rounded-[10px] px-[14px] py-[10px] bg-surface cursor-pointer hover:border-border-hover transition-colors duration-150"
               >
                 Cancelar
@@ -384,17 +399,28 @@ interface DeptoControles {
   moverDeptoColuna: (departamento: string, direcao: -1 | 1) => void
 }
 
+interface PessoaArrastada {
+  id: string
+  origem: string
+}
+
+function lerPessoaArrastada(e: React.DragEvent): PessoaArrastada | null {
+  try {
+    const raw = e.dataTransfer.getData('text/plain')
+    if (!raw) return null
+    return JSON.parse(raw) as PessoaArrastada
+  } catch {
+    return null
+  }
+}
+
 function DepartamentoCard({
-  departamento, pessoasVisiveis, listaCompleta, departamentosAtuais,
-  moverPessoaVertical, moverPessoaDeDepartamento, onSelect, deptoControles,
+  departamento, pessoasVisiveis, onSelect, onSoltarPessoa, deptoControles,
 }: {
   departamento: string
   pessoasVisiveis: Pessoa[]
-  listaCompleta: string[]
-  departamentosAtuais: string[]
-  moverPessoaVertical: (departamento: string, id: string, direcao: -1 | 1) => void
-  moverPessoaDeDepartamento: (id: string, origem: string, destino: string) => void
   onSelect: (id: string, departamento: string) => void
+  onSoltarPessoa: (arrastada: PessoaArrastada, destino: string, antesDeId: string | null) => void
   deptoControles?: DeptoControles
 }) {
   return (
@@ -415,43 +441,44 @@ function DepartamentoCard({
           </div>
         )}
       </div>
-      <div>
-        {pessoasVisiveis.map(pessoa => {
-          const idx = listaCompleta.indexOf(pessoa.id)
-          return (
-            <div
-              key={pessoa.id}
-              className="group/pessoa relative flex items-center gap-[10px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150"
+      <div
+        onDragOver={e => e.preventDefault()}
+        onDrop={e => {
+          e.preventDefault()
+          const arrastada = lerPessoaArrastada(e)
+          if (arrastada) onSoltarPessoa(arrastada, departamento, null)
+        }}
+      >
+        {pessoasVisiveis.map(pessoa => (
+          <div
+            key={pessoa.id}
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', JSON.stringify({ id: pessoa.id, origem: departamento }))
+            }}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              const arrastada = lerPessoaArrastada(e)
+              if (arrastada && arrastada.id !== pessoa.id) onSoltarPessoa(arrastada, departamento, pessoa.id)
+            }}
+            className="group/pessoa flex items-center gap-[8px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150 cursor-grab active:cursor-grabbing"
+          >
+            <GripVertical size={13} strokeWidth={2} className="flex-shrink-0 text-text-faint opacity-0 group-hover/pessoa:opacity-100 transition-opacity duration-150" />
+            <button
+              onClick={() => onSelect(pessoa.id, departamento)}
+              className="flex-1 min-w-0 flex items-center gap-[10px] border-none bg-transparent cursor-pointer text-left p-0"
             >
-              <button
-                onClick={() => onSelect(pessoa.id, departamento)}
-                className="flex-1 min-w-0 flex items-center gap-[10px] border-none bg-transparent cursor-pointer text-left p-0"
-              >
-                <div className="w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px] flex-shrink-0">
-                  {initialsOf(pessoa.nome)}
-                </div>
-                <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{pessoa.nome}</span>
-              </button>
-              <span className="flex-shrink-0 font-hanken text-[12.5px] text-text-muted tabular-nums">{pessoa.ramal}</span>
-
-              {/* Controles de mover — sobrepõem o ramal só no hover, sem empurrar
-                  o número da posição normal (que fica sempre bem à direita). */}
-              <div className="absolute inset-y-0 right-0 flex items-center gap-[1px] pl-[10px] pr-[16px] bg-tile-bg opacity-0 group-hover/pessoa:opacity-100 transition-opacity duration-150">
-                <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={idx <= 0} onClick={() => moverPessoaVertical(departamento, pessoa.id, -1)} />
-                <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={idx === -1 || idx >= listaCompleta.length - 1} onClick={() => moverPessoaVertical(departamento, pessoa.id, 1)} />
-                <select
-                  value={departamento}
-                  onClick={e => e.stopPropagation()}
-                  onChange={e => moverPessoaDeDepartamento(pessoa.id, departamento, e.target.value)}
-                  title="Mover pra outro departamento"
-                  className="max-w-[64px] font-hanken text-[10px] text-text-muted border border-border rounded-[6px] bg-surface px-[2px] py-[2px] cursor-pointer outline-none"
-                >
-                  {departamentosAtuais.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+              <div className="w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px] flex-shrink-0">
+                {initialsOf(pessoa.nome)}
               </div>
-            </div>
-          )
-        })}
+              <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{pessoa.nome}</span>
+            </button>
+            <span className="flex-shrink-0 font-hanken font-semibold text-[12.5px] text-ink tabular-nums">{pessoa.ramal}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -527,30 +554,25 @@ export function RamaisPage({ onBack, isMaster }: Props) {
     })
   }
 
-  // Troca a posição de uma pessoa com o vizinho de cima/baixo, dentro do
-  // mesmo departamento.
-  const moverPessoaVertical = (departamento: string, id: string, direcao: -1 | 1) => {
+  // Solta uma pessoa arrastada numa nova posição: reordena dentro do mesmo
+  // departamento, ou muda de departamento — em ambos os casos, entra antes de
+  // `antesDeId` (soltou em cima de alguém) ou no fim da lista (soltou no
+  // espaço vazio do card).
+  const moverPessoaParaPosicao = (arrastada: PessoaArrastada, destino: string, antesDeId: string | null) => {
+    const { id, origem } = arrastada
     setDados(prev => {
-      const lista = [...(prev.porDepto[departamento] ?? [])]
-      const i = lista.indexOf(id)
-      const j = i + direcao
-      if (i === -1 || j < 0 || j >= lista.length) return prev
-      ;[lista[i], lista[j]] = [lista[j], lista[i]]
-      return { ...prev, porDepto: { ...prev.porDepto, [departamento]: lista } }
-    })
-  }
+      const origemSemId = (prev.porDepto[origem] ?? []).filter(x => x !== id)
+      const baseDestino = origem === destino ? origemSemId : (prev.porDepto[destino] ?? [])
+      const idxAlvo = antesDeId ? baseDestino.indexOf(antesDeId) : -1
+      const destinoComId = idxAlvo === -1
+        ? [...baseDestino, id]
+        : [...baseDestino.slice(0, idxAlvo), id, ...baseDestino.slice(idxAlvo)]
 
-  // Joga uma pessoa pra outro departamento (entra no fim da lista de lá).
-  const moverPessoaDeDepartamento = (id: string, origem: string, destino: string) => {
-    if (origem === destino) return
-    setDados(prev => ({
-      ...prev,
-      porDepto: {
-        ...prev.porDepto,
-        [origem]: (prev.porDepto[origem] ?? []).filter(x => x !== id),
-        [destino]: [...(prev.porDepto[destino] ?? []), id],
-      },
-    }))
+      if (origem === destino) {
+        return { ...prev, porDepto: { ...prev.porDepto, [destino]: destinoComId } }
+      }
+      return { ...prev, porDepto: { ...prev.porDepto, [origem]: origemSemId, [destino]: destinoComId } }
+    })
   }
 
   const adicionarPessoa = (nome: string, ramal: string, departamento: string) => {
@@ -563,13 +585,25 @@ export function RamaisPage({ onBack, isMaster }: Props) {
 
   // Só perfil MASTER pode editar (ver ContatoModal/podeEditar) — colaboradores
   // comuns só visualizam. Reaproveita o mesmo `isMaster` do botão Painel
-  // Administrativo/Sidebar (ver App.tsx).
-  const editarPessoa = (id: string, patch: SalvarPessoaPatch) => {
+  // Administrativo/Sidebar (ver App.tsx). O departamento (agora editável
+  // dentro do próprio popup) é tratado à parte, já que não é um campo em
+  // `pessoas` — é implícito via `porDepto`.
+  const editarPessoa = (id: string, origem: string, patch: SalvarPessoaPatch) => {
     if (!isMaster) return
-    setDados(prev => ({
-      ...prev,
-      pessoas: { ...prev.pessoas, [id]: { ...prev.pessoas[id], ...patch } },
-    }))
+    const { departamento: destino, ...dadosPessoa } = patch
+    setDados(prev => {
+      const pessoas = { ...prev.pessoas, [id]: { ...prev.pessoas[id], ...dadosPessoa } }
+      if (destino === origem) return { ...prev, pessoas }
+      return {
+        pessoas,
+        porDepto: {
+          ...prev.porDepto,
+          [origem]: (prev.porDepto[origem] ?? []).filter(x => x !== id),
+          [destino]: [...(prev.porDepto[destino] ?? []), id],
+        },
+      }
+    })
+    setSelectedRef(prev => (prev && prev.id === id ? { id, departamento: destino } : prev))
   }
 
   return (
@@ -639,11 +673,8 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                     <DepartamentoCard
                       departamento={departamento}
                       pessoasVisiveis={pessoasVisiveis}
-                      listaCompleta={dados.porDepto[departamento] ?? []}
-                      departamentosAtuais={departamentosAtuais}
-                      moverPessoaVertical={moverPessoaVertical}
-                      moverPessoaDeDepartamento={moverPessoaDeDepartamento}
                       onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
+                      onSoltarPessoa={moverPessoaParaPosicao}
                     />
                   </div>
                 )
@@ -661,11 +692,8 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                         key={departamento}
                         departamento={departamento}
                         pessoasVisiveis={pessoasVisiveis}
-                        listaCompleta={dados.porDepto[departamento] ?? []}
-                        departamentosAtuais={departamentosAtuais}
-                        moverPessoaVertical={moverPessoaVertical}
-                        moverPessoaDeDepartamento={moverPessoaDeDepartamento}
                         onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
+                        onSoltarPessoa={moverPessoaParaPosicao}
                         deptoControles={{
                           colIdx, idxInCol, colLength: col.length, totalCols: layout.length,
                           moverDeptoVertical, moverDeptoColuna,
@@ -684,9 +712,10 @@ export function RamaisPage({ onBack, isMaster }: Props) {
         <ContatoModal
           pessoa={selectedPessoa}
           departamento={selectedRef.departamento}
+          departamentosAtuais={departamentosAtuais}
           podeEditar={isMaster}
           onClose={() => setSelectedRef(null)}
-          onSave={(patch) => editarPessoa(selectedRef.id, patch)}
+          onSave={(patch) => editarPessoa(selectedRef.id, selectedRef.departamento, patch)}
         />
       )}
       {showAdd && isMaster && (
