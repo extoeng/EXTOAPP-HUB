@@ -138,7 +138,7 @@ function MoveButton({ Icon, disabled, onClick, title }: {
       onClick={(e) => { e.stopPropagation(); onClick() }}
       disabled={disabled}
       title={title}
-      className="w-[20px] h-[20px] flex items-center justify-center rounded-[6px] border-none bg-transparent cursor-pointer text-white/70 hover:text-white hover:bg-white/20 transition-colors duration-150 disabled:opacity-25 disabled:cursor-default disabled:hover:bg-transparent"
+      className="w-[20px] h-[20px] flex items-center justify-center rounded-[6px] border-none bg-transparent cursor-pointer text-text-faint hover:text-ink hover:bg-border transition-colors duration-150 disabled:opacity-25 disabled:cursor-default disabled:hover:bg-transparent"
     >
       <Icon size={13} strokeWidth={2.2} />
     </button>
@@ -270,13 +270,13 @@ export function RamaisPage({ onBack }: Props) {
                     if (!itens || itens.length === 0) return null
 
                     return (
-                      <div key={departamento} className="group bg-surface border border-border rounded-[14px] overflow-hidden">
-                        <div className="flex items-center gap-[8px] px-[16px] py-[11px] bg-accent">
-                          <Building2 size={14} strokeWidth={1.9} className="text-white flex-shrink-0" />
-                          <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-white truncate">
+                      <div key={departamento} className="group bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden">
+                        <div className="flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg">
+                          <Building2 size={14} strokeWidth={1.9} className="text-accent flex-shrink-0" />
+                          <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
                             {departamento}
                           </h4>
-                          <span className="font-hanken text-[11px] text-white/70 flex-shrink-0">{itens.length}</span>
+                          <span className="font-hanken text-[11px] text-text-faint flex-shrink-0">{itens.length}</span>
 
                           <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                             <MoveButton Icon={ChevronLeft} title="Mover pra coluna anterior" disabled={colIdx === 0} onClick={() => moverColuna(departamento, -1)} />
