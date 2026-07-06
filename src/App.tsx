@@ -41,6 +41,7 @@ export default function App() {
   const handleLogout = async () => {
     await apiLogout()
     setUser(null)
+    sessionStorage.removeItem(PAGE_STORAGE_KEY)
   }
 
   // Sessão morreu no servidor (refresh já tentado e falhou) — não vale a
@@ -48,6 +49,7 @@ export default function App() {
   const handleSessionExpired = () => {
     setToken(null)
     setUser(null)
+    sessionStorage.removeItem(PAGE_STORAGE_KEY)
   }
 
   if (restoring) {
@@ -75,6 +77,31 @@ interface HubProps {
   onSessionExpired: () => void
 }
 
+type Page =
+  | { name: 'home' }
+  | { name: 'comunicados'; id: number }
+  | { name: 'manuais'; id: number }
+  | { name: 'profile' }
+  | { name: 'obras' }
+
+// Guarda a página atual entre reloads (F5/Ctrl+Shift+R) — sem isso o usuário
+// sempre "voltava pro Início" ao atualizar, já que não há router/URL real.
+// sessionStorage (não localStorage): some ao fechar a aba, não persiste
+// indefinidamente entre sessões diferentes.
+const PAGE_STORAGE_KEY = 'exto_hub_page'
+
+function loadStoredPage(): Page {
+  try {
+    const raw = sessionStorage.getItem(PAGE_STORAGE_KEY)
+    if (!raw) return { name: 'home' }
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed.name === 'string') return parsed as Page
+  } catch {
+    // sessionStorage indisponível ou JSON inválido — cai pro Início.
+  }
+  return { name: 'home' }
+}
+
 // Apps que existem no catálogo da API mas não devem virar card no grid/sidebar —
 // o acesso a eles é só pelo atalho dedicado em "Informações úteis" (ver Agendas)
 // ou pelo botão fixo do menu (ver Painel Administrativo, acima do usuário).
@@ -91,9 +118,11 @@ const sortByCatalogOrder = (list: AppType[]) =>
   [...list].sort((a, b) => (CATALOG_ORDER.get(a.id) ?? Infinity) - (CATALOG_ORDER.get(b.id) ?? Infinity))
 
 function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
-  const [page, setPage] = useState<
-    { name: 'home' } | { name: 'comunicados'; id: number } | { name: 'manuais'; id: number } | { name: 'profile' } | { name: 'obras' }
-  >({ name: 'home' })
+  const [page, setPage] = useState<Page>(loadStoredPage)
+
+  useEffect(() => {
+    sessionStorage.setItem(PAGE_STORAGE_KEY, JSON.stringify(page))
+  }, [page])
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState<ActiveCat>('all')
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
