@@ -1,7 +1,8 @@
-import { ArrowLeft, Mail, Briefcase, User, Phone, Smartphone, Lock, Eye, EyeOff, Check } from 'lucide-react'
+import { ArrowLeft, Mail, Briefcase, User, Phone, Smartphone, Lock, Eye, EyeOff, Check, X } from 'lucide-react'
 import { useState } from 'react'
 import type { AuthUser } from '../services/auth'
-import { updateProfile, changePassword } from '../services/auth'
+import { changePassword } from '../services/auth'
+import coverUrl from '../assets/perfil-sede.webp'
 
 interface Props {
   user: AuthUser
@@ -11,59 +12,19 @@ interface Props {
 
 function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="bg-surface border border-border rounded-[14px] px-[20px] py-[16px] flex items-center gap-[14px]">
+    <div className="flex-1 min-w-0 bg-surface border border-border rounded-[14px] px-[20px] py-[16px] flex items-center gap-[14px]">
       <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
         <Icon size={18} strokeWidth={1.7} className="text-icon-default" />
       </div>
-      <div>
+      <div className="min-w-0">
         <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[2px]">{label}</div>
-        <div className="font-hanken text-[14px] text-ink">{value || '—'}</div>
+        <div className="font-hanken text-[14px] text-ink truncate">{value || '—'}</div>
       </div>
     </div>
   )
 }
 
-function ContactField({ icon: Icon, label, value, onChange, placeholder }: {
-  icon: React.ElementType; label: string; value: string
-  onChange: (v: string) => void; placeholder: string
-}) {
-  return (
-    <div className="flex-1 bg-surface border border-border rounded-[14px] px-[20px] py-[16px] flex items-center gap-[14px]">
-      <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
-        <Icon size={18} strokeWidth={1.7} className="text-icon-default" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[2px]">{label}</div>
-        <input
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full bg-transparent font-hanken text-[14px] text-ink outline-none border-none p-0"
-        />
-      </div>
-    </div>
-  )
-}
-
-export function ProfilePage({ user, onBack, onUserChange }: Props) {
-  // Contato
-  const [ext, setExt] = useState(user.phoneExtension)
-  const [mob, setMob] = useState(user.mobile)
-  const [savingContact, setSavingContact] = useState(false)
-  const [contactSaved, setContactSaved] = useState(false)
-  const contactDirty = ext !== user.phoneExtension || mob !== user.mobile
-
-  const saveContact = async () => {
-    setSavingContact(true)
-    const updated = await updateProfile({ phone_extension: ext, mobile: mob })
-    setSavingContact(false)
-    if (updated) {
-      onUserChange?.(updated)
-      setContactSaved(true)
-      setTimeout(() => setContactSaved(false), 1800)
-    }
-  }
-
+export function ProfilePage({ user, onBack }: Props) {
   // Senha
   const [showChange, setShowChange] = useState(false)
   const [current, setCurrent] = useState('')
@@ -77,6 +38,13 @@ export function ProfilePage({ user, onBack, onUserChange }: Props) {
   const [pwError, setPwError] = useState<string | null>(null)
 
   const canSave = current.length > 0 && next.length >= 6 && next === confirm && !saving
+
+  const closeModal = () => {
+    if (saving) return
+    setShowChange(false)
+    setCurrent(''); setNext(''); setConfirm('')
+    setPwError(null)
+  }
 
   const handleSave = async () => {
     if (!canSave) return
@@ -111,108 +79,136 @@ export function ProfilePage({ user, onBack, onUserChange }: Props) {
         <span className="font-archivo font-semibold text-[14px] text-ink">Meu Perfil</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-[24px] py-[32px]">
-        <div className="max-w-[480px] mx-auto flex flex-col gap-[24px]">
+      <div className="flex-1 overflow-y-auto relative">
+        {/* Wallpaper — background da tela toda, some com fade antes do fim do conteúdo */}
+        <div
+          className="absolute inset-x-0 top-0 h-[440px] bg-cover bg-center pointer-events-none"
+          style={{ backgroundImage: `url(${coverUrl})` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-[rgba(22,20,18,0.15)] via-[rgba(244,243,241,0.55)] to-bg-app" />
+        </div>
 
-          {/* Avatar + nome */}
-          <div className="flex flex-col items-center gap-[14px]">
-            <div className="w-[80px] h-[80px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[28px] flex-shrink-0">
+        <div className="relative px-[24px] py-[32px]">
+        <div className="max-w-[900px] mx-auto flex gap-[24px] items-stretch">
+
+          <div className="flex-1 min-w-0 max-w-[480px] flex flex-col gap-[24px]">
+
+            {/* Avatar — só aparece aqui em telas estreitas; em telas largas vira a coluna da direita */}
+            <div className="flex lg:hidden flex-col items-center">
+              <div className="w-[80px] h-[80px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[28px] flex-shrink-0 border-[3px] border-surface shadow-card-hover">
+                {user.initials}
+              </div>
+            </div>
+
+            {/* Info */}
+            <div className="flex flex-col gap-[10px]">
+              <InfoCard icon={User}     label="Nome"   value={user.name} />
+              <InfoCard icon={Briefcase} label="Cargo" value={user.role} />
+              <InfoCard icon={Mail}     label="E-mail" value={user.email} />
+
+              {/* Ramal + Celular: somente leitura — edição é feita pelo administrador */}
+              <div className="flex gap-[10px]">
+                <InfoCard icon={Phone} label="Ramal" value={user.phoneExtension} />
+                <InfoCard icon={Smartphone} label="Celular" value={user.mobile} />
+              </div>
+            </div>
+
+            {/* Trocar senha */}
+            <div className="bg-surface border border-border rounded-[14px] overflow-hidden">
+              <button
+                onClick={() => setShowChange(true)}
+                className="w-full flex items-center gap-[14px] px-[20px] py-[16px] border-none bg-transparent cursor-pointer text-left transition-colors duration-150 hover:bg-tile-bg"
+              >
+                <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
+                  <Lock size={18} strokeWidth={1.7} className="text-icon-default" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[2px]">Segurança</div>
+                  <div className="font-hanken text-[14px] text-ink">Trocar senha</div>
+                </div>
+                <span className="font-hanken text-[12px] text-text-faint">Alterar</span>
+              </button>
+            </div>
+
+          </div>
+
+          {/* Foto/avatar do colaborador — à direita dos cards, centralizada na altura deles */}
+          <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center">
+            <div className="w-[220px] h-[220px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[68px] flex-shrink-0 border-[5px] border-surface shadow-card-hover">
               {user.initials}
             </div>
-            <div className="text-center">
-              <div className="font-archivo font-semibold text-[22px] text-ink leading-[1.2]">{user.name}</div>
-              <div className="font-hanken text-[14px] text-text-faint mt-[4px]">{user.role}</div>
-            </div>
-          </div>
-
-          {/* Info */}
-          <div className="flex flex-col gap-[10px]">
-            <InfoCard icon={User}     label="Nome"   value={user.name} />
-            <InfoCard icon={Briefcase} label="Cargo" value={user.role} />
-            <InfoCard icon={Mail}     label="E-mail" value={user.email} />
-
-            {/* Ramal + Celular lado a lado (editáveis) */}
-            <div className="flex gap-[10px]">
-              <ContactField icon={Phone} label="Ramal" value={ext}
-                            onChange={setExt} placeholder="ex: 2042" />
-              <ContactField icon={Smartphone} label="Celular" value={mob}
-                            onChange={setMob} placeholder="(11) 90000-0000" />
-            </div>
-
-            {(contactDirty || contactSaved) && (
-              <button
-                onClick={saveContact}
-                disabled={savingContact || !contactDirty}
-                className="self-start inline-flex items-center gap-[8px] bg-accent text-white border-none rounded-[10px] px-[16px] py-[9px] font-hanken font-semibold text-[13px] cursor-pointer transition-all duration-150 hover:brightness-[0.93] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {contactSaved ? <><Check size={15} strokeWidth={2} /> Salvo!</>
-                  : savingContact ? 'Salvando…' : 'Salvar contato'}
-              </button>
-            )}
-          </div>
-
-          {/* Trocar senha */}
-          <div className="bg-surface border border-border rounded-[14px] overflow-hidden">
-            <button
-              onClick={() => setShowChange(v => !v)}
-              className="w-full flex items-center gap-[14px] px-[20px] py-[16px] border-none bg-transparent cursor-pointer text-left transition-colors duration-150 hover:bg-tile-bg"
-            >
-              <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
-                <Lock size={18} strokeWidth={1.7} className="text-icon-default" />
-              </div>
-              <div className="flex-1">
-                <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[2px]">Segurança</div>
-                <div className="font-hanken text-[14px] text-ink">Trocar senha</div>
-              </div>
-              <span className="font-hanken text-[12px] text-text-faint">{showChange ? 'Fechar' : 'Alterar'}</span>
-            </button>
-
-            {showChange && (
-              <div className="px-[20px] pb-[20px] flex flex-col gap-[12px] border-t border-border pt-[16px]">
-                {(['Senha atual', 'Nova senha', 'Confirmar nova senha'] as const).map((label, i) => {
-                  const val    = [current, next, confirm][i]
-                  const setVal = [setCurrent, setNext, setConfirm][i]
-                  const show   = [showCurrent, showNext, showConfirm][i]
-                  const toggle = [() => setShowCurrent(v => !v), () => setShowNext(v => !v), () => setShowConfirm(v => !v)][i]
-                  const isError = i === 2 && confirm.length > 0 && confirm !== next
-
-                  return (
-                    <div key={label}>
-                      <label className="block font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[6px]">{label}</label>
-                      <div className={`flex items-center bg-bg-app border rounded-[10px] px-[14px] gap-[8px] transition-colors ${isError ? 'border-red-400' : 'border-border'}`}>
-                        <input
-                          type={show ? 'text' : 'password'}
-                          value={val}
-                          onChange={e => setVal(e.target.value)}
-                          className="flex-1 bg-transparent py-[11px] font-hanken text-[14px] text-ink outline-none border-none"
-                          placeholder="••••••••"
-                        />
-                        <button onClick={toggle} className="border-none bg-transparent cursor-pointer text-text-faint hover:text-ink p-0">
-                          {show ? <EyeOff size={16} strokeWidth={1.7} /> : <Eye size={16} strokeWidth={1.7} />}
-                        </button>
-                      </div>
-                      {isError && <p className="font-hanken text-[12px] text-red-500 mt-[4px]">As senhas não coincidem</p>}
-                      {i === 1 && next.length > 0 && next.length < 6 && <p className="font-hanken text-[12px] text-text-faint mt-[4px]">Mínimo 6 caracteres</p>}
-                    </div>
-                  )
-                })}
-
-                {pwError && <p className="font-hanken text-[13px] text-red-500">{pwError}</p>}
-
-                <button
-                  onClick={handleSave}
-                  disabled={!canSave}
-                  className="mt-[4px] inline-flex items-center justify-center gap-[8px] bg-accent text-white border-none rounded-[10px] px-[20px] py-[11px] font-hanken font-semibold text-[14px] cursor-pointer transition-all duration-150 hover:brightness-[0.93] disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {saved ? <><Check size={16} strokeWidth={2} /> Senha alterada!</>
-                    : saving ? 'Salvando…' : 'Salvar nova senha'}
-                </button>
-              </div>
-            )}
           </div>
 
         </div>
+        </div>
       </div>
+
+      {showChange && (
+        <div
+          className="fixed inset-0 z-[50] flex items-center justify-center bg-[rgba(22,20,18,0.45)] px-[16px]"
+          onClick={closeModal}
+        >
+          <div
+            className="w-full max-w-[420px] bg-surface border border-border rounded-[16px] shadow-card-hover overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-[12px] px-[20px] py-[16px] border-b border-border">
+              <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
+                <Lock size={18} strokeWidth={1.7} className="text-icon-default" />
+              </div>
+              <span className="flex-1 font-archivo font-semibold text-[15px] text-ink">Trocar senha</span>
+              <button
+                onClick={closeModal}
+                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-faint hover:bg-tile-bg hover:text-ink border-none bg-transparent transition-colors duration-150"
+              >
+                <X size={16} strokeWidth={1.8} />
+              </button>
+            </div>
+
+            <div className="px-[20px] pb-[20px] pt-[16px] flex flex-col gap-[12px]">
+              {(['Senha atual', 'Nova senha', 'Confirmar nova senha'] as const).map((label, i) => {
+                const val    = [current, next, confirm][i]
+                const setVal = [setCurrent, setNext, setConfirm][i]
+                const show   = [showCurrent, showNext, showConfirm][i]
+                const toggle = [() => setShowCurrent(v => !v), () => setShowNext(v => !v), () => setShowConfirm(v => !v)][i]
+                const isError = i === 2 && confirm.length > 0 && confirm !== next
+
+                return (
+                  <div key={label}>
+                    <label className="block font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[6px]">{label}</label>
+                    <div className={`flex items-center bg-bg-app border rounded-[10px] px-[14px] gap-[8px] transition-colors ${isError ? 'border-red-400' : 'border-border'}`}>
+                      <input
+                        type={show ? 'text' : 'password'}
+                        value={val}
+                        onChange={e => setVal(e.target.value)}
+                        className="flex-1 bg-transparent py-[11px] font-hanken text-[14px] text-ink outline-none border-none"
+                        placeholder="••••••••"
+                        autoFocus={i === 0}
+                      />
+                      <button onClick={toggle} className="border-none bg-transparent cursor-pointer text-text-faint hover:text-ink p-0">
+                        {show ? <EyeOff size={16} strokeWidth={1.7} /> : <Eye size={16} strokeWidth={1.7} />}
+                      </button>
+                    </div>
+                    {isError && <p className="font-hanken text-[12px] text-red-500 mt-[4px]">As senhas não coincidem</p>}
+                    {i === 1 && next.length > 0 && next.length < 6 && <p className="font-hanken text-[12px] text-text-faint mt-[4px]">Mínimo 6 caracteres</p>}
+                  </div>
+                )
+              })}
+
+              {pwError && <p className="font-hanken text-[13px] text-red-500">{pwError}</p>}
+
+              <button
+                onClick={handleSave}
+                disabled={!canSave}
+                className="mt-[4px] inline-flex items-center justify-center gap-[8px] bg-accent text-white border-none rounded-[10px] px-[20px] py-[11px] font-hanken font-semibold text-[14px] cursor-pointer transition-all duration-150 hover:brightness-[0.93] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {saved ? <><Check size={16} strokeWidth={2} /> Senha alterada!</>
+                  : saving ? 'Salvando…' : 'Salvar nova senha'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
