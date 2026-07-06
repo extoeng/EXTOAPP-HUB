@@ -18,10 +18,11 @@ interface Props {
 const PAGE_SIZE = 10
 
 export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack, emptyMessage = 'Nenhum documento anexado', canUpload = false }: Props) {
-  const [docs, setDocs] = useState<LibraryDoc[]>(fallbackItems)
-  const [selected, setSelected] = useState<LibraryDoc | undefined>(
-    fallbackItems.find(c => c.id === initialId) ?? fallbackItems[0]
-  )
+  // null = ainda carregando. Não usa fallbackItems como estado inicial pra
+  // não "piscar" mock e trocar pelos dados reais assim que a API responde —
+  // só cai pro fallback se a chamada de fato falhar.
+  const [docs, setDocs] = useState<LibraryDoc[] | null>(null)
+  const [selected, setSelected] = useState<LibraryDoc | undefined>(undefined)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -29,13 +30,12 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // API é a fonte de verdade quando disponível; fallbackItems só cobre o
-  // instante antes da resposta chegar (ou uma eventual falha de rede).
   useEffect(() => {
+    setDocs(null)
     fetchDocuments(tipo).then(list => {
-      if (!list) return
-      setDocs(list)
-      setSelected(list.find(c => c.id === initialId) ?? list[0])
+      const resolved = list ?? fallbackItems
+      setDocs(resolved)
+      setSelected(resolved.find(c => c.id === initialId) ?? resolved[0])
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo])
@@ -52,13 +52,13 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
       setUploadError('Não foi possível enviar o documento. Tente novamente.')
       return
     }
-    setDocs(prev => [doc, ...prev])
+    setDocs(prev => [doc, ...(prev ?? [])])
     setSelected(doc)
     setVisibleCount(PAGE_SIZE)
   }
 
   const filtered = useMemo(() => {
-    return docs.filter(c => {
+    return (docs ?? []).filter(c => {
       if (dateFrom && c.dateISO < dateFrom) return false
       if (dateTo && c.dateISO > dateTo) return false
       return true
@@ -158,7 +158,12 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
 
           {/* Lista */}
           <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-            {visible.length === 0 && (
+            {docs === null && (
+              <div className="px-[16px] py-[24px] text-center font-hanken text-[13px] text-text-faint">
+                Carregando...
+              </div>
+            )}
+            {docs !== null && visible.length === 0 && (
               <div className="px-[16px] py-[24px] text-center font-hanken text-[13px] text-text-faint">
                 Nenhum item no período.
               </div>
@@ -240,7 +245,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] text-text-faint">
               <FileText size={48} strokeWidth={1.2} />
-              <span className="font-hanken text-[14px]">{emptyMessage}</span>
+              <span className="font-hanken text-[14px]">{docs === null ? 'Carregando...' : emptyMessage}</span>
             </div>
           )}
         </div>
