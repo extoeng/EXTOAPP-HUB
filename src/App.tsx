@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage'
 import { ComunicadosPage } from './pages/ComunicadosPage'
 import { ManuaisPage } from './pages/ManuaisPage'
 import { ObrasPage } from './pages/ObrasPage'
+import { RamaisPage } from './pages/RamaisPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
@@ -83,6 +84,7 @@ type Page =
   | { name: 'manuais'; id: number }
   | { name: 'profile' }
   | { name: 'obras' }
+  | { name: 'ramais' }
 
 // Guarda a página atual entre reloads (F5/Ctrl+Shift+R) — sem isso o usuário
 // sempre "voltava pro Início" ao atualizar, já que não há router/URL real.
@@ -284,6 +286,11 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               <ObrasPage onBack={() => setPage({ name: 'home' })} />
             </div>
           )}
+          {page.name === 'ramais' && (
+            <div className="flex-1 overflow-hidden bg-bg-app">
+              <RamaisPage onBack={() => setPage({ name: 'home' })} />
+            </div>
+          )}
           <main className={`flex-1 overflow-y-auto px-[24px] pt-[26px] pb-[64px] scrollbar-none${page.name !== 'home' ? ' hidden' : ''}`} style={{ scrollbarWidth: 'none' as const }}>
           <div className="max-w-[1180px] mx-auto">
 
@@ -313,6 +320,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
                 onOpenManuais={() => setPage({ name: 'manuais', id: MANUAIS[0].id })}
                 onOpenAgenda={openAgenda}
                 onOpenObras={() => setPage({ name: 'obras' })}
+                onOpenRamais={() => setPage({ name: 'ramais' })}
               />
             )}
 

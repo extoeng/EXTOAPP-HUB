@@ -8,10 +8,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   chamados: LifeBuoy,
 }
 
-const QUICK_CARDS = [
-  { id: 'ramais', label: 'Ramais', Icon: Phone, url: '' },
-]
-
 interface Props {
   apps: App[]
   onOpen: (name: string) => void
@@ -19,6 +15,7 @@ interface Props {
   onOpenManuais: () => void
   onOpenAgenda: () => void
   onOpenObras: () => void
+  onOpenRamais: () => void
 }
 
 const chipClass = `
@@ -28,7 +25,7 @@ const chipClass = `
   hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
 `
 
-export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras }: Props) {
+export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais }: Props) {
   return (
     <div>
       <div className="mt-[30px] mb-[14px]">
@@ -82,18 +79,12 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           </span>
         </button>
 
-        {QUICK_CARDS.map(({ id, label, Icon, url }) => (
-          <button
-            key={id}
-            onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
-            className={chipClass}
-          >
-            <Icon size={19} strokeWidth={1.7} className="text-icon-default" />
-            <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-              {label}
-            </span>
-          </button>
-        ))}
+        <button onClick={onOpenRamais} className={chipClass}>
+          <Phone size={19} strokeWidth={1.7} className="text-icon-default" />
+          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+            Ramais
+          </span>
+        </button>
       </div>
     </div>
   )
