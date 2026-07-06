@@ -16,6 +16,7 @@ interface Pessoa {
   ramal: string
   email?: string
   celular?: string
+  foto?: string
 }
 
 // departamento -> ids das pessoas, na ordem em que aparecem no card.
@@ -145,6 +146,19 @@ interface SalvarPessoaPatch {
   email: string
   celular: string
   departamento: string
+  foto: string
+}
+
+// Lê um arquivo de imagem escolhido no <input type="file"> como data URL
+// (base64) — é como a foto acaba guardada no localStorage, já que não existe
+// upload/storage real pra fotos ainda (ver pendência no fluxo 10).
+function lerFotoComoDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 function ContatoModal({ pessoa, departamento, departamentosAtuais, podeEditar, onClose, onSave }: {
@@ -161,6 +175,7 @@ function ContatoModal({ pessoa, departamento, departamentosAtuais, podeEditar, o
   const [email, setEmail] = useState(pessoa.email ?? '')
   const [celular, setCelular] = useState(pessoa.celular ?? '')
   const [depto, setDepto] = useState(departamento)
+  const [foto, setFoto] = useState(pessoa.foto ?? '')
 
   const iniciarEdicao = () => {
     setNome(pessoa.nome)
@@ -168,7 +183,15 @@ function ContatoModal({ pessoa, departamento, departamentosAtuais, podeEditar, o
     setEmail(pessoa.email ?? '')
     setCelular(pessoa.celular ?? '')
     setDepto(departamento)
+    setFoto(pessoa.foto ?? '')
     setEditando(true)
+  }
+
+  const escolherFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setFoto(await lerFotoComoDataUrl(file))
   }
 
   const salvar = () => {
@@ -178,6 +201,7 @@ function ContatoModal({ pessoa, departamento, departamentosAtuais, podeEditar, o
       email: email.trim(),
       celular: celular.trim(),
       departamento: depto,
+      foto,
     })
     setEditando(false)
   }
@@ -192,9 +216,30 @@ function ContatoModal({ pessoa, departamento, departamentosAtuais, podeEditar, o
         onClick={e => e.stopPropagation()}
       >
         <div className="relative flex flex-col items-center gap-[10px] px-[24px] pt-[28px] pb-[20px] border-b border-border">
-          <div className="w-[76px] h-[76px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[26px] flex-shrink-0">
-            {initialsOf(editando ? nome : pessoa.nome)}
-          </div>
+          {editando ? (
+            <label
+              title="Trocar foto"
+              className="relative w-[76px] h-[76px] rounded-full flex-shrink-0 cursor-pointer group/foto"
+            >
+              {foto ? (
+                <img src={foto} alt={nome} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <div className="w-full h-full rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[26px]">
+                  {initialsOf(nome)}
+                </div>
+              )}
+              <div className="absolute inset-0 rounded-full bg-[rgba(22,20,18,0.45)] opacity-0 group-hover/foto:opacity-100 transition-opacity duration-150 flex items-center justify-center">
+                <Pencil size={16} strokeWidth={2} className="text-white" />
+              </div>
+              <input type="file" accept="image/*" onChange={escolherFoto} className="hidden" />
+            </label>
+          ) : pessoa.foto ? (
+            <img src={pessoa.foto} alt={pessoa.nome} className="w-[76px] h-[76px] rounded-full object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-[76px] h-[76px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[26px] flex-shrink-0">
+              {initialsOf(pessoa.nome)}
+            </div>
+          )}
 
           {editando ? (
             <input
@@ -295,17 +340,26 @@ function ContatoModal({ pessoa, departamento, departamentosAtuais, podeEditar, o
 function AdicionarColaboradorModal({ departamentos, onClose, onAdd }: {
   departamentos: string[]
   onClose: () => void
-  onAdd: (nome: string, ramal: string, departamento: string) => void
+  onAdd: (nome: string, ramal: string, departamento: string, email: string, foto: string) => void
 }) {
   const [nome, setNome] = useState('')
   const [ramal, setRamal] = useState('')
+  const [email, setEmail] = useState('')
+  const [foto, setFoto] = useState('')
   const [departamento, setDepartamento] = useState(departamentos[0] ?? '')
 
   const podeSalvar = nome.trim().length > 0 && ramal.trim().length > 0 && departamento.length > 0
 
+  const escolherFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setFoto(await lerFotoComoDataUrl(file))
+  }
+
   const salvar = () => {
     if (!podeSalvar) return
-    onAdd(nome.trim(), ramal.trim(), departamento)
+    onAdd(nome.trim(), ramal.trim(), departamento, email.trim(), foto)
     onClose()
   }
 
@@ -332,6 +386,21 @@ function AdicionarColaboradorModal({ departamentos, onClose, onAdd }: {
         </div>
 
         <div className="px-[20px] pb-[20px] pt-[16px] flex flex-col gap-[12px]">
+          <div className="flex justify-center mb-[4px]">
+            <label title="Adicionar foto" className="relative w-[64px] h-[64px] rounded-full flex-shrink-0 cursor-pointer group/foto">
+              {foto ? (
+                <img src={foto} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <div className="w-full h-full rounded-full bg-tile-bg border border-dashed border-border flex items-center justify-center">
+                  <Plus size={20} strokeWidth={1.8} className="text-icon-default" />
+                </div>
+              )}
+              <div className="absolute inset-0 rounded-full bg-[rgba(22,20,18,0.45)] opacity-0 group-hover/foto:opacity-100 transition-opacity duration-150 flex items-center justify-center">
+                <Pencil size={15} strokeWidth={2} className="text-white" />
+              </div>
+              <input type="file" accept="image/*" onChange={escolherFoto} className="hidden" />
+            </label>
+          </div>
           <div>
             <label className="block font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[6px]">Nome</label>
             <input
@@ -349,6 +418,15 @@ function AdicionarColaboradorModal({ departamentos, onClose, onAdd }: {
               onChange={e => setRamal(e.target.value)}
               className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[11px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
               placeholder="ex: 9500"
+            />
+          </div>
+          <div>
+            <label className="block font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[6px]">E-mail</label>
+            <input
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[11px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+              placeholder="nome@exto.com.br"
             />
           </div>
           <div>
@@ -400,37 +478,85 @@ interface DeptoControles {
 }
 
 interface PessoaArrastada {
+  tipo: 'pessoa'
   id: string
   origem: string
 }
 
-function lerPessoaArrastada(e: React.DragEvent): PessoaArrastada | null {
+interface DeptoArrastado {
+  tipo: 'depto'
+  departamento: string
+}
+
+function lerItemArrastado(e: React.DragEvent): PessoaArrastada | DeptoArrastado | null {
   try {
     const raw = e.dataTransfer.getData('text/plain')
     if (!raw) return null
-    return JSON.parse(raw) as PessoaArrastada
+    return JSON.parse(raw) as PessoaArrastada | DeptoArrastado
   } catch {
     return null
   }
 }
 
+function AvatarPessoa({ pessoa, size, textSize }: { pessoa: Pessoa; size: number; textSize: number }) {
+  if (pessoa.foto) {
+    return (
+      <img
+        src={pessoa.foto}
+        alt={pessoa.nome}
+        style={{ width: size, height: size }}
+        className="rounded-full object-cover flex-shrink-0"
+      />
+    )
+  }
+  return (
+    <div
+      style={{ width: size, height: size, fontSize: textSize }}
+      className="rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold flex-shrink-0"
+    >
+      {initialsOf(pessoa.nome)}
+    </div>
+  )
+}
+
 function DepartamentoCard({
-  departamento, pessoasVisiveis, onSelect, onSoltarPessoa, deptoControles,
+  departamento, pessoasVisiveis, onSelect, onSoltarPessoa, onSoltarDepto, deptoControles,
 }: {
   departamento: string
   pessoasVisiveis: Pessoa[]
   onSelect: (id: string, departamento: string) => void
   onSoltarPessoa: (arrastada: PessoaArrastada, destino: string, antesDeId: string | null) => void
+  onSoltarDepto: (departamento: string, colDestino: number, antesDe: string | null) => void
   deptoControles?: DeptoControles
 }) {
   return (
-    <div className="group/depto bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden">
-      <div className="flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg">
+    <div
+      className="group/depto bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden"
+      onDragOver={e => e.preventDefault()}
+      onDrop={e => {
+        e.preventDefault()
+        const item = lerItemArrastado(e)
+        if (item?.tipo === 'depto') {
+          e.stopPropagation()
+          if (deptoControles && item.departamento !== departamento) {
+            onSoltarDepto(item.departamento, deptoControles.colIdx, departamento)
+          }
+        }
+      }}
+    >
+      <div
+        draggable={!!deptoControles}
+        onDragStart={e => {
+          if (!deptoControles) return
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData('text/plain', JSON.stringify({ tipo: 'depto', departamento }))
+        }}
+        className={`flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg ${deptoControles ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      >
         <Building2 size={14} strokeWidth={1.9} className="text-accent flex-shrink-0" />
         <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
           {departamento}
         </h4>
-        <span className="font-hanken text-[11px] text-text-faint flex-shrink-0">{pessoasVisiveis.length}</span>
 
         {deptoControles && (
           <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover/depto:opacity-100 transition-opacity duration-150">
@@ -445,8 +571,8 @@ function DepartamentoCard({
         onDragOver={e => e.preventDefault()}
         onDrop={e => {
           e.preventDefault()
-          const arrastada = lerPessoaArrastada(e)
-          if (arrastada) onSoltarPessoa(arrastada, departamento, null)
+          const item = lerItemArrastado(e)
+          if (item?.tipo === 'pessoa') onSoltarPessoa(item, departamento, null)
         }}
       >
         {pessoasVisiveis.map(pessoa => (
@@ -455,14 +581,16 @@ function DepartamentoCard({
             draggable
             onDragStart={e => {
               e.dataTransfer.effectAllowed = 'move'
-              e.dataTransfer.setData('text/plain', JSON.stringify({ id: pessoa.id, origem: departamento }))
+              e.dataTransfer.setData('text/plain', JSON.stringify({ tipo: 'pessoa', id: pessoa.id, origem: departamento }))
             }}
             onDragOver={e => e.preventDefault()}
             onDrop={e => {
               e.preventDefault()
-              e.stopPropagation()
-              const arrastada = lerPessoaArrastada(e)
-              if (arrastada && arrastada.id !== pessoa.id) onSoltarPessoa(arrastada, departamento, pessoa.id)
+              const item = lerItemArrastado(e)
+              if (item?.tipo === 'pessoa') {
+                e.stopPropagation()
+                if (item.id !== pessoa.id) onSoltarPessoa(item, departamento, pessoa.id)
+              }
             }}
             className="group/pessoa flex items-center gap-[8px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150 cursor-grab active:cursor-grabbing"
           >
@@ -471,9 +599,7 @@ function DepartamentoCard({
               onClick={() => onSelect(pessoa.id, departamento)}
               className="flex-1 min-w-0 flex items-center gap-[10px] border-none bg-transparent cursor-pointer text-left p-0"
             >
-              <div className="w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px] flex-shrink-0">
-                {initialsOf(pessoa.nome)}
-              </div>
+              <AvatarPessoa pessoa={pessoa} size={28} textSize={10.5} />
               <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{pessoa.nome}</span>
             </button>
             <span className="flex-shrink-0 font-hanken font-semibold text-[12.5px] text-ink tabular-nums">{pessoa.ramal}</span>
@@ -554,6 +680,22 @@ export function RamaisPage({ onBack, isMaster }: Props) {
     })
   }
 
+  // Solta um departamento arrastado numa coluna (a que já estava ou outra) —
+  // entra antes de `antesDe` (soltou em cima de outro card) ou no fim da
+  // coluna (soltou no espaço vazio).
+  const moverDeptoParaPosicao = (departamento: string, colDestino: number, antesDe: string | null) => {
+    setLayout(prev => {
+      const semOrigem = prev.map(col => col.filter(d => d !== departamento))
+      const destino = [...semOrigem[colDestino]]
+      const idx = antesDe ? destino.indexOf(antesDe) : -1
+      if (idx === -1) destino.push(departamento)
+      else destino.splice(idx, 0, departamento)
+      const next = [...semOrigem]
+      next[colDestino] = destino
+      return next
+    })
+  }
+
   // Solta uma pessoa arrastada numa nova posição: reordena dentro do mesmo
   // departamento, ou muda de departamento — em ambos os casos, entra antes de
   // `antesDeId` (soltou em cima de alguém) ou no fim da lista (soltou no
@@ -575,10 +717,10 @@ export function RamaisPage({ onBack, isMaster }: Props) {
     })
   }
 
-  const adicionarPessoa = (nome: string, ramal: string, departamento: string) => {
+  const adicionarPessoa = (nome: string, ramal: string, departamento: string, email: string, foto: string) => {
     const id = `novo-${Date.now()}-${Math.round(Math.random() * 1e6)}`
     setDados(prev => ({
-      pessoas: { ...prev.pessoas, [id]: { id, nome, ramal } },
+      pessoas: { ...prev.pessoas, [id]: { id, nome, ramal, email: email || undefined, foto: foto || undefined } },
       porDepto: { ...prev.porDepto, [departamento]: [...(prev.porDepto[departamento] ?? []), id] },
     }))
   }
@@ -675,6 +817,7 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                       pessoasVisiveis={pessoasVisiveis}
                       onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
                       onSoltarPessoa={moverPessoaParaPosicao}
+                      onSoltarDepto={() => {}}
                     />
                   </div>
                 )
@@ -683,7 +826,16 @@ export function RamaisPage({ onBack, isMaster }: Props) {
           ) : (
             <div className="flex gap-[16px] items-start">
               {layout.map((col, colIdx) => (
-                <div key={colIdx} className="flex-1 min-w-0 flex flex-col gap-[16px]">
+                <div
+                  key={colIdx}
+                  className="flex-1 min-w-0 flex flex-col gap-[16px]"
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => {
+                    e.preventDefault()
+                    const item = lerItemArrastado(e)
+                    if (item?.tipo === 'depto') moverDeptoParaPosicao(item.departamento, colIdx, null)
+                  }}
+                >
                   {col.map((departamento, idxInCol) => {
                     const pessoasVisiveis = pessoasFiltradasPorDepto[departamento] ?? []
                     if (pessoasVisiveis.length === 0) return null
@@ -694,6 +846,7 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                         pessoasVisiveis={pessoasVisiveis}
                         onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
                         onSoltarPessoa={moverPessoaParaPosicao}
+                        onSoltarDepto={moverDeptoParaPosicao}
                         deptoControles={{
                           colIdx, idxInCol, colLength: col.length, totalCols: layout.length,
                           moverDeptoVertical, moverDeptoColuna,
