@@ -215,7 +215,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
             <>
               <iframe
                 key={selected.id}
-                src={selected.pdfUrl}
+                src={`${selected.pdfUrl}#toolbar=0&navpanes=0`}
                 className="w-full h-full border-none"
                 title={selected.title}
                 referrerPolicy="no-referrer"
