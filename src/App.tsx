@@ -288,7 +288,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           )}
           {page.name === 'ramais' && (
             <div className="flex-1 overflow-hidden bg-bg-app">
-              <RamaisPage onBack={() => setPage({ name: 'home' })} />
+              <RamaisPage onBack={() => setPage({ name: 'home' })} isMaster={hasPainelAdmin} />
             </div>
           )}
           <main className={`flex-1 overflow-y-auto px-[24px] pt-[26px] pb-[64px] scrollbar-none${page.name !== 'home' ? ' hidden' : ''}`} style={{ scrollbarWidth: 'none' as const }}>

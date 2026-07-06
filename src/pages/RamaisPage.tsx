@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2, Plus,
+  ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2, Plus, Pencil,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import { RAMAIS, type RamalEntry } from '../data/ramais'
+import { RAMAIS } from '../data/ramais'
 
 interface Props {
   onBack: () => void
+  isMaster: boolean
 }
 
 interface Pessoa {
   id: string
   nome: string
   ramal: string
+  email?: string
+  celular?: string
 }
 
 // departamento -> ids das pessoas, na ordem em que aparecem no card.
@@ -136,7 +139,44 @@ function DetailRow({ icon: Icon, label, value }: { icon: React.ElementType; labe
   )
 }
 
-function ContatoModal({ entry, onClose }: { entry: RamalEntry; onClose: () => void }) {
+interface SalvarPessoaPatch {
+  nome: string
+  ramal: string
+  email: string
+  celular: string
+}
+
+function ContatoModal({ pessoa, departamento, podeEditar, onClose, onSave }: {
+  pessoa: Pessoa
+  departamento: string
+  podeEditar: boolean
+  onClose: () => void
+  onSave: (patch: SalvarPessoaPatch) => void
+}) {
+  const [editando, setEditando] = useState(false)
+  const [nome, setNome] = useState(pessoa.nome)
+  const [ramal, setRamal] = useState(pessoa.ramal)
+  const [email, setEmail] = useState(pessoa.email ?? '')
+  const [celular, setCelular] = useState(pessoa.celular ?? '')
+
+  const cancelar = () => {
+    setNome(pessoa.nome)
+    setRamal(pessoa.ramal)
+    setEmail(pessoa.email ?? '')
+    setCelular(pessoa.celular ?? '')
+    setEditando(false)
+  }
+
+  const salvar = () => {
+    onSave({
+      nome: nome.trim() || pessoa.nome,
+      ramal: ramal.trim(),
+      email: email.trim(),
+      celular: celular.trim(),
+    })
+    setEditando(false)
+  }
+
   return (
     <div
       className="fixed inset-0 z-[50] flex items-center justify-center bg-[rgba(22,20,18,0.45)] px-[16px]"
@@ -146,14 +186,34 @@ function ContatoModal({ entry, onClose }: { entry: RamalEntry; onClose: () => vo
         className="w-full max-w-[380px] bg-surface border border-border rounded-[16px] shadow-card-hover overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex flex-col items-center gap-[10px] px-[24px] pt-[28px] pb-[20px] border-b border-border">
+        <div className="relative flex flex-col items-center gap-[10px] px-[24px] pt-[28px] pb-[20px] border-b border-border">
           <div className="w-[76px] h-[76px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[26px] flex-shrink-0">
-            {initialsOf(entry.nome)}
+            {initialsOf(editando ? nome : pessoa.nome)}
           </div>
-          <div className="text-center">
-            <div className="font-archivo font-semibold text-[18px] leading-[1.2] text-ink">{entry.nome}</div>
-            <div className="font-hanken text-[13px] text-text-faint mt-[3px]">{entry.departamento}</div>
-          </div>
+
+          {editando ? (
+            <input
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              autoFocus
+              className="w-full text-center font-archivo font-semibold text-[17px] text-ink bg-bg-app border border-border rounded-[9px] px-[10px] py-[6px] outline-none focus:border-border-hover transition-colors"
+            />
+          ) : (
+            <div className="text-center">
+              <div className="font-archivo font-semibold text-[18px] leading-[1.2] text-ink">{pessoa.nome}</div>
+              <div className="font-hanken text-[13px] text-text-faint mt-[3px]">{departamento}</div>
+            </div>
+          )}
+
+          {podeEditar && !editando && (
+            <button
+              onClick={() => setEditando(true)}
+              title="Editar (perfil MASTER)"
+              className="absolute top-[14px] left-[14px] w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-faint hover:bg-tile-bg hover:text-ink border-none bg-transparent transition-colors duration-150"
+            >
+              <Pencil size={15} strokeWidth={1.8} />
+            </button>
+          )}
           <button
             onClick={onClose}
             className="absolute top-[14px] right-[14px] w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-faint hover:bg-tile-bg hover:text-ink border-none bg-transparent transition-colors duration-150"
@@ -162,17 +222,62 @@ function ContatoModal({ entry, onClose }: { entry: RamalEntry; onClose: () => vo
           </button>
         </div>
 
-        <div>
-          <DetailRow icon={Mail} label="E-mail" value="" />
-          <DetailRow icon={Phone} label="Ramal" value={entry.ramal} />
-          <DetailRow icon={Smartphone} label="Celular" value="" />
-        </div>
+        {editando ? (
+          <div className="px-[20px] pt-[16px] pb-[20px] flex flex-col gap-[12px]">
+            <div>
+              <label className="block font-archivo font-semibold text-[10.5px] tracking-[0.08em] uppercase text-label mb-[6px]">Ramal</label>
+              <input
+                value={ramal}
+                onChange={e => setRamal(e.target.value)}
+                className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[10px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block font-archivo font-semibold text-[10.5px] tracking-[0.08em] uppercase text-label mb-[6px]">E-mail</label>
+              <input
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="nome@exto.com.br"
+                className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[10px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block font-archivo font-semibold text-[10.5px] tracking-[0.08em] uppercase text-label mb-[6px]">Celular</label>
+              <input
+                value={celular}
+                onChange={e => setCelular(e.target.value)}
+                placeholder="(11) 90000-0000"
+                className="w-full bg-bg-app border border-border rounded-[10px] px-[14px] py-[10px] font-hanken text-[14px] text-ink outline-none focus:border-border-hover transition-colors"
+              />
+            </div>
+            <div className="flex gap-[8px] mt-[4px]">
+              <button
+                onClick={cancelar}
+                className="flex-1 font-hanken font-medium text-[13px] text-text-muted border border-border rounded-[10px] px-[14px] py-[10px] bg-surface cursor-pointer hover:border-border-hover transition-colors duration-150"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvar}
+                className="flex-1 inline-flex items-center justify-center gap-[6px] bg-accent text-white border-none rounded-[10px] px-[14px] py-[10px] font-hanken font-semibold text-[13px] cursor-pointer hover:brightness-95 transition-[filter] duration-150"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <DetailRow icon={Mail} label="E-mail" value={pessoa.email ?? ''} />
+            <DetailRow icon={Phone} label="Ramal" value={pessoa.ramal} />
+            <DetailRow icon={Smartphone} label="Celular" value={pessoa.celular ?? ''} />
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function AdicionarPessoaModal({ departamentos, onClose, onAdd }: {
+function AdicionarColaboradorModal({ departamentos, onClose, onAdd }: {
   departamentos: string[]
   onClose: () => void
   onAdd: (nome: string, ramal: string, departamento: string) => void
@@ -202,7 +307,7 @@ function AdicionarPessoaModal({ departamentos, onClose, onAdd }: {
           <div className="w-[38px] h-[38px] rounded-[10px] bg-tile-bg flex items-center justify-center flex-shrink-0">
             <Plus size={18} strokeWidth={1.8} className="text-icon-default" />
           </div>
-          <span className="flex-1 font-archivo font-semibold text-[15px] text-ink">Adicionar pessoa</span>
+          <span className="flex-1 font-archivo font-semibold text-[15px] text-ink">Adicionar Colaborador</span>
           <button
             onClick={onClose}
             className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-faint hover:bg-tile-bg hover:text-ink border-none bg-transparent transition-colors duration-150"
@@ -270,9 +375,91 @@ function MoveButton({ Icon, disabled, onClick, title }: {
   )
 }
 
-export function RamaisPage({ onBack }: Props) {
+interface DeptoControles {
+  colIdx: number
+  idxInCol: number
+  colLength: number
+  totalCols: number
+  moverDeptoVertical: (departamento: string, direcao: -1 | 1) => void
+  moverDeptoColuna: (departamento: string, direcao: -1 | 1) => void
+}
+
+function DepartamentoCard({
+  departamento, pessoasVisiveis, listaCompleta, departamentosAtuais,
+  moverPessoaVertical, moverPessoaDeDepartamento, onSelect, deptoControles,
+}: {
+  departamento: string
+  pessoasVisiveis: Pessoa[]
+  listaCompleta: string[]
+  departamentosAtuais: string[]
+  moverPessoaVertical: (departamento: string, id: string, direcao: -1 | 1) => void
+  moverPessoaDeDepartamento: (id: string, origem: string, destino: string) => void
+  onSelect: (id: string, departamento: string) => void
+  deptoControles?: DeptoControles
+}) {
+  return (
+    <div className="group/depto bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden">
+      <div className="flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg">
+        <Building2 size={14} strokeWidth={1.9} className="text-accent flex-shrink-0" />
+        <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
+          {departamento}
+        </h4>
+        <span className="font-hanken text-[11px] text-text-faint flex-shrink-0">{pessoasVisiveis.length}</span>
+
+        {deptoControles && (
+          <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover/depto:opacity-100 transition-opacity duration-150">
+            <MoveButton Icon={ChevronLeft} title="Mover pra coluna anterior" disabled={deptoControles.colIdx === 0} onClick={() => deptoControles.moverDeptoColuna(departamento, -1)} />
+            <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={deptoControles.idxInCol === 0} onClick={() => deptoControles.moverDeptoVertical(departamento, -1)} />
+            <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={deptoControles.idxInCol === deptoControles.colLength - 1} onClick={() => deptoControles.moverDeptoVertical(departamento, 1)} />
+            <MoveButton Icon={ChevronRight} title="Mover pra próxima coluna" disabled={deptoControles.colIdx === deptoControles.totalCols - 1} onClick={() => deptoControles.moverDeptoColuna(departamento, 1)} />
+          </div>
+        )}
+      </div>
+      <div>
+        {pessoasVisiveis.map(pessoa => {
+          const idx = listaCompleta.indexOf(pessoa.id)
+          return (
+            <div
+              key={pessoa.id}
+              className="group/pessoa relative flex items-center gap-[10px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150"
+            >
+              <button
+                onClick={() => onSelect(pessoa.id, departamento)}
+                className="flex-1 min-w-0 flex items-center gap-[10px] border-none bg-transparent cursor-pointer text-left p-0"
+              >
+                <div className="w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px] flex-shrink-0">
+                  {initialsOf(pessoa.nome)}
+                </div>
+                <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{pessoa.nome}</span>
+              </button>
+              <span className="flex-shrink-0 font-hanken text-[12.5px] text-text-muted tabular-nums">{pessoa.ramal}</span>
+
+              {/* Controles de mover — sobrepõem o ramal só no hover, sem empurrar
+                  o número da posição normal (que fica sempre bem à direita). */}
+              <div className="absolute inset-y-0 right-0 flex items-center gap-[1px] pl-[10px] pr-[16px] bg-tile-bg opacity-0 group-hover/pessoa:opacity-100 transition-opacity duration-150">
+                <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={idx <= 0} onClick={() => moverPessoaVertical(departamento, pessoa.id, -1)} />
+                <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={idx === -1 || idx >= listaCompleta.length - 1} onClick={() => moverPessoaVertical(departamento, pessoa.id, 1)} />
+                <select
+                  value={departamento}
+                  onClick={e => e.stopPropagation()}
+                  onChange={e => moverPessoaDeDepartamento(pessoa.id, departamento, e.target.value)}
+                  title="Mover pra outro departamento"
+                  className="max-w-[64px] font-hanken text-[10px] text-text-muted border border-border rounded-[6px] bg-surface px-[2px] py-[2px] cursor-pointer outline-none"
+                >
+                  {departamentosAtuais.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function RamaisPage({ onBack, isMaster }: Props) {
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<RamalEntry | null>(null)
+  const [selectedRef, setSelectedRef] = useState<{ id: string; departamento: string } | null>(null)
   const [layout, setLayout] = useState<string[][]>(carregarLayout)
   const [dados, setDados] = useState<EstadoPessoas>(carregarPessoas)
   const [showAdd, setShowAdd] = useState(false)
@@ -286,6 +473,7 @@ export function RamaisPage({ onBack }: Props) {
   }, [dados])
 
   const q = query.trim().toLowerCase()
+  const buscando = q.length > 0
 
   // Departamentos existentes de verdade hoje (podem ter mudado desde o
   // carregamento salvo — ex.: um departamento ficou sem ninguém).
@@ -308,6 +496,8 @@ export function RamaisPage({ onBack }: Props) {
   }, [dados, q])
 
   const temResultado = Object.values(pessoasFiltradasPorDepto).some(lista => lista.length > 0)
+
+  const selectedPessoa = selectedRef ? dados.pessoas[selectedRef.id] : null
 
   // Move o card de departamento na vertical (troca de posição com o vizinho de
   // cima/baixo, dentro da mesma coluna) ou na horizontal (muda de coluna).
@@ -371,6 +561,17 @@ export function RamaisPage({ onBack }: Props) {
     }))
   }
 
+  // Só perfil MASTER pode editar (ver ContatoModal/podeEditar) — colaboradores
+  // comuns só visualizam. Reaproveita o mesmo `isMaster` do botão Painel
+  // Administrativo/Sidebar (ver App.tsx).
+  const editarPessoa = (id: string, patch: SalvarPessoaPatch) => {
+    if (!isMaster) return
+    setDados(prev => ({
+      ...prev,
+      pessoas: { ...prev.pessoas, [id]: { ...prev.pessoas[id], ...patch } },
+    }))
+  }
+
   return (
     <div className="relative flex flex-col h-full overflow-hidden">
       {/* Top bar */}
@@ -406,23 +607,47 @@ export function RamaisPage({ onBack }: Props) {
               </button>
             )}
           </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex-shrink-0 inline-flex items-center gap-[6px] font-hanken font-semibold text-[13px] text-white bg-accent border-none rounded-[10px] px-[14px] py-[10px] cursor-pointer hover:brightness-95 transition-[filter] duration-150"
-          >
-            <Plus size={15} strokeWidth={2.2} />
-            Adicionar pessoa
-          </button>
+          {isMaster && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex-shrink-0 inline-flex items-center gap-[6px] font-hanken font-semibold text-[13px] text-white bg-accent border-none rounded-[10px] px-[14px] py-[10px] cursor-pointer hover:brightness-95 transition-[filter] duration-150"
+            >
+              <Plus size={15} strokeWidth={2.2} />
+              Adicionar Colaborador
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Colunas de departamento — posição e ordem controladas pelo usuário */}
+      {/* Departamentos — organização controlada pelo usuário; durante uma busca,
+          vira uma grade centralizada com só quem deu match (evita ficar
+          deslocado pra esquerda quando sobra coluna vazia). */}
       <div className="flex-1 overflow-y-auto scrollbar-none px-[24px] py-[20px]" style={{ scrollbarWidth: 'none' }}>
         <div className="max-w-[1000px] mx-auto">
           {!temResultado ? (
             <div className="flex flex-col items-center justify-center gap-[12px] py-[80px] text-center text-text-faint">
               <Phone size={44} strokeWidth={1.2} />
               <span className="font-hanken text-[14px]">Nenhum ramal encontrado</span>
+            </div>
+          ) : buscando ? (
+            <div className="flex flex-wrap justify-center gap-[16px]">
+              {layout.flat().map(departamento => {
+                const pessoasVisiveis = pessoasFiltradasPorDepto[departamento] ?? []
+                if (pessoasVisiveis.length === 0) return null
+                return (
+                  <div key={departamento} className="w-[300px] flex-shrink-0">
+                    <DepartamentoCard
+                      departamento={departamento}
+                      pessoasVisiveis={pessoasVisiveis}
+                      listaCompleta={dados.porDepto[departamento] ?? []}
+                      departamentosAtuais={departamentosAtuais}
+                      moverPessoaVertical={moverPessoaVertical}
+                      moverPessoaDeDepartamento={moverPessoaDeDepartamento}
+                      onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
+                    />
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className="flex gap-[16px] items-start">
@@ -431,61 +656,21 @@ export function RamaisPage({ onBack }: Props) {
                   {col.map((departamento, idxInCol) => {
                     const pessoasVisiveis = pessoasFiltradasPorDepto[departamento] ?? []
                     if (pessoasVisiveis.length === 0) return null
-                    const listaCompleta = dados.porDepto[departamento] ?? []
-
                     return (
-                      <div key={departamento} className="group/depto bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden">
-                        <div className="flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg">
-                          <Building2 size={14} strokeWidth={1.9} className="text-accent flex-shrink-0" />
-                          <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
-                            {departamento}
-                          </h4>
-                          <span className="font-hanken text-[11px] text-text-faint flex-shrink-0">{pessoasVisiveis.length}</span>
-
-                          <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover/depto:opacity-100 transition-opacity duration-150">
-                            <MoveButton Icon={ChevronLeft} title="Mover pra coluna anterior" disabled={colIdx === 0} onClick={() => moverDeptoColuna(departamento, -1)} />
-                            <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={idxInCol === 0} onClick={() => moverDeptoVertical(departamento, -1)} />
-                            <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={idxInCol === col.length - 1} onClick={() => moverDeptoVertical(departamento, 1)} />
-                            <MoveButton Icon={ChevronRight} title="Mover pra próxima coluna" disabled={colIdx === layout.length - 1} onClick={() => moverDeptoColuna(departamento, 1)} />
-                          </div>
-                        </div>
-                        <div>
-                          {pessoasVisiveis.map(pessoa => {
-                            const idx = listaCompleta.indexOf(pessoa.id)
-                            return (
-                              <div
-                                key={pessoa.id}
-                                className="group/pessoa flex items-center gap-[6px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150"
-                              >
-                                <button
-                                  onClick={() => setSelected({ nome: pessoa.nome, ramal: pessoa.ramal, departamento })}
-                                  className="flex-1 min-w-0 flex items-center gap-[10px] border-none bg-transparent cursor-pointer text-left p-0"
-                                >
-                                  <div className="w-[28px] h-[28px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px] flex-shrink-0">
-                                    {initialsOf(pessoa.nome)}
-                                  </div>
-                                  <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{pessoa.nome}</span>
-                                </button>
-                                <span className="flex-shrink-0 font-hanken text-[12.5px] text-text-muted tabular-nums">{pessoa.ramal}</span>
-
-                                <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover/pessoa:opacity-100 transition-opacity duration-150">
-                                  <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={idx <= 0} onClick={() => moverPessoaVertical(departamento, pessoa.id, -1)} />
-                                  <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={idx === -1 || idx >= listaCompleta.length - 1} onClick={() => moverPessoaVertical(departamento, pessoa.id, 1)} />
-                                  <select
-                                    value={departamento}
-                                    onClick={e => e.stopPropagation()}
-                                    onChange={e => moverPessoaDeDepartamento(pessoa.id, departamento, e.target.value)}
-                                    title="Mover pra outro departamento"
-                                    className="max-w-[64px] font-hanken text-[10px] text-text-muted border border-border rounded-[6px] bg-surface px-[2px] py-[2px] cursor-pointer outline-none"
-                                  >
-                                    {departamentosAtuais.map(d => <option key={d} value={d}>{d}</option>)}
-                                  </select>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
+                      <DepartamentoCard
+                        key={departamento}
+                        departamento={departamento}
+                        pessoasVisiveis={pessoasVisiveis}
+                        listaCompleta={dados.porDepto[departamento] ?? []}
+                        departamentosAtuais={departamentosAtuais}
+                        moverPessoaVertical={moverPessoaVertical}
+                        moverPessoaDeDepartamento={moverPessoaDeDepartamento}
+                        onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
+                        deptoControles={{
+                          colIdx, idxInCol, colLength: col.length, totalCols: layout.length,
+                          moverDeptoVertical, moverDeptoColuna,
+                        }}
+                      />
                     )
                   })}
                 </div>
@@ -495,9 +680,17 @@ export function RamaisPage({ onBack }: Props) {
         </div>
       </div>
 
-      {selected && <ContatoModal entry={selected} onClose={() => setSelected(null)} />}
-      {showAdd && (
-        <AdicionarPessoaModal
+      {selectedRef && selectedPessoa && (
+        <ContatoModal
+          pessoa={selectedPessoa}
+          departamento={selectedRef.departamento}
+          podeEditar={isMaster}
+          onClose={() => setSelectedRef(null)}
+          onSave={(patch) => editarPessoa(selectedRef.id, patch)}
+        />
+      )}
+      {showAdd && isMaster && (
+        <AdicionarColaboradorModal
           departamentos={departamentosAtuais}
           onClose={() => setShowAdd(false)}
           onAdd={adicionarPessoa}
