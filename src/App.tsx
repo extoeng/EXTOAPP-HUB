@@ -151,6 +151,42 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     })
   }, [])
 
+  // Retorno automático pro app satélite que mandou o usuário de volta pro hub
+  // (?return_to=<url>) — acontece quando o access token do satélite expira
+  // (ou nunca existiu, ex.: F5 direto nele) e ele não tem como renovar sozinho
+  // (SSO Fase 1: satélite só recebe `access`, nunca `refresh`). Sem isso, o
+  // usuário caía na home do hub e precisava clicar no app de novo manualmente.
+  // Roda com `allApps` (não a lista filtrada) pra achar também apps escondidos
+  // do grid, ex. Painel Administrativo/Agenda Pública.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const returnTo = params.get('return_to')
+    if (!returnTo) return
+
+    // Limpa a URL já, síncrono — evita repetir o handoff se o usuário der
+    // outro F5 no hub antes do redirecionamento abaixo completar.
+    params.delete('return_to')
+    window.history.replaceState({}, '', params.toString() ? `?${params}` : window.location.pathname)
+
+    let destino: URL
+    try { destino = new URL(returnTo) } catch { return }
+    const app = allApps.find(a => {
+      if (!a.url) return false
+      try { return new URL(a.url).origin === destino.origin } catch { return false }
+    })
+    if (!app) return
+
+    // Navega a MESMA aba (não abre uma nova) — diferente de openViaSatelliteHandoff,
+    // que abre em nova aba a partir de um clique. Aqui não há gesto de clique
+    // (rodou sozinho ao carregar a página), então window.open seria bloqueado
+    // pelo navegador; navegar a aba atual não tem essa restrição.
+    getSatelliteCode(app.id).then(code => {
+      if (!code) { onSessionExpired(); return }
+      const sep = returnTo.includes('?') ? '&' : '?'
+      window.location.href = `${returnTo}${sep}code=${encodeURIComponent(code)}`
+    })
+  }, [allApps])
+
   const apps = hideCatalogOnly(allApps)
   // Painel Administrativo não é um app de card comum — vira um botão fixo no
   // menu, acima do usuário, visível só pra quem a API já concedeu acesso
