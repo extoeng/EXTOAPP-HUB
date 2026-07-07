@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2, Plus, Pencil,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, GripVertical,
+  ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2, Plus, Pencil, GripVertical,
 } from 'lucide-react'
 import { RAMAIS } from '../data/ramais'
 
@@ -453,28 +452,8 @@ function AdicionarColaboradorModal({ departamentos, onClose, onAdd }: {
   )
 }
 
-function MoveButton({ Icon, disabled, onClick, title }: {
-  Icon: React.ElementType; disabled: boolean; onClick: () => void; title: string
-}) {
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick() }}
-      disabled={disabled}
-      title={title}
-      className="w-[20px] h-[20px] flex items-center justify-center rounded-[6px] border-none bg-transparent cursor-pointer text-text-faint hover:text-ink hover:bg-border transition-colors duration-150 disabled:opacity-25 disabled:cursor-default disabled:hover:bg-transparent"
-    >
-      <Icon size={13} strokeWidth={2.2} />
-    </button>
-  )
-}
-
 interface DeptoControles {
   colIdx: number
-  idxInCol: number
-  colLength: number
-  totalCols: number
-  moverDeptoVertical: (departamento: string, direcao: -1 | 1) => void
-  moverDeptoColuna: (departamento: string, direcao: -1 | 1) => void
 }
 
 interface PessoaArrastada {
@@ -557,15 +536,6 @@ function DepartamentoCard({
         <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
           {departamento}
         </h4>
-
-        {deptoControles && (
-          <div className="flex items-center gap-[1px] flex-shrink-0 opacity-0 group-hover/depto:opacity-100 transition-opacity duration-150">
-            <MoveButton Icon={ChevronLeft} title="Mover pra coluna anterior" disabled={deptoControles.colIdx === 0} onClick={() => deptoControles.moverDeptoColuna(departamento, -1)} />
-            <MoveButton Icon={ChevronUp} title="Mover pra cima" disabled={deptoControles.idxInCol === 0} onClick={() => deptoControles.moverDeptoVertical(departamento, -1)} />
-            <MoveButton Icon={ChevronDown} title="Mover pra baixo" disabled={deptoControles.idxInCol === deptoControles.colLength - 1} onClick={() => deptoControles.moverDeptoVertical(departamento, 1)} />
-            <MoveButton Icon={ChevronRight} title="Mover pra próxima coluna" disabled={deptoControles.colIdx === deptoControles.totalCols - 1} onClick={() => deptoControles.moverDeptoColuna(departamento, 1)} />
-          </div>
-        )}
       </div>
       <div
         onDragOver={e => e.preventDefault()}
@@ -651,34 +621,6 @@ export function RamaisPage({ onBack, isMaster }: Props) {
   const temResultado = Object.values(pessoasFiltradasPorDepto).some(lista => lista.length > 0)
 
   const selectedPessoa = selectedRef ? dados.pessoas[selectedRef.id] : null
-
-  // Move o card de departamento na vertical (troca de posição com o vizinho de
-  // cima/baixo, dentro da mesma coluna) ou na horizontal (muda de coluna).
-  const moverDeptoVertical = (departamento: string, direcao: -1 | 1) => {
-    setLayout(prev => {
-      const next = prev.map(col => [...col])
-      const colIdx = next.findIndex(col => col.includes(departamento))
-      if (colIdx === -1) return prev
-      const col = next[colIdx]
-      const i = col.indexOf(departamento)
-      const j = i + direcao
-      if (j < 0 || j >= col.length) return prev
-      ;[col[i], col[j]] = [col[j], col[i]]
-      return next
-    })
-  }
-
-  const moverDeptoColuna = (departamento: string, direcao: -1 | 1) => {
-    setLayout(prev => {
-      const next = prev.map(col => [...col])
-      const colIdx = next.findIndex(col => col.includes(departamento))
-      const destIdx = colIdx + direcao
-      if (colIdx === -1 || destIdx < 0 || destIdx >= next.length) return prev
-      next[colIdx] = next[colIdx].filter(d => d !== departamento)
-      next[destIdx] = [...next[destIdx], departamento]
-      return next
-    })
-  }
 
   // Solta um departamento arrastado numa coluna (a que já estava ou outra) —
   // entra antes de `antesDe` (soltou em cima de outro card) ou no fim da
@@ -836,7 +778,7 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                     if (item?.tipo === 'depto') moverDeptoParaPosicao(item.departamento, colIdx, null)
                   }}
                 >
-                  {col.map((departamento, idxInCol) => {
+                  {col.map(departamento => {
                     const pessoasVisiveis = pessoasFiltradasPorDepto[departamento] ?? []
                     if (pessoasVisiveis.length === 0) return null
                     return (
@@ -847,10 +789,7 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                         onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
                         onSoltarPessoa={moverPessoaParaPosicao}
                         onSoltarDepto={moverDeptoParaPosicao}
-                        deptoControles={{
-                          colIdx, idxInCol, colLength: col.length, totalCols: layout.length,
-                          moverDeptoVertical, moverDeptoColuna,
-                        }}
+                        deptoControles={{ colIdx }}
                       />
                     )
                   })}

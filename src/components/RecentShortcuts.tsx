@@ -82,7 +82,7 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
         <button onClick={onOpenRamais} className={chipClass}>
           <Phone size={19} strokeWidth={1.7} className="text-icon-default" />
           <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Ramais
+            Contatos
           </span>
         </button>
       </div>
