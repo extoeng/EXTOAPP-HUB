@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function ManuaisPage({ initialId, onBack, user }: Props) {
-  const canUpload = user.apps['manuais']?.includes('manage') ?? false
+  const canManage = user.apps['manuais']?.includes('manage') ?? false
   return (
     <DocumentLibrary
       title="Manuais"
@@ -17,7 +17,7 @@ export function ManuaisPage({ initialId, onBack, user }: Props) {
       fallbackItems={MANUAIS}
       initialId={initialId}
       onBack={onBack}
-      canUpload={canUpload}
+      canManage={canManage}
     />
   )
 }

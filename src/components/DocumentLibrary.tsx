@@ -1,7 +1,7 @@
-import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus } from 'lucide-react'
+import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus, Trash2, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryDoc } from '../types'
-import { fetchDocuments, uploadDocument, type DocType } from '../services/documents'
+import { fetchDocuments, uploadDocument, deleteDocument, type DocType } from '../services/documents'
 
 interface Props {
   title: string
@@ -12,12 +12,12 @@ interface Props {
   onBack: () => void
   emptyMessage?: string
   /** Exibe o botão "Adicionar documento" — decidido pelo chamador conforme permissão do usuário. */
-  canUpload?: boolean
+  canManage?: boolean
 }
 
 const PAGE_SIZE = 10
 
-export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack, emptyMessage = 'Nenhum documento anexado', canUpload = false }: Props) {
+export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack, emptyMessage = 'Nenhum documento anexado', canManage = false }: Props) {
   // null = ainda carregando. Não usa fallbackItems como estado inicial pra
   // não "piscar" mock e trocar pelos dados reais assim que a API responde —
   // só cai pro fallback se a chamada de fato falhar.
@@ -28,6 +28,8 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -55,6 +57,24 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
     setDocs(prev => [doc, ...(prev ?? [])])
     setSelected(doc)
     setVisibleCount(PAGE_SIZE)
+  }
+
+  const handleDelete = async () => {
+    if (!selected) return
+    if (!window.confirm(`Excluir "${selected.title}"? Esta ação não pode ser desfeita.`)) return
+    setDeleting(true)
+    setDeleteError(null)
+    const ok = await deleteDocument(selected.id)
+    setDeleting(false)
+    if (!ok) {
+      setDeleteError('Não foi possível excluir. Verifique sua permissão de Administrador.')
+      return
+    }
+    setDocs(prev => {
+      const next = (prev ?? []).filter(c => c.id !== selected.id)
+      setSelected(next[0])
+      return next
+    })
   }
 
   const filtered = useMemo(() => {
@@ -90,7 +110,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
         <span className="text-border">|</span>
         <span className="font-archivo font-semibold text-[20px] text-ink">{title}</span>
 
-        {canUpload && (
+        {canManage && (
           <>
             <div className="ml-auto flex items-center gap-[10px]">
               {uploadError && (
@@ -225,22 +245,46 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                 title={selected.title}
                 referrerPolicy="no-referrer"
               />
-              <a
-                href={selected.pdfUrl}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Baixar PDF"
-                className="
-                  absolute top-[16px] right-[16px] w-[38px] h-[38px] rounded-[10px]
-                  bg-surface border border-border shadow-card-hover
-                  flex items-center justify-center text-icon-default no-underline
-                  hover:border-border-hover hover:-translate-y-[1px]
-                  transition-all duration-150
-                "
-              >
-                <Download size={17} strokeWidth={1.8} />
-              </a>
+              <div className="absolute top-[16px] right-[16px] flex items-center gap-[8px]">
+                {deleteError && (
+                  <span className="font-hanken text-[12px] text-red-600 bg-surface rounded-[8px] px-[8px] py-[4px] shadow-card-hover">
+                    {deleteError}
+                  </span>
+                )}
+                {canManage && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    title="Excluir documento"
+                    className="
+                      w-[38px] h-[38px] rounded-[10px]
+                      bg-surface border border-border shadow-card-hover
+                      flex items-center justify-center text-icon-default cursor-pointer
+                      hover:border-border-hover hover:-translate-y-[1px] hover:text-accent
+                      disabled:opacity-60 disabled:cursor-default disabled:hover:translate-y-0
+                      transition-all duration-150
+                    "
+                  >
+                    {deleting ? <Loader2 size={17} className="animate-spin" /> : <Trash2 size={17} strokeWidth={1.8} />}
+                  </button>
+                )}
+                <a
+                  href={selected.pdfUrl}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Baixar PDF"
+                  className="
+                    w-[38px] h-[38px] rounded-[10px]
+                    bg-surface border border-border shadow-card-hover
+                    flex items-center justify-center text-icon-default no-underline
+                    hover:border-border-hover hover:-translate-y-[1px]
+                    transition-all duration-150
+                  "
+                >
+                  <Download size={17} strokeWidth={1.8} />
+                </a>
+              </div>
             </>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] text-text-faint">

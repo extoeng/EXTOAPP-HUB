@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function ComunicadosPage({ initialId, onBack, user }: Props) {
-  const canUpload = user.apps['comunicados']?.includes('manage') ?? false
+  const canManage = user.apps['comunicados']?.includes('manage') ?? false
   return (
     <DocumentLibrary
       title="Comunicados"
@@ -17,7 +17,7 @@ export function ComunicadosPage({ initialId, onBack, user }: Props) {
       fallbackItems={COMUNICADOS}
       initialId={initialId}
       onBack={onBack}
-      canUpload={canUpload}
+      canManage={canManage}
     />
   )
 }

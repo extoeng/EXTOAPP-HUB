@@ -27,3 +27,10 @@ export async function uploadDocument(
   if (!res.ok) return null
   return await res.json()
 }
+
+/** Exige capability 'manage' no app do documento — 403 se não tiver. Sem
+ *  edição (PATCH) ainda — ver pendência no MCP extodev. */
+export async function deleteDocument(id: number): Promise<boolean> {
+  const res = await apiFetch(`/documentos/${id}/`, { method: 'DELETE' })
+  return res.ok
+}
