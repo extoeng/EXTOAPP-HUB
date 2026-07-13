@@ -1,40 +1,5 @@
-import { ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-
-const MEETINGS = [
-  {
-    id: 1,
-    title: 'Reunião de Obras — Lote 7',
-    time: '09:00',
-    duration: '1h',
-    location: 'Sala de Projetos',
-    color: '#AE3A23',
-  },
-  {
-    id: 2,
-    title: 'Alinhamento RH',
-    time: '11:30',
-    duration: '30min',
-    location: 'Meet',
-    color: '#2A5A8C',
-  },
-  {
-    id: 3,
-    title: 'Revisão de Orçamento Q3',
-    time: '14:00',
-    duration: '2h',
-    location: 'Sala Financeiro',
-    color: '#2F7D5B',
-  },
-  {
-    id: 4,
-    title: 'Check-in com Fornecedor',
-    time: '16:30',
-    duration: '45min',
-    location: 'Telefone',
-    color: '#9A6A12',
-  },
-]
 
 const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
@@ -119,36 +84,6 @@ export function RightPanel() {
                   {d}
                 </button>
               )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Meetings card */}
-      <div style={CARD_STYLE} className="px-[16px] pt-[14px] pb-[16px] flex-shrink-0">
-        <div className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label mb-[12px]">
-          Hoje
-        </div>
-
-        <div className="flex flex-col gap-[12px]">
-          {MEETINGS.map(m => (
-            <div key={m.id} className="flex gap-[10px] cursor-pointer group">
-              <div className="w-[3px] rounded-full flex-shrink-0 self-stretch" style={{ background: m.color }} />
-              <div className="flex-1 min-w-0">
-                <div className="font-hanken font-medium text-[12.5px] leading-[1.3] text-ink group-hover:text-accent transition-colors duration-150">
-                  {m.title}
-                </div>
-                <div className="flex flex-wrap gap-x-[8px] mt-[4px]">
-                  <span className="inline-flex items-center gap-[3px] font-hanken text-[11px] text-text-faint">
-                    <Clock size={10} strokeWidth={1.8} />
-                    {m.time} · {m.duration}
-                  </span>
-                  <span className="inline-flex items-center gap-[3px] font-hanken text-[11px] text-text-faint">
-                    <MapPin size={10} strokeWidth={1.8} />
-                    {m.location}
-                  </span>
-                </div>
-              </div>
             </div>
           ))}
         </div>
