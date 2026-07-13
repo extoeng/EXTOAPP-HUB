@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, Search, Building2, MapPin, FileText, Phone, Mail,
   Users, Copy, Check, Hash, Briefcase, X, ChevronRight,
   HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive, Handshake,
-  Pencil, Plus, Trash2, Save, Loader2,
+  Pencil, Plus, Trash2, Save, Loader2, ArrowUpDown, GripVertical,
 } from 'lucide-react'
 import { OBRAS, OBRAS_REVISAO, type Obra, type EquipeMembro } from '../data/obras'
 import {
@@ -484,7 +484,20 @@ function ObraEditForm({ obra, onCancel, onSaved, onDeleted }: {
 }
 
 // ── Cartão da grade ──────────────────────────────────────────────────────────
-function ObraCard({ obra, meta, onOpen }: { obra: ObraRow; meta: CategoriaMeta; onOpen: () => void }) {
+// Modo de reordenação: o card vira "alça de arraste" inteira (onOpen fica
+// desligado) — soltar sobre outro card do MESMO grupo troca a posição entre
+// eles; ver handleDrop em ObrasPage (persiste `ordem` sequencial via PATCH).
+function ObraCard({ obra, meta, onOpen, reordering, isDragOver, onDragStart, onDragOverCard, onDropCard, onDragEndCard }: {
+  obra: ObraRow
+  meta: CategoriaMeta
+  onOpen: () => void
+  reordering?: boolean
+  isDragOver?: boolean
+  onDragStart?: () => void
+  onDragOverCard?: (e: React.DragEvent) => void
+  onDropCard?: () => void
+  onDragEndCard?: () => void
+}) {
   const cnpj = obra.documentos['CNPJ'] || ''
   const tel = obra.telefones.filter(Boolean)[0] || ''
   const endereco = enderecoPrincipal(obra)
@@ -493,9 +506,23 @@ function ObraCard({ obra, meta, onOpen }: { obra: ObraRow; meta: CategoriaMeta; 
 
   return (
     <button
-      onClick={onOpen}
-      className="group text-left flex flex-col bg-surface border border-border rounded-[14px] p-[16px] cursor-pointer transition-all duration-150 ease-out hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px] overflow-hidden"
+      onClick={reordering ? undefined : onOpen}
+      draggable={reordering}
+      onDragStart={onDragStart}
+      onDragOver={e => { e.preventDefault(); onDragOverCard?.(e) }}
+      onDrop={e => { e.preventDefault(); onDropCard?.() }}
+      onDragEnd={onDragEndCard}
+      className={`group relative text-left flex flex-col bg-surface border rounded-[14px] p-[16px] transition-all duration-150 ease-out overflow-hidden ${
+        reordering
+          ? `cursor-grab active:cursor-grabbing ${isDragOver ? 'border-accent border-2' : 'border-border'}`
+          : 'cursor-pointer border-border hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]'
+      }`}
     >
+      {reordering && (
+        <div className="absolute top-[12px] right-[12px] text-text-faint">
+          <GripVertical size={16} />
+        </div>
+      )}
       {/* Barra de categoria — reforça a diferenciação mesmo sem ler o selo */}
       <div className="h-[4px] w-full -mt-[16px] -mx-[16px] mb-[13px]" style={{ background: meta.color }} />
 
@@ -660,6 +687,42 @@ export function ObrasPage({ onBack, canManage = false }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
+  // Modo de reordenação (arrastar): força busca/filtro neutros pra garantir
+  // que cada grupo mostra todos os seus itens (senão a ordem sequencial
+  // calculada no drop ignoraria os que estão escondidos pelo filtro).
+  const [reordering, setReordering] = useState(false)
+  const [salvandoOrdem, setSalvandoOrdem] = useState(false)
+  const dragFrom = useRef<{ groupKey: string; index: number } | null>(null)
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
+
+  function toggleReordering() {
+    setReordering(r => {
+      if (!r) { setQuery(''); setAba('all'); setSelectedKey(null); setCreating(false) }
+      return !r
+    })
+  }
+
+  // Solta o card arrastado na posição de `targetIndex` dentro do mesmo grupo;
+  // grava `ordem` sequencial (0,1,2…) só nos itens cuja posição mudou.
+  async function handleDrop(groupKey: string, targetIndex: number, itens: ObraRow[]) {
+    const from = dragFrom.current
+    dragFrom.current = null
+    setDragOverKey(null)
+    if (!from || from.groupKey !== groupKey || from.index === targetIndex) return
+    const reordenados = itens.slice()
+    const [movido] = reordenados.splice(from.index, 1)
+    reordenados.splice(targetIndex, 0, movido)
+    const alteracoes = reordenados
+      .map((o, idx) => ({ o, novaOrdem: idx }))
+      .filter(({ o, novaOrdem }) => o.id != null && (o.ordem ?? 0) !== novaOrdem)
+    if (alteracoes.length === 0) return
+    setSalvandoOrdem(true)
+    await Promise.all(alteracoes.map(({ o, novaOrdem }) => updateObra(o.id!, { ordem: novaOrdem })))
+    const rows = await fetchObras()
+    if (rows) setObras(rows)
+    setSalvandoOrdem(false)
+  }
+
   // Dados: começa com o fallback estático; substitui pela API quando responde.
   const [obras, setObras] = useState<ObraRow[]>(OBRAS as ObraRow[])
   const [fromApi, setFromApi] = useState(false)
@@ -727,52 +790,82 @@ export function ObrasPage({ onBack, canManage = false }: Props) {
         <span className="font-archivo font-semibold text-[14px] text-ink">Dados das Obras</span>
         {!fromApi && <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{OBRAS_REVISAO}</span>}
         {canManage && (
-          <button
-            onClick={() => { setCreating(true); setSelectedKey(null) }}
-            disabled={!fromApi}
-            title={fromApi ? 'Cadastrar nova obra' : 'Indisponível offline (dados de fallback)'}
-            className="ml-auto inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] text-white bg-accent rounded-[10px] px-[12px] py-[7px] border-none cursor-pointer hover:opacity-90 disabled:opacity-50"
-          >
-            <Plus size={14} /> Nova obra
-          </button>
+          <div className="ml-auto flex items-center gap-[8px]">
+            {fromApi && (
+              <button
+                onClick={toggleReordering}
+                title="Arraste os cards pra definir a ordem de exibição dentro de cada grupo"
+                className={`inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] rounded-[10px] px-[12px] py-[7px] border cursor-pointer transition-colors ${
+                  reordering
+                    ? 'bg-accent text-white border-accent hover:opacity-90'
+                    : 'bg-surface text-text-muted border-border hover:border-border-hover'
+                }`}
+              >
+                <ArrowUpDown size={14} /> {reordering ? 'Concluir reordenação' : 'Reordenar'}
+              </button>
+            )}
+            <button
+              onClick={() => { setCreating(true); setSelectedKey(null) }}
+              disabled={!fromApi || reordering}
+              title={fromApi ? 'Cadastrar nova obra' : 'Indisponível offline (dados de fallback)'}
+              className="inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] text-white bg-accent rounded-[10px] px-[12px] py-[7px] border-none cursor-pointer hover:opacity-90 disabled:opacity-50"
+            >
+              <Plus size={14} /> Nova obra
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Toolbar: busca + filtros */}
-      <div className="px-[24px] pt-[16px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
-        <div className="max-w-[1760px] mx-auto">
-          <div className="flex flex-wrap items-center gap-[12px]">
-            <div className="relative flex-1 min-w-[240px]">
-              <Search size={16} strokeWidth={1.8} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-text-faint pointer-events-none" />
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Buscar obra, CNPJ, endereço, responsável…"
-                className="w-full font-hanken text-[13.5px] text-ink bg-surface border border-border rounded-[11px] pl-[38px] pr-[34px] py-[10px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint"
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery('')}
-                  className="absolute right-[9px] top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border-none bg-transparent cursor-pointer text-text-faint hover:text-ink"
-                >
-                  <X size={14} strokeWidth={2} />
-                </button>
-              )}
-            </div>
-            <span className="font-hanken text-[12.5px] text-text-muted whitespace-nowrap">
-              {results.length} de {obras.length} obras{!fromApi && ` · fonte ${OBRAS_REVISAO}`}
-            </span>
-          </div>
-
-          {/* Filtros por aba */}
-          <div className="flex flex-wrap gap-[7px] mt-[12px]">
-            <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={obras.length} />
-            {ABAS.map(a => (
-              <FilterChip key={a} active={aba === a} onClick={() => setAba(a)} label={a} count={abaCount(a)} />
-            ))}
+      {/* Toolbar: busca + filtros (substituída por uma dica enquanto reordena,
+          pra garantir que cada grupo mostre todos os itens durante o arraste) */}
+      {reordering ? (
+        <div className="px-[24px] pt-[14px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
+          <div className="max-w-[1760px] mx-auto flex items-center gap-[9px] font-hanken text-[13px] text-text-muted">
+            <ArrowUpDown size={15} className="flex-shrink-0 text-accent" />
+            Arraste os cards para definir a ordem de exibição dentro de cada grupo.
+            {salvandoOrdem && (
+              <span className="inline-flex items-center gap-[5px] text-accent">
+                <Loader2 size={13} className="animate-spin" /> Salvando…
+              </span>
+            )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="px-[24px] pt-[16px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
+          <div className="max-w-[1760px] mx-auto">
+            <div className="flex flex-wrap items-center gap-[12px]">
+              <div className="relative flex-1 min-w-[240px]">
+                <Search size={16} strokeWidth={1.8} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-text-faint pointer-events-none" />
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Buscar obra, CNPJ, endereço, responsável…"
+                  className="w-full font-hanken text-[13.5px] text-ink bg-surface border border-border rounded-[11px] pl-[38px] pr-[34px] py-[10px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint"
+                />
+                {query && (
+                  <button
+                    onClick={() => setQuery('')}
+                    className="absolute right-[9px] top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border-none bg-transparent cursor-pointer text-text-faint hover:text-ink"
+                  >
+                    <X size={14} strokeWidth={2} />
+                  </button>
+                )}
+              </div>
+              <span className="font-hanken text-[12.5px] text-text-muted whitespace-nowrap">
+                {results.length} de {obras.length} obras{!fromApi && ` · fonte ${OBRAS_REVISAO}`}
+              </span>
+            </div>
+
+            {/* Filtros por aba */}
+            <div className="flex flex-wrap gap-[7px] mt-[12px]">
+              <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={obras.length} />
+              {ABAS.map(a => (
+                <FilterChip key={a} active={aba === a} onClick={() => setAba(a)} label={a} count={abaCount(a)} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Grade de cartões */}
       <div className="flex-1 overflow-y-auto scrollbar-none px-[24px] py-[20px]" style={{ scrollbarWidth: 'none' }}>
@@ -815,8 +908,19 @@ export function ObrasPage({ onBack, canManage = false }: Props) {
                   className="grid gap-[16px]"
                   style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
                 >
-                  {g.itens.map(o => (
-                    <ObraCard key={rowKey(o)} obra={o} meta={g.meta} onOpen={() => setSelectedKey(rowKey(o))} />
+                  {g.itens.map((o, idx) => (
+                    <ObraCard
+                      key={rowKey(o)}
+                      obra={o}
+                      meta={g.meta}
+                      onOpen={() => setSelectedKey(rowKey(o))}
+                      reordering={reordering}
+                      isDragOver={dragOverKey === `${g.key}:${idx}`}
+                      onDragStart={() => { dragFrom.current = { groupKey: g.key, index: idx } }}
+                      onDragOverCard={() => { if (dragFrom.current?.groupKey === g.key) setDragOverKey(`${g.key}:${idx}`) }}
+                      onDropCard={() => handleDrop(g.key, idx, g.itens)}
+                      onDragEndCard={() => { dragFrom.current = null; setDragOverKey(null) }}
+                    />
                   ))}
                 </div>
               </div>
