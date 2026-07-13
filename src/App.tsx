@@ -197,12 +197,18 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // Edição dos Dados das Obras: só quem tem a capability `manage` ("Administrador")
   // no app `obras` (concedida via Painel Admin). O backend é a barreira real.
   const canManageObras = (user.apps['obras'] ?? []).includes('manage')
-  // Agenda Pública (atalho "Agendas" em Informações Úteis) lê dados da API de
-  // Recepção (/api/recepcao/*), protegidos pela capability 'controle-recepcao'
-  // — sem ela, o satélite recebe 403 e trava em "Carregando...". Escondemos o
-  // atalho pra quem não tem essa capability, mesmo critério de allApps usado
-  // pra painel-admin.
-  const hasAgenda = allApps.some(a => a.id === 'controle-recepcao')
+  // Agenda Pública (atalho "Agendas" em Informações Úteis): a VISIBILIDADE do
+  // atalho é decidida pela capability do app próprio `agenda-publica`
+  // (Visualizador) — mesmo critério de allApps usado pra painel-admin. É o
+  // interruptor que o admin usa pra mostrar/esconder a agenda por perfil (ex.:
+  // manutenção), decisão do dono do produto (2026-07-13).
+  // ATENÇÃO: os DADOS da agenda continuam vindo de /api/recepcao/* (app
+  // Recepção), protegidos por 'controle-recepcao' — quem tiver 'agenda-publica'
+  // mas NÃO tiver 'controle-recepcao' vê o atalho e trava em "Carregando..."
+  // (a API nega os dados com 403). Não dá pra resolver isso aqui sem tocar no
+  // backend da Recepção (app compartilhado — ver patterns no MCP). Na prática o
+  // admin deve conceder 'agenda-publica' só a quem já tem 'controle-recepcao'.
+  const hasAgenda = allApps.some(a => a.id === 'agenda-publica')
   // Mesmo critério pros outros 4 atalhos de Informações Úteis (2026-07-13):
   // cada um só aparece pra quem tem `view` ou `manage` no app correspondente
   // (allApps já vem filtrado pela API por "tem qualquer capability nesse
