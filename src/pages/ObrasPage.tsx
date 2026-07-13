@@ -3,12 +3,24 @@ import {
   ArrowLeft, Search, Building2, MapPin, FileText, Phone, Mail,
   Users, Copy, Check, Hash, Briefcase, X, ChevronRight,
   HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive, Handshake,
+  Pencil, Plus, Trash2, Save, Loader2,
 } from 'lucide-react'
 import { OBRAS, OBRAS_REVISAO, type Obra, type EquipeMembro } from '../data/obras'
+import {
+  fetchObras, createObra, updateObra, deleteObra, type ObraApi, type ObraPatch,
+} from '../services/obras'
 
 interface Props {
   onBack: () => void
+  // Só quem tem a capability `manage` ("Administrador") no app `obras` vê os
+  // controles de edição. O backend é a barreira real (403); isto só esconde a UI.
+  canManage?: boolean
 }
+
+// Linha de obra usada na tela: o shape do fallback estático + os campos de
+// organização que só vêm da API (id/grupo_override/ordem). Obra de fallback
+// não tem id — por isso edição só é liberada quando os dados vêm da API.
+type ObraRow = Obra & { id?: number; grupo_override?: string; ordem?: number }
 
 const ABAS = [
   'Geral / Sedes',
@@ -18,7 +30,7 @@ const ABAS = [
 ] as const
 
 // texto pesquisável de uma obra (nome, org, nº, docs, endereços, equipe, e-mail)
-function haystack(o: Obra): string {
+function haystack(o: ObraRow): string {
   return [
     o.nome, o.organizacao, o.numero, o.categoria, o.email,
     ...Object.values(o.documentos),
@@ -31,7 +43,7 @@ function haystack(o: Obra): string {
 // Endereço do local físico da obra. "Fatura" é o endereço da sede
 // corporativa (repetido em quase todas as obras) — "Entrega"/"Cobrança"
 // é o que de fato diferencia cada obra/stand.
-function enderecoPrincipal(o: Obra): string {
+function enderecoPrincipal(o: ObraRow): string {
   return o.enderecos['Entrega'] || o.enderecos['Cobrança'] || o.enderecos['Fatura'] || Object.values(o.enderecos)[0] || ''
 }
 
@@ -44,7 +56,7 @@ function enderecoResumo(endereco: string): string {
 
 // Escolhe o responsável principal da equipe por prioridade de cargo.
 const CARGO_PRIORIDADE = ['gerente', 'coordenador', 'residente', 'engenh']
-function responsavel(o: Obra): EquipeMembro | null {
+function responsavel(o: ObraRow): EquipeMembro | null {
   const equipe = o.equipe.filter(e => e.nome)
   if (equipe.length === 0) return null
   for (const termo of CARGO_PRIORIDADE) {
@@ -91,42 +103,51 @@ function categoriaMeta(categoria: string): CategoriaMeta {
   return CATEGORIA_META[categoria] || CATEGORIA_PADRAO
 }
 
-// Curadoria de exibição (independente da categoria vinda da planilha):
-// reenquadra obras específicas em grupos de negócio definidos por Wendel.
-// Chave = nome exato da obra; valor = categoria de destino.
+// Grupos oferecidos no editor (reenquadrar uma obra) — derivados do CATEGORIA_META.
+const GRUPO_OPTIONS = Object.entries(CATEGORIA_META).map(([value, meta]) => ({ value, label: meta.label }))
+
+// Curadoria de exibição legada (só para o fallback estático, que não tem o
+// campo `grupo_override` por obra). Quando os dados vêm da API, quem manda é
+// o `grupo_override` gravado na própria obra (editável pelo Painel Admin).
 const GRUPO_OVERRIDE: Record<string, string> = {
   'Casa Viva': 'PARCEIROS',
   'GR8': 'PARCEIROS',
   'Espaço Exto Morumbi': 'OBRAS FINALIZADAS',
 }
 
-// Ordem manual dentro de um grupo (quem não estiver na lista vai pro fim,
-// em ordem alfabética). Grupos sem entrada aqui ficam 100% alfabéticos.
+// Ordem manual legada dentro de um grupo (fallback estático). Com dados da
+// API, o campo numérico `ordem` de cada obra tem prioridade.
 const ORDEM_MANUAL: Record<string, string[]> = {
   'EXTO - GERAL - STANDS FIXOS': ['Exto Engenharia', 'Exto Incorporações', 'Espaço Exto Perdizes'],
 }
 
-// Categoria efetiva de uma obra (aplica o override de curadoria).
-function catEfetiva(o: Obra): string {
-  return GRUPO_OVERRIDE[o.nome] ?? o.categoria ?? 'Outras'
+// Categoria efetiva de uma obra: o override gravado na obra (API) vence; senão
+// o override legado por nome; senão a categoria da planilha.
+function catEfetiva(o: ObraRow): string {
+  return (o.grupo_override || '').trim() || GRUPO_OVERRIDE[o.nome] || o.categoria || 'Outras'
 }
 
-function ordenarGrupo(key: string, itens: Obra[]): Obra[] {
+function ordenarGrupo(key: string, itens: ObraRow[]): ObraRow[] {
   const manual = ORDEM_MANUAL[key]
-  const idx = (nome: string) => {
+  const idxManual = (nome: string) => {
     const i = manual ? manual.indexOf(nome) : -1
     return i === -1 ? Number.MAX_SAFE_INTEGER : i
   }
   return [...itens].sort((a, b) => {
-    const d = idx(a.nome) - idx(b.nome)
+    // Prioridade 1: campo `ordem` da API (0 = padrão; só desempata se diferir).
+    const oa = a.ordem ?? Number.MAX_SAFE_INTEGER
+    const ob = b.ordem ?? Number.MAX_SAFE_INTEGER
+    if (oa !== ob) return oa - ob
+    // Prioridade 2: ordem manual legada (fallback estático).
+    const d = idxManual(a.nome) - idxManual(b.nome)
     return d !== 0 ? d : a.nome.localeCompare(b.nome, 'pt-BR')
   })
 }
 
 // Agrupa obras pela categoria efetiva, respeitando a ordem definida em
 // CATEGORIA_META (categorias desconhecidas vão para o fim, na ordem em que aparecerem).
-function agruparPorCategoria(obras: Obra[]): { key: string; meta: CategoriaMeta; itens: Obra[] }[] {
-  const porChave = new Map<string, Obra[]>()
+function agruparPorCategoria(obras: ObraRow[]): { key: string; meta: CategoriaMeta; itens: ObraRow[] }[] {
+  const porChave = new Map<string, ObraRow[]>()
   const ordemConhecida = Object.keys(CATEGORIA_META)
   const desconhecidas: string[] = []
 
@@ -146,6 +167,11 @@ function agruparPorCategoria(obras: Obra[]): { key: string; meta: CategoriaMeta;
       meta: categoriaMeta(key),
       itens: ordenarGrupo(key, porChave.get(key)!),
     }))
+}
+
+// Chave estável de uma obra na lista (id da API quando existe; senão nome+nº).
+function rowKey(o: ObraRow): string {
+  return o.id != null ? `id:${o.id}` : `n:${o.nome}|${o.numero}`
 }
 
 function CopyButton({ value, onClick }: { value: string; onClick?: (e: React.MouseEvent) => void }) {
@@ -187,7 +213,7 @@ function SectionTitle({ Icon, children }: { Icon: React.ElementType; children: R
   )
 }
 
-function ObraDetail({ obra }: { obra: Obra }) {
+function ObraDetail({ obra }: { obra: ObraRow }) {
   const docs = Object.entries(obra.documentos)
   const ends = Object.entries(obra.enderecos)
   const equipe = obra.equipe.filter(e => e.nome)
@@ -266,8 +292,199 @@ function ObraDetail({ obra }: { obra: Obra }) {
   )
 }
 
+// ── Editor da obra (dados + organização/layout) ───────────────────────────────
+// Inputs simples e reutilizáveis (a tela não usa um kit de UI compartilhado).
+function Input({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <input
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint"
+    />
+  )
+}
+
+function Rotulo({ children }: { children: React.ReactNode }) {
+  return <span className="font-hanken font-medium text-[11.5px] text-label">{children}</span>
+}
+
+// Editor de mapa chave→valor (documentos, endereços): linhas com chave+valor.
+function MapaEditor({ obj, onChange }: { obj: Record<string, string>; onChange: (o: Record<string, string>) => void }) {
+  const rows = Object.entries(obj)
+  const set = (i: number, k: string, v: string) => {
+    const next = rows.slice()
+    next[i] = [k, v]
+    onChange(Object.fromEntries(next.filter(([kk]) => kk.trim())))
+  }
+  const add = () => onChange({ ...obj, '': '' })
+  const del = (i: number) => onChange(Object.fromEntries(rows.filter((_, j) => j !== i)))
+  return (
+    <div className="flex flex-col gap-[6px]">
+      {rows.map(([k, v], i) => (
+        <div key={i} className="flex items-center gap-[6px]">
+          <div className="w-[110px] flex-shrink-0"><Input value={k} onChange={nk => set(i, nk, v)} placeholder="Rótulo" /></div>
+          <div className="flex-1"><Input value={v} onChange={nv => set(i, k, nv)} placeholder="Valor" /></div>
+          <button onClick={() => del(i)} title="Remover" className="flex-shrink-0 w-[28px] h-[28px] inline-flex items-center justify-center rounded-[8px] text-text-faint hover:text-accent hover:bg-tile-bg">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+      <button onClick={add} className="self-start inline-flex items-center gap-[5px] font-hanken text-[12px] text-accent hover:underline bg-transparent border-none cursor-pointer p-0">
+        <Plus size={13} /> Adicionar
+      </button>
+    </div>
+  )
+}
+
+// Editor de lista de telefones.
+function TelefonesEditor({ tels, onChange }: { tels: string[]; onChange: (t: string[]) => void }) {
+  const set = (i: number, v: string) => { const n = tels.slice(); n[i] = v; onChange(n) }
+  return (
+    <div className="flex flex-col gap-[6px]">
+      {tels.map((t, i) => (
+        <div key={i} className="flex items-center gap-[6px]">
+          <div className="flex-1"><Input value={t} onChange={v => set(i, v)} placeholder="Telefone" /></div>
+          <button onClick={() => onChange(tels.filter((_, j) => j !== i))} title="Remover" className="flex-shrink-0 w-[28px] h-[28px] inline-flex items-center justify-center rounded-[8px] text-text-faint hover:text-accent hover:bg-tile-bg">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+      <button onClick={() => onChange([...tels, ''])} className="self-start inline-flex items-center gap-[5px] font-hanken text-[12px] text-accent hover:underline bg-transparent border-none cursor-pointer p-0">
+        <Plus size={13} /> Adicionar telefone
+      </button>
+    </div>
+  )
+}
+
+// Editor da equipe (cargo/nome/telefone).
+function EquipeEditor({ equipe, onChange }: { equipe: EquipeMembro[]; onChange: (e: EquipeMembro[]) => void }) {
+  const set = (i: number, patch: Partial<EquipeMembro>) => {
+    const n = equipe.slice(); n[i] = { ...n[i], ...patch }; onChange(n)
+  }
+  return (
+    <div className="flex flex-col gap-[8px]">
+      {equipe.map((m, i) => (
+        <div key={i} className="flex items-center gap-[6px]">
+          <div className="w-[120px] flex-shrink-0"><Input value={m.cargo} onChange={v => set(i, { cargo: v })} placeholder="Cargo" /></div>
+          <div className="flex-1"><Input value={m.nome} onChange={v => set(i, { nome: v })} placeholder="Nome" /></div>
+          <div className="w-[120px] flex-shrink-0"><Input value={m.telefone} onChange={v => set(i, { telefone: v })} placeholder="Telefone" /></div>
+          <button onClick={() => onChange(equipe.filter((_, j) => j !== i))} title="Remover" className="flex-shrink-0 w-[28px] h-[28px] inline-flex items-center justify-center rounded-[8px] text-text-faint hover:text-accent hover:bg-tile-bg">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+      <button onClick={() => onChange([...equipe, { cargo: '', nome: '', telefone: '' }])} className="self-start inline-flex items-center gap-[5px] font-hanken text-[12px] text-accent hover:underline bg-transparent border-none cursor-pointer p-0">
+        <Plus size={13} /> Adicionar membro
+      </button>
+    </div>
+  )
+}
+
+const OBRA_VAZIA: ObraRow = {
+  nome: '', numero: '', organizacao: '', categoria: 'OBRAS EM ANDAMENTO', aba: 'Geral / Sedes',
+  documentos: {}, enderecos: {}, email: '', telefones: [], equipe: [], grupo_override: '', ordem: 0,
+}
+
+function ObraEditForm({ obra, onCancel, onSaved, onDeleted }: {
+  obra: ObraRow
+  onCancel: () => void
+  onSaved: (o: ObraApi) => void
+  onDeleted?: (o: ObraRow) => void
+}) {
+  const criando = obra.id == null
+  const [f, setF] = useState<ObraRow>(() => ({ ...OBRA_VAZIA, ...obra }))
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const set = (patch: Partial<ObraRow>) => setF(prev => ({ ...prev, ...patch }))
+
+  async function salvar() {
+    if (!f.nome.trim()) { setErro('O nome da obra é obrigatório.'); return }
+    setErro(null); setSalvando(true)
+    const patch: ObraPatch = {
+      nome: f.nome, numero: f.numero, organizacao: f.organizacao, email: f.email,
+      categoria: f.categoria, aba: f.aba, grupo_override: f.grupo_override ?? '', ordem: f.ordem ?? 0,
+      documentos: f.documentos, enderecos: f.enderecos, telefones: f.telefones, equipe: f.equipe,
+    }
+    const saved = criando ? await createObra(patch) : await updateObra(obra.id!, patch)
+    setSalvando(false)
+    if (!saved) { setErro('Não foi possível salvar. Verifique sua permissão de Administrador e tente de novo.'); return }
+    onSaved(saved)
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+      <div className="px-[28px] py-[20px] flex flex-col gap-[16px]">
+        {/* Identidade */}
+        <div className="grid grid-cols-2 gap-[10px]">
+          <label className="col-span-2 flex flex-col gap-[4px]"><Rotulo>Nome da obra *</Rotulo><Input value={f.nome} onChange={v => set({ nome: v })} placeholder="Nome" /></label>
+          <label className="flex flex-col gap-[4px]"><Rotulo>Número</Rotulo><Input value={f.numero} onChange={v => set({ numero: v })} /></label>
+          <label className="flex flex-col gap-[4px]"><Rotulo>E-mail</Rotulo><Input value={f.email} onChange={v => set({ email: v })} /></label>
+          <label className="col-span-2 flex flex-col gap-[4px]"><Rotulo>Razão social</Rotulo><Input value={f.organizacao} onChange={v => set({ organizacao: v })} /></label>
+        </div>
+
+        {/* Organização / layout */}
+        <div className="rounded-[12px] border border-border bg-tile-bg/40 p-[12px] flex flex-col gap-[10px]">
+          <div className="flex items-center gap-[7px]"><Building2 size={13} className="text-accent" /><span className="font-archivo font-semibold text-[11.5px] uppercase tracking-[0.05em] text-label">Organização na tela</span></div>
+          <div className="grid grid-cols-2 gap-[10px]">
+            <label className="flex flex-col gap-[4px]">
+              <Rotulo>Grupo exibido</Rotulo>
+              <select value={f.grupo_override || ''} onChange={e => set({ grupo_override: e.target.value })}
+                className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover">
+                <option value="">(usar categoria da planilha)</option>
+                {GRUPO_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-[4px]"><Rotulo>Ordem no grupo</Rotulo><Input value={String(f.ordem ?? 0)} onChange={v => set({ ordem: Number(v.replace(/\D/g, '')) || 0 })} /></label>
+            <label className="flex flex-col gap-[4px]">
+              <Rotulo>Categoria (planilha)</Rotulo>
+              <select value={f.categoria || ''} onChange={e => set({ categoria: e.target.value })}
+                className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover">
+                {GRUPO_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.value}</option>)}
+                {f.categoria && !GRUPO_OPTIONS.some(g => g.value === f.categoria) && <option value={f.categoria}>{f.categoria}</option>}
+              </select>
+            </label>
+            <label className="flex flex-col gap-[4px]">
+              <Rotulo>Aba</Rotulo>
+              <select value={f.aba || ''} onChange={e => set({ aba: e.target.value })}
+                className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover">
+                {ABAS.map(a => <option key={a} value={a}>{a}</option>)}
+                {f.aba && !ABAS.includes(f.aba as typeof ABAS[number]) && <option value={f.aba}>{f.aba}</option>}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-[6px]"><Rotulo>Documentos</Rotulo><MapaEditor obj={f.documentos} onChange={d => set({ documentos: d })} /></div>
+        <div className="flex flex-col gap-[6px]"><Rotulo>Endereços</Rotulo><MapaEditor obj={f.enderecos} onChange={d => set({ enderecos: d })} /></div>
+        <div className="flex flex-col gap-[6px]"><Rotulo>Telefones</Rotulo><TelefonesEditor tels={f.telefones} onChange={t => set({ telefones: t })} /></div>
+        <div className="flex flex-col gap-[6px]"><Rotulo>Equipe de obra</Rotulo><EquipeEditor equipe={f.equipe} onChange={e => set({ equipe: e })} /></div>
+
+        {erro && <div className="font-hanken text-[12.5px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[9px] px-[12px] py-[9px]">{erro}</div>}
+
+        <div className="flex items-center gap-[10px] pt-[4px]">
+          <button onClick={salvar} disabled={salvando}
+            className="inline-flex items-center gap-[6px] font-hanken font-medium text-[13px] text-white bg-accent rounded-[10px] px-[14px] py-[8px] border-none cursor-pointer hover:opacity-90 disabled:opacity-60">
+            {salvando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{criando ? 'Criar obra' : 'Salvar alterações'}
+          </button>
+          <button onClick={onCancel} disabled={salvando}
+            className="font-hanken font-medium text-[13px] text-text-muted bg-surface border border-border rounded-[10px] px-[14px] py-[8px] cursor-pointer hover:border-border-hover">
+            Cancelar
+          </button>
+          {!criando && onDeleted && (
+            <button onClick={() => onDeleted(obra)} disabled={salvando} title="Excluir obra"
+              className="ml-auto inline-flex items-center gap-[6px] font-hanken font-medium text-[13px] text-accent bg-transparent border-none cursor-pointer hover:underline">
+              <Trash2 size={14} /> Excluir
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Cartão da grade ──────────────────────────────────────────────────────────
-function ObraCard({ obra, meta, onOpen }: { obra: Obra; meta: CategoriaMeta; onOpen: () => void }) {
+function ObraCard({ obra, meta, onOpen }: { obra: ObraRow; meta: CategoriaMeta; onOpen: () => void }) {
   const cnpj = obra.documentos['CNPJ'] || ''
   const tel = obra.telefones.filter(Boolean)[0] || ''
   const endereco = enderecoPrincipal(obra)
@@ -363,89 +580,137 @@ function ObraCard({ obra, meta, onOpen }: { obra: Obra; meta: CategoriaMeta; onO
   )
 }
 
-// ── Gaveta lateral com o detalhe completo ─────────────────────────────────────
-function ObraDrawer({ obra, onClose }: { obra: Obra; onClose: () => void }) {
+// ── Gaveta lateral (detalhe ou edição) ────────────────────────────────────────
+function ObraDrawer({ obra, canManage, onClose, onSaved, onDelete }: {
+  obra: ObraRow
+  canManage: boolean
+  onClose: () => void
+  onSaved: (o: ObraApi) => void
+  onDelete: (o: ObraRow) => void
+}) {
+  const criando = obra.id == null && obra.nome === ''
+  const [editando, setEditando] = useState(criando)
+  // Edição só é possível em obra vinda da API (tem id). Fallback estático não edita.
+  const podeEditar = canManage && (obra.id != null || criando)
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !editando) onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, editando])
 
   return (
     <div className="absolute inset-0 z-[40] flex justify-end">
-      {/* Backdrop */}
+      <div className="absolute inset-0 bg-[rgba(22,20,18,0.35)] animate-ex-float" onClick={editando ? undefined : onClose} />
       <div
-        className="absolute inset-0 bg-[rgba(22,20,18,0.35)] animate-ex-float"
-        onClick={onClose}
-      />
-      {/* Painel */}
-      <div
-        className="relative w-[440px] max-w-[92%] h-full bg-surface border-l border-border flex flex-col shadow-card-hover"
+        className="relative w-[520px] max-w-[94%] h-full bg-surface border-l border-border flex flex-col shadow-card-hover"
         style={{ animation: 'exSlideIn 0.22s ease' }}
       >
         <style>{`@keyframes exSlideIn { from { transform: translateX(24px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }`}</style>
 
-        {/* Cabeçalho da gaveta */}
         <div className="flex items-start gap-[12px] px-[28px] py-[20px] border-b border-border flex-shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-[10px] mb-[6px]">
-              {obra.numero && (
+              {obra.numero && !editando && (
                 <span className="inline-flex items-center gap-[3px] font-hanken font-semibold text-[12px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[7px] px-[8px] py-[3px]">
                   <Hash size={11} strokeWidth={2.4} />{obra.numero}
                 </span>
               )}
-              <span className="font-hanken text-[11.5px] text-text-faint uppercase tracking-[0.05em] truncate">{obra.aba}</span>
+              <span className="font-hanken text-[11.5px] text-text-faint uppercase tracking-[0.05em] truncate">
+                {editando ? (criando ? 'Nova obra' : 'Editando') : obra.aba}
+              </span>
             </div>
-            <h2 className="m-0 font-archivo font-semibold text-[19px] leading-[1.2] text-ink break-words">{obra.nome}</h2>
-            {obra.categoria && (() => {
+            <h2 className="m-0 font-archivo font-semibold text-[19px] leading-[1.2] text-ink break-words">{obra.nome || 'Nova obra'}</h2>
+            {!editando && obra.categoria && (() => {
               const meta = categoriaMeta(catEfetiva(obra))
               const CatIcon = meta.Icon
               return (
-                <span
-                  className="inline-flex items-center gap-[4px] font-hanken font-semibold text-[10.5px] uppercase tracking-[0.04em] rounded-[5px] px-[7px] py-[3px] mt-[8px]"
-                  style={{ color: meta.color, background: meta.bg }}
-                >
+                <span className="inline-flex items-center gap-[4px] font-hanken font-semibold text-[10.5px] uppercase tracking-[0.04em] rounded-[5px] px-[7px] py-[3px] mt-[8px]" style={{ color: meta.color, background: meta.bg }}>
                   <CatIcon size={11} strokeWidth={2.4} />{meta.label}
                 </span>
               )
             })()}
           </div>
-          <button
-            onClick={onClose}
-            title="Fechar (Esc)"
-            className="flex-shrink-0 inline-flex items-center justify-center w-[30px] h-[30px] rounded-[9px] border-none bg-tile-bg cursor-pointer text-text-muted hover:text-ink hover:bg-border transition-colors"
-          >
+
+          {podeEditar && !editando && (
+            <button onClick={() => setEditando(true)} title="Editar obra"
+              className="flex-shrink-0 inline-flex items-center gap-[5px] font-hanken font-medium text-[12.5px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[9px] px-[10px] py-[6px] border-none cursor-pointer hover:bg-[rgba(174,58,35,0.14)]">
+              <Pencil size={13} /> Editar
+            </button>
+          )}
+          <button onClick={onClose} title="Fechar (Esc)"
+            className="flex-shrink-0 inline-flex items-center justify-center w-[30px] h-[30px] rounded-[9px] border-none bg-tile-bg cursor-pointer text-text-muted hover:text-ink hover:bg-border transition-colors">
             <X size={16} strokeWidth={2} />
           </button>
         </div>
 
-        <ObraDetail obra={obra} />
+        {editando
+          ? <ObraEditForm obra={obra} onCancel={() => (criando ? onClose() : setEditando(false))}
+              onSaved={(o) => { if (!criando) setEditando(false); onSaved(o) }} onDeleted={onDelete} />
+          : <ObraDetail obra={obra} />}
       </div>
     </div>
   )
 }
 
 // ── Página ────────────────────────────────────────────────────────────────────
-export function ObrasPage({ onBack }: Props) {
+export function ObrasPage({ onBack, canManage = false }: Props) {
   const [query, setQuery] = useState('')
   const [aba, setAba] = useState<'all' | typeof ABAS[number]>('all')
-  const [selectedNome, setSelectedNome] = useState<string | null>(null)
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+
+  // Dados: começa com o fallback estático; substitui pela API quando responde.
+  const [obras, setObras] = useState<ObraRow[]>(OBRAS as ObraRow[])
+  const [fromApi, setFromApi] = useState(false)
+
+  useEffect(() => {
+    let cancel = false
+    fetchObras().then(rows => {
+      if (cancel || !rows) return
+      setObras(rows)
+      setFromApi(true)
+    })
+    return () => { cancel = true }
+  }, [])
 
   const q = query.trim().toLowerCase()
 
   const results = useMemo(() => {
-    return OBRAS.filter(o => {
+    return obras.filter(o => {
       if (aba !== 'all' && o.aba !== aba) return false
       if (q && !haystack(o).includes(q)) return false
       return true
     })
-  }, [q, aba])
+  }, [obras, q, aba])
 
-  const selected = selectedNome ? OBRAS.find(o => o.nome === selectedNome) ?? null : null
+  const selected = creating
+    ? OBRA_VAZIA
+    : selectedKey ? obras.find(o => rowKey(o) === selectedKey) ?? null : null
 
-  const abaCount = (a: typeof ABAS[number]) => OBRAS.filter(o => o.aba === a).length
-
+  const abaCount = (a: typeof ABAS[number]) => obras.filter(o => o.aba === a).length
   const grupos = useMemo(() => agruparPorCategoria(results), [results])
+
+  // Após salvar (criar/editar): recarrega a lista da API pra refletir a mudança.
+  async function recarregar(selecionar?: ObraApi) {
+    const rows = await fetchObras()
+    if (rows) { setObras(rows); setFromApi(true) }
+    setCreating(false)
+    if (selecionar) setSelectedKey(`id:${selecionar.id}`)
+  }
+
+  async function excluir(o: ObraRow) {
+    if (o.id == null) return
+    if (!window.confirm(`Excluir a obra "${o.nome}"? Esta ação não pode ser desfeita.`)) return
+    const ok = await deleteObra(o.id)
+    if (ok) {
+      setSelectedKey(null)
+      const rows = await fetchObras()
+      if (rows) setObras(rows)
+    } else {
+      window.alert('Não foi possível excluir. Verifique sua permissão de Administrador.')
+    }
+  }
 
   return (
     <div className="relative flex flex-col h-full overflow-hidden">
@@ -460,7 +725,17 @@ export function ObrasPage({ onBack }: Props) {
         </button>
         <span className="text-border">|</span>
         <span className="font-archivo font-semibold text-[14px] text-ink">Dados das Obras</span>
-        <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{OBRAS_REVISAO}</span>
+        {!fromApi && <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{OBRAS_REVISAO}</span>}
+        {canManage && (
+          <button
+            onClick={() => { setCreating(true); setSelectedKey(null) }}
+            disabled={!fromApi}
+            title={fromApi ? 'Cadastrar nova obra' : 'Indisponível offline (dados de fallback)'}
+            className="ml-auto inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] text-white bg-accent rounded-[10px] px-[12px] py-[7px] border-none cursor-pointer hover:opacity-90 disabled:opacity-50"
+          >
+            <Plus size={14} /> Nova obra
+          </button>
+        )}
       </div>
 
       {/* Toolbar: busca + filtros */}
@@ -485,13 +760,13 @@ export function ObrasPage({ onBack }: Props) {
               )}
             </div>
             <span className="font-hanken text-[12.5px] text-text-muted whitespace-nowrap">
-              {results.length} de {OBRAS.length} obras · fonte {OBRAS_REVISAO}
+              {results.length} de {obras.length} obras{!fromApi && ` · fonte ${OBRAS_REVISAO}`}
             </span>
           </div>
 
           {/* Filtros por aba */}
           <div className="flex flex-wrap gap-[7px] mt-[12px]">
-            <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={OBRAS.length} />
+            <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={obras.length} />
             {ABAS.map(a => (
               <FilterChip key={a} active={aba === a} onClick={() => setAba(a)} label={a} count={abaCount(a)} />
             ))}
@@ -541,7 +816,7 @@ export function ObrasPage({ onBack }: Props) {
                   style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
                 >
                   {g.itens.map(o => (
-                    <ObraCard key={o.nome + o.numero} obra={o} meta={g.meta} onOpen={() => setSelectedNome(o.nome)} />
+                    <ObraCard key={rowKey(o)} obra={o} meta={g.meta} onOpen={() => setSelectedKey(rowKey(o))} />
                   ))}
                 </div>
               </div>
@@ -550,8 +825,17 @@ export function ObrasPage({ onBack }: Props) {
         </div>
       </div>
 
-      {/* Gaveta de detalhe */}
-      {selected && <ObraDrawer obra={selected} onClose={() => setSelectedNome(null)} />}
+      {/* Gaveta de detalhe / edição */}
+      {selected && (
+        <ObraDrawer
+          key={creating ? 'novo' : selectedKey ?? ''}
+          obra={selected}
+          canManage={canManage && fromApi}
+          onClose={() => { setSelectedKey(null); setCreating(false) }}
+          onSaved={(o) => recarregar(o)}
+          onDelete={excluir}
+        />
+      )}
     </div>
   )
 }

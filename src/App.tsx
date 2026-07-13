@@ -192,6 +192,15 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // menu, acima do usuário, visível só pra quem a API já concedeu acesso
   // (o app só aparece em allApps se o usuário tiver capability lá).
   const hasPainelAdmin = allApps.some(a => a.id === 'painel-admin')
+  // Edição dos Dados das Obras: só quem tem a capability `manage` ("Administrador")
+  // no app `obras` (concedida via Painel Admin). O backend é a barreira real.
+  const canManageObras = (user.apps['obras'] ?? []).includes('manage')
+  // Agenda Pública (atalho "Agendas" em Informações Úteis) lê dados da API de
+  // Recepção (/api/recepcao/*), protegidos pela capability 'controle-recepcao'
+  // — sem ela, o satélite recebe 403 e trava em "Carregando...". Escondemos o
+  // atalho pra quem não tem essa capability, mesmo critério de allApps usado
+  // pra painel-admin.
+  const hasAgenda = allApps.some(a => a.id === 'controle-recepcao')
 
   // Handoff SSO cross-domain (Fase 1, interina): abre o satélite já autenticado
   // via code de curta duração. Reutilizado por qualquer app/atalho com SSO,
@@ -319,7 +328,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           )}
           {page.name === 'obras' && (
             <div className="flex-1 overflow-hidden bg-bg-app">
-              <ObrasPage onBack={() => setPage({ name: 'home' })} />
+              <ObrasPage onBack={() => setPage({ name: 'home' })} canManage={canManageObras} />
             </div>
           )}
           {page.name === 'ramais' && (
@@ -357,6 +366,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
                 onOpenAgenda={openAgenda}
                 onOpenObras={() => setPage({ name: 'obras' })}
                 onOpenRamais={() => setPage({ name: 'ramais' })}
+                showAgenda={hasAgenda}
               />
             )}
 

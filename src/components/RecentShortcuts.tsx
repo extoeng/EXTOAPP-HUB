@@ -16,6 +16,8 @@ interface Props {
   onOpenAgenda: () => void
   onOpenObras: () => void
   onOpenRamais: () => void
+  /** Só quem tem a capability 'controle-recepcao' — os dados da Agenda vêm de lá. */
+  showAgenda: boolean
 }
 
 const chipClass = `
@@ -25,7 +27,7 @@ const chipClass = `
   hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
 `
 
-export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais }: Props) {
+export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais, showAgenda }: Props) {
   return (
     <div>
       <div className="mt-[30px] mb-[14px]">
@@ -72,12 +74,14 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           </span>
         </button>
 
-        <button onClick={onOpenAgenda} className={chipClass}>
-          <CalendarDays size={19} strokeWidth={1.7} className="text-icon-default" />
-          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Agendas
-          </span>
-        </button>
+        {showAgenda && (
+          <button onClick={onOpenAgenda} className={chipClass}>
+            <CalendarDays size={19} strokeWidth={1.7} className="text-icon-default" />
+            <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+              Agendas
+            </span>
+          </button>
+        )}
 
         <button onClick={onOpenRamais} className={chipClass}>
           <Phone size={19} strokeWidth={1.7} className="text-icon-default" />

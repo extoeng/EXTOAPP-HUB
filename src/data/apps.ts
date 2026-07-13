@@ -9,7 +9,8 @@ export const APPS: App[] = [
   { id: 'ctrl-estoque',      cat: 'admin',    name: 'Controle de Estoque',  desc: 'Gerencie entradas, saídas e saldo de materiais e insumos.', icon: '/estoque-icon.svg', url: 'https://estoque.extoapp.com.br' },
   { id: 'ctrl-frotas',       cat: 'admin',    name: 'Controle de Frotas',   desc: 'Acompanhe veículos, manutenções e reservas da frota.', icon: '/frotas-icon.png' },
   { id: 'painel-admin',      cat: 'admin',    name: 'Painel Administrativo', desc: 'Gerencie usuários, auditoria e configurações do ecossistema Exto.', url: 'https://extoapp-painel-adm.web.app', icon: '/painel-admin-icon.png', ssoEnabled: true },
-  { id: 'extoapp',           cat: 'admin',    name: 'ExtoApp',              desc: 'Abertura e acompanhamento de contratos e supply chain.',    icon: '/extoapp-icon.svg', url: 'https://extoapp-contratos.web.app', ssoEnabled: true },
+  { id: 'extoapp',           cat: 'admin',    name: 'Abertura de Contratos', desc: 'Gerencie solicitações e fluxo de aprovação de contratos.',  icon: '/extoapp-icon.svg', url: 'https://extoapp-contratos.web.app', ssoEnabled: true },
+  { id: 'extoapp-sc',        cat: 'admin',    name: 'Acompanhamento de Solicitações', desc: 'Acompanhe o status semanal das solicitações de compras.', icon: '/extoapp-icon.svg', url: 'https://extoapp-solicitacoes.web.app', ssoEnabled: true },
 ]
 
 export const CAT_LABELS: Record<Category, string> = {
