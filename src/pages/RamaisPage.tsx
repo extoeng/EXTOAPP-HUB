@@ -499,7 +499,7 @@ function AvatarPessoa({ pessoa, size, textSize }: { pessoa: Pessoa; size: number
 }
 
 function DepartamentoCard({
-  departamento, pessoasVisiveis, onSelect, onSoltarPessoa, onSoltarDepto, deptoControles,
+  departamento, pessoasVisiveis, onSelect, onSoltarPessoa, onSoltarDepto, deptoControles, isMaster,
 }: {
   departamento: string
   pessoasVisiveis: Pessoa[]
@@ -507,6 +507,9 @@ function DepartamentoCard({
   onSoltarPessoa: (arrastada: PessoaArrastada, destino: string, antesDeId: string | null) => void
   onSoltarDepto: (departamento: string, colDestino: number, antesDe: string | null) => void
   deptoControles?: DeptoControles
+  // Arrastar (pessoa ou departamento) é exclusivo do perfil MASTER — mesmo
+  // gate de podeEditar/isMaster usado no resto da tela (ver ContatoModal).
+  isMaster: boolean
 }) {
   return (
     <div
@@ -514,6 +517,7 @@ function DepartamentoCard({
       onDragOver={e => e.preventDefault()}
       onDrop={e => {
         e.preventDefault()
+        if (!isMaster) return
         const item = lerItemArrastado(e)
         if (item?.tipo === 'depto') {
           e.stopPropagation()
@@ -524,13 +528,13 @@ function DepartamentoCard({
       }}
     >
       <div
-        draggable={!!deptoControles}
+        draggable={isMaster && !!deptoControles}
         onDragStart={e => {
-          if (!deptoControles) return
+          if (!isMaster || !deptoControles) return
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', JSON.stringify({ tipo: 'depto', departamento }))
         }}
-        className={`flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg ${deptoControles ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        className={`flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg ${isMaster && deptoControles ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
         <Building2 size={14} strokeWidth={1.9} className="text-accent flex-shrink-0" />
         <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
@@ -541,6 +545,7 @@ function DepartamentoCard({
         onDragOver={e => e.preventDefault()}
         onDrop={e => {
           e.preventDefault()
+          if (!isMaster) return
           const item = lerItemArrastado(e)
           if (item?.tipo === 'pessoa') onSoltarPessoa(item, departamento, null)
         }}
@@ -548,23 +553,27 @@ function DepartamentoCard({
         {pessoasVisiveis.map(pessoa => (
           <div
             key={pessoa.id}
-            draggable
+            draggable={isMaster}
             onDragStart={e => {
+              if (!isMaster) return
               e.dataTransfer.effectAllowed = 'move'
               e.dataTransfer.setData('text/plain', JSON.stringify({ tipo: 'pessoa', id: pessoa.id, origem: departamento }))
             }}
             onDragOver={e => e.preventDefault()}
             onDrop={e => {
               e.preventDefault()
+              if (!isMaster) return
               const item = lerItemArrastado(e)
               if (item?.tipo === 'pessoa') {
                 e.stopPropagation()
                 if (item.id !== pessoa.id) onSoltarPessoa(item, departamento, pessoa.id)
               }
             }}
-            className="group/pessoa flex items-center gap-[8px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150 cursor-grab active:cursor-grabbing"
+            className={`group/pessoa flex items-center gap-[8px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150 ${isMaster ? 'cursor-grab active:cursor-grabbing' : ''}`}
           >
-            <GripVertical size={13} strokeWidth={2} className="flex-shrink-0 text-text-faint opacity-0 group-hover/pessoa:opacity-100 transition-opacity duration-150" />
+            {isMaster && (
+              <GripVertical size={13} strokeWidth={2} className="flex-shrink-0 text-text-faint opacity-0 group-hover/pessoa:opacity-100 transition-opacity duration-150" />
+            )}
             <button
               onClick={() => onSelect(pessoa.id, departamento)}
               className="flex-1 min-w-0 flex items-center gap-[10px] border-none bg-transparent cursor-pointer text-left p-0"
@@ -760,6 +769,7 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                       onSelect={(id, departamento) => setSelectedRef({ id, departamento })}
                       onSoltarPessoa={moverPessoaParaPosicao}
                       onSoltarDepto={() => {}}
+                      isMaster={isMaster}
                     />
                   </div>
                 )
@@ -774,6 +784,7 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => {
                     e.preventDefault()
+                    if (!isMaster) return
                     const item = lerItemArrastado(e)
                     if (item?.tipo === 'depto') moverDeptoParaPosicao(item.departamento, colIdx, null)
                   }}
@@ -790,6 +801,7 @@ export function RamaisPage({ onBack, isMaster }: Props) {
                         onSoltarPessoa={moverPessoaParaPosicao}
                         onSoltarDepto={moverDeptoParaPosicao}
                         deptoControles={{ colIdx }}
+                        isMaster={isMaster}
                       />
                     )
                   })}
