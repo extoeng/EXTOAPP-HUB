@@ -18,6 +18,11 @@ interface Props {
   onOpenRamais: () => void
   /** Só quem tem a capability 'controle-recepcao' — os dados da Agenda vêm de lá. */
   showAgenda: boolean
+  /** Os 4 abaixo: só quem tem `view` ou `manage` no app correspondente (2026-07-13). */
+  showComunicados: boolean
+  showManuais: boolean
+  showObras: boolean
+  showRamais: boolean
 }
 
 const chipClass = `
@@ -27,7 +32,10 @@ const chipClass = `
   hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]
 `
 
-export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais, showAgenda }: Props) {
+export function RecentShortcuts({
+  apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais,
+  showAgenda, showComunicados, showManuais, showObras, showRamais,
+}: Props) {
   return (
     <div>
       <div className="mt-[30px] mb-[14px]">
@@ -53,26 +61,32 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
         })}
 
         {/* Dados das Obras — página interna com os dados gerais das obras */}
-        <button onClick={onOpenObras} className={chipClass}>
-          <Building2 size={19} strokeWidth={1.7} className="text-icon-default" />
-          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Dados das Obras
-          </span>
-        </button>
+        {showObras && (
+          <button onClick={onOpenObras} className={chipClass}>
+            <Building2 size={19} strokeWidth={1.7} className="text-icon-default" />
+            <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+              Dados das Obras
+            </span>
+          </button>
+        )}
 
-        <button onClick={onOpenComunicados} className={chipClass}>
-          <Megaphone size={19} strokeWidth={1.7} className="text-icon-default" />
-          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Comunicados
-          </span>
-        </button>
+        {showComunicados && (
+          <button onClick={onOpenComunicados} className={chipClass}>
+            <Megaphone size={19} strokeWidth={1.7} className="text-icon-default" />
+            <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+              Comunicados
+            </span>
+          </button>
+        )}
 
-        <button onClick={onOpenManuais} className={chipClass}>
-          <BookOpen size={19} strokeWidth={1.7} className="text-icon-default" />
-          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Manuais
-          </span>
-        </button>
+        {showManuais && (
+          <button onClick={onOpenManuais} className={chipClass}>
+            <BookOpen size={19} strokeWidth={1.7} className="text-icon-default" />
+            <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+              Manuais
+            </span>
+          </button>
+        )}
 
         {showAgenda && (
           <button onClick={onOpenAgenda} className={chipClass}>
@@ -83,12 +97,14 @@ export function RecentShortcuts({ apps, onOpen, onOpenComunicados, onOpenManuais
           </button>
         )}
 
-        <button onClick={onOpenRamais} className={chipClass}>
-          <Phone size={19} strokeWidth={1.7} className="text-icon-default" />
-          <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
-            Contatos
-          </span>
-        </button>
+        {showRamais && (
+          <button onClick={onOpenRamais} className={chipClass}>
+            <Phone size={19} strokeWidth={1.7} className="text-icon-default" />
+            <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+              Contatos
+            </span>
+          </button>
+        )}
       </div>
     </div>
   )

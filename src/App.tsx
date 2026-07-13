@@ -145,9 +145,11 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
 
   // Catálogo de apps vem da API (apps que o usuário pode acessar);
   // mantém o estático como fallback se a API falhar.
+  const [appsLoaded, setAppsLoaded] = useState(false)
   useEffect(() => {
     fetchApps().then(list => {
       if (list && list.length) setAllApps(sortByCatalogOrder(list))
+      setAppsLoaded(true)
     })
   }, [])
 
@@ -201,6 +203,32 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // atalho pra quem não tem essa capability, mesmo critério de allApps usado
   // pra painel-admin.
   const hasAgenda = allApps.some(a => a.id === 'controle-recepcao')
+  // Mesmo critério pros outros 4 atalhos de Informações Úteis (2026-07-13):
+  // cada um só aparece pra quem tem `view` ou `manage` no app correspondente
+  // (allApps já vem filtrado pela API por "tem qualquer capability nesse
+  // app_slug") — sem isso, dá pra "desligar" a visibilidade de um desses
+  // apps por perfil via Painel Admin (ex.: manutenção). NÃO existe um
+  // equivalente pra Agenda aqui — a visibilidade dela é decidida pela
+  // capability do app `controle-recepcao` (ver `hasAgenda` acima), que
+  // pertence ao app Recepção, um sistema diferente — não mexer nisso.
+  const hasComunicados = allApps.some(a => a.id === 'comunicados')
+  const hasManuais = allApps.some(a => a.id === 'manuais')
+  const hasObras = allApps.some(a => a.id === 'obras')
+  const hasRamais = allApps.some(a => a.id === 'ramais')
+
+  // Se a página vinda do sessionStorage (F5) exigir acesso que o usuário não
+  // tem mais (perfil mudou desde a última visita), volta pro Início — sem
+  // isso a área principal ficaria em branco (as páginas abaixo só renderizam
+  // com a condição de acesso batendo). Só decide depois que allApps carregou
+  // de verdade (appsLoaded), senão usaria o fallback estático (que nem lista
+  // esses 4 apps) e mandaria todo mundo pro Início por engano no 1º render.
+  useEffect(() => {
+    if (!appsLoaded) return
+    const precisaDe: Partial<Record<Page['name'], boolean>> = {
+      comunicados: hasComunicados, manuais: hasManuais, obras: hasObras, ramais: hasRamais,
+    }
+    if (page.name in precisaDe && !precisaDe[page.name]) setPage({ name: 'home' })
+  }, [appsLoaded, page.name, hasComunicados, hasManuais, hasObras, hasRamais])
 
   // Handoff SSO cross-domain (Fase 1, interina): abre o satélite já autenticado
   // via code de curta duração. Reutilizado por qualquer app/atalho com SSO,
@@ -299,7 +327,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         />
 
         <div className="flex flex-1 overflow-hidden">
-          {page.name === 'comunicados' && (
+          {page.name === 'comunicados' && hasComunicados && (
             <div className="flex-1 overflow-hidden bg-bg-app">
               <ComunicadosPage
                 initialId={page.id}
@@ -308,7 +336,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               />
             </div>
           )}
-          {page.name === 'manuais' && (
+          {page.name === 'manuais' && hasManuais && (
             <div className="flex-1 overflow-hidden bg-bg-app">
               <ManuaisPage
                 initialId={page.id}
@@ -326,12 +354,12 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               />
             </div>
           )}
-          {page.name === 'obras' && (
+          {page.name === 'obras' && hasObras && (
             <div className="flex-1 overflow-hidden bg-bg-app">
               <ObrasPage onBack={() => setPage({ name: 'home' })} canManage={canManageObras} />
             </div>
           )}
-          {page.name === 'ramais' && (
+          {page.name === 'ramais' && hasRamais && (
             <div className="flex-1 overflow-hidden bg-bg-app">
               <RamaisPage onBack={() => setPage({ name: 'home' })} isMaster={hasPainelAdmin} />
             </div>
@@ -348,7 +376,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               </div>
             </div>
 
-            {showExtras && (
+            {showExtras && hasComunicados && (
               <div>
                 <h3 className="m-0 mb-[14px] font-archivo font-semibold text-[13px] leading-none tracking-[0.08em] uppercase text-label">
                   Comunicados
@@ -367,6 +395,10 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
                 onOpenObras={() => setPage({ name: 'obras' })}
                 onOpenRamais={() => setPage({ name: 'ramais' })}
                 showAgenda={hasAgenda}
+                showComunicados={hasComunicados}
+                showManuais={hasManuais}
+                showObras={hasObras}
+                showRamais={hasRamais}
               />
             )}
 
