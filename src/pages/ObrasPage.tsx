@@ -436,15 +436,7 @@ function ObraEditForm({ obra, onCancel, onSaved, onDeleted }: {
               </select>
             </label>
             <label className="flex flex-col gap-[4px]"><Rotulo>Ordem no grupo</Rotulo><Input value={String(f.ordem ?? 0)} onChange={v => set({ ordem: Number(v.replace(/\D/g, '')) || 0 })} /></label>
-            <label className="flex flex-col gap-[4px]">
-              <Rotulo>Categoria (planilha)</Rotulo>
-              <select value={f.categoria || ''} onChange={e => set({ categoria: e.target.value })}
-                className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover">
-                {GRUPO_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.value}</option>)}
-                {f.categoria && !GRUPO_OPTIONS.some(g => g.value === f.categoria) && <option value={f.categoria}>{f.categoria}</option>}
-              </select>
-            </label>
-            <label className="flex flex-col gap-[4px]">
+            <label className="col-span-2 flex flex-col gap-[4px]">
               <Rotulo>Aba</Rotulo>
               <select value={f.aba || ''} onChange={e => set({ aba: e.target.value })}
                 className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover">
