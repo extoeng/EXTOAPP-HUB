@@ -1,30 +1,48 @@
 import { ArrowRight, Calendar } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { COMUNICADOS } from '../data/comunicados'
+import { fetchDocuments } from '../services/documents'
+import type { LibraryDoc } from '../types'
 
 const INTERVAL_MS = 8000
 const TRANSITION_MS = 650
+const MAX_RECENTES = 5
 
 interface Props {
   onRead: (id: number) => void
 }
 
 export function Banner({ onRead }: Props) {
+  // null = carregando. [] = API respondeu e não há nenhum comunicado — o
+  // card inteiro some (ver render abaixo), não mostra mock nesse caso.
+  const [itens, setItens] = useState<LibraryDoc[] | null>(null)
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
+    fetchDocuments('comunicado').then(list => {
+      if (!list) { setItens([]); return }
+      // Prioriza os marcados como "destaque"; sem nenhum marcado, cai pros
+      // mais recentes (a lista já vem ordenada -data,-created_at pela API).
+      const destacados = list.filter(c => c.destaque)
+      setItens(destacados.length > 0 ? destacados : list.slice(0, MAX_RECENTES))
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!itens || itens.length < 2) return
     const timer = setInterval(() => {
       setVisible(false)
       setTimeout(() => {
-        setIndex(i => (i + 1) % COMUNICADOS.length)
+        setIndex(i => (i + 1) % itens.length)
         setVisible(true)
       }, TRANSITION_MS)
     }, INTERVAL_MS)
     return () => clearInterval(timer)
-  }, [])
+  }, [itens])
 
-  const c = COMUNICADOS[index]
+  if (!itens || itens.length === 0) return null
+
+  const c = itens[Math.min(index, itens.length - 1)]
 
   const goTo = (i: number) => {
     if (i === index) return
@@ -34,6 +52,10 @@ export function Banner({ onRead }: Props) {
 
   return (
     <div>
+      <h3 className="m-0 mb-[14px] font-archivo font-semibold text-[13px] leading-none tracking-[0.08em] uppercase text-label">
+        Comunicados
+      </h3>
+
       <div
         className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[22px] flex items-center gap-[26px]"
         style={{
@@ -74,20 +96,22 @@ export function Banner({ onRead }: Props) {
         </button>
       </div>
 
-      <div className="flex justify-center gap-[6px] mt-[10px]">
-        {COMUNICADOS.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => goTo(i)}
-            className="border-none p-0 cursor-pointer rounded-full transition-all duration-200"
-            style={{
-              width: i === index ? '18px' : '6px',
-              height: '6px',
-              background: i === index ? '#AE3A23' : '#D9D5D0',
-            }}
-          />
-        ))}
-      </div>
+      {itens.length > 1 && (
+        <div className="flex justify-center gap-[6px] mt-[10px]">
+          {itens.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              className="border-none p-0 cursor-pointer rounded-full transition-all duration-200"
+              style={{
+                width: i === index ? '18px' : '6px',
+                height: '6px',
+                background: i === index ? '#AE3A23' : '#D9D5D0',
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

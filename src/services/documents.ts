@@ -34,3 +34,15 @@ export async function deleteDocument(id: number): Promise<boolean> {
   const res = await apiFetch(`/documentos/${id}/`, { method: 'DELETE' })
   return res.ok
 }
+
+/** Marca/desmarca um documento pra aparecer no card da home. Exige 'manage'
+ *  no app do documento — 403 se não tiver. */
+export async function setDestaque(id: number, destaque: boolean): Promise<LibraryDoc | null> {
+  const res = await apiFetch(`/documentos/${id}/destaque/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destaque }),
+  })
+  if (!res.ok) return null
+  return await res.json()
+}

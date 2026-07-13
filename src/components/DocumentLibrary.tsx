@@ -1,7 +1,7 @@
-import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus, Trash2, Loader2, Star } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryDoc } from '../types'
-import { fetchDocuments, uploadDocument, deleteDocument, type DocType } from '../services/documents'
+import { fetchDocuments, uploadDocument, deleteDocument, setDestaque, type DocType } from '../services/documents'
 
 interface Props {
   title: string
@@ -30,6 +30,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [togglingDestaque, setTogglingDestaque] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -75,6 +76,16 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
       setSelected(next[0])
       return next
     })
+  }
+
+  const handleToggleDestaque = async () => {
+    if (!selected) return
+    setTogglingDestaque(true)
+    const updated = await setDestaque(selected.id, !selected.destaque)
+    setTogglingDestaque(false)
+    if (!updated) return
+    setSelected(updated)
+    setDocs(prev => (prev ?? []).map(c => c.id === updated.id ? updated : c))
   }
 
   const filtered = useMemo(() => {
@@ -250,6 +261,26 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                   <span className="font-hanken text-[12px] text-red-600 bg-surface rounded-[8px] px-[8px] py-[4px] shadow-card-hover">
                     {deleteError}
                   </span>
+                )}
+                {canManage && (
+                  <button
+                    onClick={handleToggleDestaque}
+                    disabled={togglingDestaque}
+                    title={selected.destaque ? 'Remover destaque da home' : 'Destacar na home'}
+                    className="
+                      w-[38px] h-[38px] rounded-[10px]
+                      bg-surface border border-border shadow-card-hover
+                      flex items-center justify-center cursor-pointer
+                      hover:border-border-hover hover:-translate-y-[1px]
+                      disabled:opacity-60 disabled:cursor-default disabled:hover:translate-y-0
+                      transition-all duration-150
+                    "
+                    style={{ color: selected.destaque ? '#AE3A23' : '#3C3A37' }}
+                  >
+                    {togglingDestaque
+                      ? <Loader2 size={17} className="animate-spin" />
+                      : <Star size={17} strokeWidth={1.8} fill={selected.destaque ? '#AE3A23' : 'none'} />}
+                  </button>
                 )}
                 {canManage && (
                   <button

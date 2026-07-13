@@ -383,12 +383,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
             </div>
 
             {showExtras && hasComunicados && (
-              <div>
-                <h3 className="m-0 mb-[14px] font-archivo font-semibold text-[13px] leading-none tracking-[0.08em] uppercase text-label">
-                  Comunicados
-                </h3>
-                <Banner onRead={(id) => setPage({ name: 'comunicados', id })} />
-              </div>
+              <Banner onRead={(id) => setPage({ name: 'comunicados', id })} />
             )}
 
             {showExtras && (

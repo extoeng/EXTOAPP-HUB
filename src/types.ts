@@ -32,4 +32,6 @@ export interface LibraryDoc {
   title: string
   desc: string
   pdfUrl?: string
+  /** Marcado manualmente pra aparecer no card da home (ver Banner.tsx). */
+  destaque?: boolean
 }
