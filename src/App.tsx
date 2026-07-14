@@ -14,7 +14,7 @@ import { ManuaisPage } from './pages/ManuaisPage'
 import { ObrasPage } from './pages/ObrasPage'
 import { RamaisPage } from './pages/RamaisPage'
 import { ProfilePage } from './pages/ProfilePage'
-import { Sidebar } from './components/Sidebar'
+import { Sidebar, SIDEBAR_COLLAPSED_W } from './components/Sidebar'
 import { Header } from './components/Header'
 import { Banner } from './components/Banner'
 import { RecentShortcuts } from './components/RecentShortcuts'
@@ -324,7 +324,12 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         onOpenPainelAdmin={openPainelAdmin}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Sidebar agora é fixed (flutuante) e recolhe sozinha — este espaçamento
+          reserva a faixa de ícones pra ela nunca sobrepor o conteúdo. */}
+      <div
+        className="flex-1 flex flex-col min-w-0 overflow-hidden transition-[padding] duration-300"
+        style={{ paddingLeft: isNarrow ? 0 : SIDEBAR_COLLAPSED_W + 24 }}
+      >
         <Header
           query={query}
           isNarrow={isNarrow}

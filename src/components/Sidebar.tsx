@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList, ChevronRight, ShieldCheck } from 'lucide-react'
 import type { ActiveCat, Category, App } from '../types'
 import type { AuthUser } from '../services/auth'
-import logoUrl from '../assets/exto-logo-transparent.png'
+
+export const SIDEBAR_COLLAPSED_W = 68
+const SIDEBAR_GAP = 12
 
 const NAV_MENU = [
   { id: 'all' as ActiveCat, label: 'Início', Icon: Home },
@@ -36,77 +38,81 @@ interface Props {
   onOpenPainelAdmin: () => void
 }
 
-function NavItem({ id, label, Icon, activeCat, onClick }: {
+function NavItem({ id, label, Icon, activeCat, expanded, onClick }: {
   id: ActiveCat
   label: string
   Icon: React.ElementType
   activeCat: ActiveCat
+  expanded: boolean
   onClick: () => void
 }) {
   const active = activeCat === id
   return (
     <button
       onClick={onClick}
+      title={!expanded ? label : undefined}
       className={`
-        w-full flex items-center gap-[12px] px-[12px] py-[10px] rounded-[10px] cursor-pointer
+        w-full flex items-center rounded-[10px] cursor-pointer
         font-hanken font-medium text-[14px] leading-none
-        transition-colors duration-150
-        hover:bg-tile-bg border-none
-        ${active ? 'bg-[rgba(174,58,35,0.08)] text-ink' : 'bg-transparent text-text-muted'}
+        transition-all duration-150 border-none
+        ${expanded ? 'gap-[12px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
+        ${active ? 'bg-accent text-white' : 'bg-transparent text-side-muted hover:text-white hover:bg-white/[0.06]'}
       `}
     >
-      <Icon
-        size={19}
-        strokeWidth={1.7}
-        style={{ color: active ? '#AE3A23' : '#9C978F' }}
-      />
-      {label}
+      <Icon size={19} strokeWidth={1.7} className="flex-shrink-0" />
+      {expanded && <span className="whitespace-nowrap overflow-hidden">{label}</span>}
     </button>
   )
 }
 
-function CategoryNavItem({ label, Icon, apps, expanded, onToggle, onOpenApp }: {
+function CategoryNavItem({ label, Icon, apps, expanded, sidebarExpanded, onToggle, onOpenApp }: {
   label: string
   Icon: React.ElementType
   apps: App[]
   expanded: boolean
+  sidebarExpanded: boolean
   onToggle: () => void
   onOpenApp: (name: string) => void
 }) {
-  const active = expanded
+  const active = expanded && sidebarExpanded
 
   return (
     <div>
       <button
         onClick={onToggle}
+        title={!sidebarExpanded ? label : undefined}
         className={`
-          w-full flex items-center gap-[12px] px-[12px] py-[10px] rounded-[10px] cursor-pointer
+          w-full flex items-center rounded-[10px] cursor-pointer
           font-hanken font-medium text-[14px] leading-none
-          transition-colors duration-150
-          hover:bg-tile-bg border-none
-          ${active ? 'bg-[rgba(174,58,35,0.08)] text-ink' : 'bg-transparent text-text-muted'}
+          transition-all duration-150 border-none
+          ${sidebarExpanded ? 'gap-[12px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
+          ${active ? 'bg-white/[0.08] text-white' : 'bg-transparent text-side-muted hover:text-white hover:bg-white/[0.06]'}
         `}
       >
-        <Icon size={19} strokeWidth={1.7} style={{ color: active ? '#AE3A23' : '#9C978F' }} />
-        <span className="flex-1 text-left">{label}</span>
-        <ChevronRight
-          size={15}
-          strokeWidth={2}
-          className="transition-transform duration-150 flex-shrink-0"
-          style={{ color: '#B9B4AC', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-        />
+        <Icon size={19} strokeWidth={1.7} className="flex-shrink-0" />
+        {sidebarExpanded && (
+          <>
+            <span className="flex-1 text-left whitespace-nowrap overflow-hidden">{label}</span>
+            <ChevronRight
+              size={15}
+              strokeWidth={2}
+              className="transition-transform duration-150 flex-shrink-0 text-side-faint"
+              style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            />
+          </>
+        )}
       </button>
 
-      {expanded && (
-        <div className="flex flex-col gap-[1px] mt-[2px] ml-[19px] pl-[13px] border-l border-border-3">
+      {expanded && sidebarExpanded && (
+        <div className="flex flex-col gap-[1px] mt-[2px] ml-[19px] pl-[13px] border-l border-white/[0.08]">
           {apps.map(app => (
             <button
               key={app.id}
               onClick={() => onOpenApp(app.name)}
               className="
                 w-full flex items-center gap-[9px] px-[10px] py-[8px] rounded-[8px] cursor-pointer
-                font-hanken font-normal text-[13px] leading-none text-text-muted
-                transition-colors duration-150 hover:bg-tile-bg hover:text-ink border-none bg-transparent
+                font-hanken font-normal text-[13px] leading-none text-side-muted
+                transition-colors duration-150 hover:bg-white/[0.06] hover:text-white border-none bg-transparent
                 text-left
               "
             >
@@ -123,9 +129,12 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
   const activeCats = new Set(apps.map(a => a.cat))
   const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
   const [expanded, setExpanded] = useState<Set<Category>>(new Set())
+  const [hovered, setHovered] = useState(false)
 
-  // Categoria no menu só expande/recolhe os apps dela — não filtra a tela
-  // central, que continua mostrando comunicados, informações úteis etc.
+  // Desktop: recolhe pra uma faixa de ícones e só expande com o mouse em
+  // cima, liberando espaço de tela. Mobile: controlado só pelo hambúrguer.
+  const isExpanded = isNarrow ? menuOpen : hovered
+
   const toggleCat = (cat: Category) => {
     setExpanded(prev => {
       const next = new Set(prev)
@@ -148,49 +157,75 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
 
   return (
     <aside
+      onMouseEnter={() => !isNarrow && setHovered(true)}
+      onMouseLeave={() => !isNarrow && setHovered(false)}
       className="
-        top-0 left-0 z-40
-        bg-surface flex flex-col flex-shrink-0
-        transition-transform duration-[280ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+        fixed z-40 flex flex-col overflow-hidden
+        bg-side-bg
+        transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
       "
       style={{
-        position: isNarrow ? 'fixed' : 'relative',
+        top: isNarrow ? 0 : SIDEBAR_GAP,
+        left: isNarrow ? 0 : SIDEBAR_GAP,
+        bottom: isNarrow ? 0 : SIDEBAR_GAP,
+        width: isExpanded ? '248px' : (isNarrow ? '248px' : `${SIDEBAR_COLLAPSED_W}px`),
+        borderRadius: isNarrow ? 0 : 20,
         transform: isNarrow && !menuOpen ? 'translateX(-110%)' : 'translateX(0)',
-        width: isNarrow ? '264px' : '248px',
-        height: isNarrow ? '100%' : 'calc(100% - 16px)',
-        margin: isNarrow ? '0' : '8px 0 8px 8px',
-        borderRadius: isNarrow ? '0' : '20px',
-        border: '1px solid #EAE7E2',
-        boxShadow: isNarrow ? 'none' : '0 4px 24px -6px rgba(38,37,36,0.10)',
+        boxShadow: isNarrow ? 'none' : '0 8px 40px -8px rgba(20,18,16,0.45)',
       }}
     >
-      {/* Header */}
-      <div className="px-[22px] pt-[14px] pb-[14px] flex items-start justify-between">
-        <div className="flex-1 flex justify-center">
-          <img src={logoUrl} alt="Exto" className="h-[80px] w-auto block" />
+      {/* Header / logo */}
+      <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[24px] pb-[18px]' : 'pt-[20px] pb-[16px]'}`}>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex-1 flex justify-center">
+            <div
+              className="rounded-[12px] bg-accent flex items-center justify-center flex-shrink-0"
+              style={{ width: 36, height: 36 }}
+            >
+              <span className="font-archivo font-bold text-[16px] text-white leading-none">X</span>
+            </div>
+          </div>
+          {isNarrow && isExpanded && (
+            <button
+              onClick={onClose}
+              className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center cursor-pointer text-side-muted hover:bg-white/[0.06] hover:text-white border-none bg-transparent transition-colors duration-150"
+            >
+              <X size={18} strokeWidth={1.7} />
+            </button>
+          )}
         </div>
-        {isNarrow && (
-          <button
-            onClick={onClose}
-            className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-muted hover:bg-tile-bg border-none bg-transparent transition-colors duration-150"
-          >
-            <X size={18} strokeWidth={1.7} />
-          </button>
+
+        {isExpanded && (
+          <>
+            <div className="w-full h-px my-[12px] bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
+            <p className="font-archivo font-black text-[22px] tracking-[0.04em] text-white leading-none whitespace-nowrap">
+              EXTO<span className="text-accent">HUB</span>
+            </p>
+            <p className="font-hanken text-[9px] text-side-faint tracking-[0.24em] uppercase mt-[8px] whitespace-nowrap font-semibold">
+              Incorporação e Construção
+            </p>
+          </>
         )}
       </div>
 
+      <div className="shrink-0 h-px mx-[14px] bg-white/[0.06]" />
+
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-[14px] pb-[14px] flex flex-col gap-[3px]">
-        <div className="font-archivo font-semibold text-[11px] leading-none tracking-[0.13em] uppercase text-label-2 px-[12px] pt-[14px] pb-[8px]">
-          Menu
-        </div>
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-[10px] pb-[14px] flex flex-col gap-[3px]">
+        {isExpanded && (
+          <div className="font-archivo font-semibold text-[11px] leading-none tracking-[0.13em] uppercase text-side-label px-[12px] pt-[14px] pb-[8px] whitespace-nowrap">
+            Menu
+          </div>
+        )}
         {NAV_MENU.map(({ id, label, Icon }) => (
-          <NavItem key={id} id={id} label={label} Icon={Icon} activeCat={activeCat} onClick={() => handleCat(id)} />
+          <NavItem key={id} id={id} label={label} Icon={Icon} activeCat={activeCat} expanded={isExpanded} onClick={() => handleCat(id)} />
         ))}
 
-        <div className="font-archivo font-semibold text-[11px] leading-none tracking-[0.13em] uppercase text-label-2 px-[12px] pt-[18px] pb-[8px]">
-          Categorias
-        </div>
+        {isExpanded && (
+          <div className="font-archivo font-semibold text-[11px] leading-none tracking-[0.13em] uppercase text-side-label px-[12px] pt-[18px] pb-[8px] whitespace-nowrap">
+            Categorias
+          </div>
+        )}
         {navCats.map(({ id, label, Icon }) => (
           <CategoryNavItem
             key={id}
@@ -198,6 +233,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
             Icon={Icon}
             apps={apps.filter(a => a.cat === id)}
             expanded={expanded.has(id)}
+            sidebarExpanded={isExpanded}
             onToggle={() => toggleCat(id)}
             onOpenApp={handleOpenApp}
           />
@@ -206,48 +242,57 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
 
       {/* Painel Administrativo — botão fixo, só pra quem tem acesso MASTER */}
       {showPainelAdmin && (
-        <div className="px-[14px] pt-[6px]">
+        <div className="px-[10px] pt-[6px]">
           <button
             onClick={() => { onOpenPainelAdmin(); if (isNarrow) onClose() }}
-            className="
-              w-full flex items-center gap-[10px] px-[12px] py-[10px] rounded-[10px] cursor-pointer
-              font-hanken font-medium text-[13px] leading-none text-ink
-              bg-[rgba(174,58,35,0.06)] border border-[rgba(174,58,35,0.15)]
-              hover:bg-[rgba(174,58,35,0.1)] transition-colors duration-150
-            "
+            title={!isExpanded ? 'Painel Administrativo' : undefined}
+            className={`
+              w-full flex items-center rounded-[10px] cursor-pointer
+              font-hanken font-medium text-[13px] leading-none text-white
+              bg-white/[0.06] border border-accent/30
+              hover:bg-white/[0.1] transition-colors duration-150
+              ${isExpanded ? 'gap-[10px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
+            `}
           >
-            <ShieldCheck size={18} strokeWidth={1.8} style={{ color: '#AE3A23' }} />
-            Painel Administrativo
+            <ShieldCheck size={18} strokeWidth={1.8} className="text-accent flex-shrink-0" />
+            {isExpanded && <span className="whitespace-nowrap overflow-hidden">Painel Administrativo</span>}
           </button>
         </div>
       )}
 
+      <div className="shrink-0 h-px mx-[14px] mt-[10px] bg-white/[0.06]" />
+
       {/* User card */}
-      <div className="p-[14px]">
-        <div className="flex items-center gap-[11px] px-[8px] py-[8px] rounded-[12px]">
+      <div className={`shrink-0 p-[10px] ${!isExpanded ? 'flex justify-center' : ''}`}>
+        <div className={`flex items-center gap-[11px] ${isExpanded ? 'py-[8px] px-[8px] rounded-[12px]' : ''}`}>
           <button
             onClick={onOpenProfile}
-            className="flex items-center gap-[11px] flex-1 min-w-0 border-none bg-transparent p-0 cursor-pointer rounded-[10px] transition-colors duration-150 hover:bg-tile-bg -mx-[6px] px-[6px] py-[4px] text-left"
+            title={!isExpanded ? user.name : undefined}
+            className="flex items-center gap-[11px] flex-1 min-w-0 border-none bg-transparent p-0 cursor-pointer rounded-[10px] transition-colors duration-150 hover:bg-white/[0.06] -mx-[6px] px-[6px] py-[4px] text-left"
           >
-            <div className="w-[40px] h-[40px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[14px] flex-shrink-0">
+            <div className="w-[36px] h-[36px] rounded-full bg-accent text-white flex items-center justify-center font-archivo font-semibold text-[13px] flex-shrink-0">
               {user.initials}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-archivo font-semibold text-[14px] leading-[1.2] text-ink whitespace-nowrap overflow-hidden text-ellipsis">
-                {user.name}
+            {isExpanded && (
+              <div className="flex-1 min-w-0">
+                <div className="font-archivo font-semibold text-[14px] leading-[1.2] text-white whitespace-nowrap overflow-hidden text-ellipsis">
+                  {user.name}
+                </div>
+                <div className="font-hanken font-normal text-[12px] leading-[1.3] text-side-faint whitespace-nowrap overflow-hidden text-ellipsis">
+                  {user.role}
+                </div>
               </div>
-              <div className="font-hanken font-normal text-[12px] leading-[1.3] text-text-faint whitespace-nowrap overflow-hidden text-ellipsis">
-                {user.role}
-              </div>
-            </div>
+            )}
           </button>
-          <button
-            title="Sair"
-            onClick={onLogout}
-            className="w-[32px] h-[32px] rounded-[9px] flex items-center justify-center cursor-pointer text-text-faint flex-shrink-0 transition-all duration-150 hover:bg-tile-bg hover:text-ink border-none bg-transparent"
-          >
-            <LogOut size={17} strokeWidth={1.7} />
-          </button>
+          {isExpanded && (
+            <button
+              title="Sair"
+              onClick={onLogout}
+              className="w-[32px] h-[32px] rounded-[9px] flex items-center justify-center cursor-pointer text-side-faint flex-shrink-0 transition-all duration-150 hover:bg-white/[0.06] hover:text-white border-none bg-transparent"
+            >
+              <LogOut size={17} strokeWidth={1.7} />
+            </button>
+          )}
         </div>
       </div>
     </aside>

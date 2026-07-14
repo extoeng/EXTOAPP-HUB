@@ -23,6 +23,10 @@ export default {
         'border-3': '#E7E4DF',
         'border-hover': '#D6D1C9',
         'avatar-bg': '#2E2C2A',
+        'side-bg': '#211E1B',
+        'side-muted': '#9C948A',
+        'side-faint': '#736C63',
+        'side-label': '#57514A',
       },
       fontFamily: {
         archivo: ['Archivo', 'system-ui', 'sans-serif'],
