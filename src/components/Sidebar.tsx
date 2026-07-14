@@ -178,21 +178,11 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
       <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[20px]' : 'pt-[22px] pb-[16px]'}`}>
         <div className="flex items-center justify-between w-full">
           <div className="flex-1 flex justify-center">
-            {/* Grupo centralizado como bloco; a legenda usa items-start +
-                margem própria pra ficar alinhada do "x" ao "o", como no
-                logo original — não centralizada embaixo do "exto" inteiro. */}
-            <div className="flex flex-col items-start">
-              <p className={`font-archivo font-medium leading-none tracking-tight lowercase whitespace-nowrap transition-all duration-300 ${isExpanded ? 'text-[32px]' : 'text-[19px]'}`}>
-                <span className="text-white/90">e</span>
-                <span className="text-accent">x</span>
-                <span className="text-white/90">to</span>
-              </p>
-              {isExpanded && (
-                <p className="font-hanken font-medium text-[8.5px] text-side-muted tracking-[0.14em] uppercase mt-[3px] ml-[15px] whitespace-nowrap">
-                  Incorporação e Construção
-                </p>
-              )}
-            </div>
+            <p className={`font-archivo font-medium leading-none tracking-tight lowercase whitespace-nowrap transition-all duration-300 ${isExpanded ? 'text-[32px]' : 'text-[19px]'}`}>
+              <span className="text-white/90">e</span>
+              <span className="text-accent">x</span>
+              <span className="text-white/90">to</span>
+            </p>
           </div>
           {isNarrow && isExpanded && (
             <button
@@ -207,8 +197,11 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         {isExpanded && (
           <>
             <div className="w-full h-px my-[14px] bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
-            <p className="font-archivo font-bold text-[10.5px] text-side-gold tracking-[0.22em] uppercase leading-none whitespace-nowrap">
+            <p className="font-archivo font-bold text-[13px] text-white tracking-[0.06em] uppercase leading-none whitespace-nowrap">
               Hub
+            </p>
+            <p className="font-hanken font-semibold text-[9.5px] text-side-gold tracking-[0.08em] mt-[7px] text-center leading-[1.4]">
+              Acesso centralizado aos sistemas Exto
             </p>
           </>
         )}
