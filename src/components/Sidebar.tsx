@@ -175,15 +175,14 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
       }}
     >
       {/* Header / logo */}
-      <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[24px] pb-[18px]' : 'pt-[20px] pb-[16px]'}`}>
+      <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[20px]' : 'pt-[22px] pb-[16px]'}`}>
         <div className="flex items-center justify-between w-full">
           <div className="flex-1 flex justify-center">
-            <div
-              className="rounded-[12px] bg-accent flex items-center justify-center flex-shrink-0"
-              style={{ width: 36, height: 36 }}
-            >
-              <span className="font-archivo font-bold text-[16px] text-white leading-none">X</span>
-            </div>
+            <p className="font-archivo font-medium text-[22px] leading-none tracking-tight lowercase whitespace-nowrap">
+              <span className="text-white/90">e</span>
+              <span className="text-accent">x</span>
+              <span className="text-white/90">to</span>
+            </p>
           </div>
           {isNarrow && isExpanded && (
             <button
@@ -197,11 +196,11 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
 
         {isExpanded && (
           <>
-            <div className="w-full h-px my-[12px] bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
-            <p className="font-archivo font-black text-[22px] tracking-[0.04em] text-white leading-none whitespace-nowrap">
-              EXTO<span className="text-accent">HUB</span>
+            <div className="w-full h-px my-[14px] bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+            <p className="font-archivo font-bold text-[11px] tracking-[0.22em] uppercase text-white leading-none whitespace-nowrap">
+              Hub
             </p>
-            <p className="font-hanken text-[9px] text-side-faint tracking-[0.24em] uppercase mt-[8px] whitespace-nowrap font-semibold">
+            <p className="font-hanken font-semibold text-[9.5px] text-side-gold tracking-[0.2em] uppercase mt-[9px] whitespace-nowrap">
               Incorporação e Construção
             </p>
           </>

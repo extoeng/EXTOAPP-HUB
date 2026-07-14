@@ -27,6 +27,7 @@ export default {
         'side-muted': '#9C948A',
         'side-faint': '#736C63',
         'side-label': '#57514A',
+        'side-gold': '#C9A227',
       },
       fontFamily: {
         archivo: ['Archivo', 'system-ui', 'sans-serif'],
