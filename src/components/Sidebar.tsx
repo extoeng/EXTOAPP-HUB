@@ -178,7 +178,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
       <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[20px]' : 'pt-[22px] pb-[16px]'}`}>
         <div className="flex items-center justify-between w-full">
           <div className="flex-1 flex justify-center">
-            <p className={`font-archivo font-medium leading-none tracking-tight lowercase whitespace-nowrap transition-all duration-300 ${isExpanded ? 'text-[32px]' : 'text-[19px]'}`}>
+            <p className={`font-archivo font-medium leading-none tracking-tight lowercase whitespace-nowrap transition-all duration-300 ${isExpanded ? 'text-[40px]' : 'text-[19px]'}`}>
               <span className="text-white/90">e</span>
               <span className="text-accent">x</span>
               <span className="text-white/90">to</span>
