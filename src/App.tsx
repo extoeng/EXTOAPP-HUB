@@ -14,7 +14,7 @@ import { ManuaisPage } from './pages/ManuaisPage'
 import { ObrasPage } from './pages/ObrasPage'
 import { RamaisPage } from './pages/RamaisPage'
 import { ProfilePage } from './pages/ProfilePage'
-import { Sidebar, SIDEBAR_COLLAPSED_W } from './components/Sidebar'
+import { Sidebar, SIDEBAR_COLLAPSED_W, SIDEBAR_EXPANDED_W } from './components/Sidebar'
 import { Header } from './components/Header'
 import { Banner } from './components/Banner'
 import { RecentShortcuts } from './components/RecentShortcuts'
@@ -129,6 +129,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const [activeCat, setActiveCat] = useState<ActiveCat>('all')
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   // Lista completa (não filtrada) — precisa dela crua pra saber se o usuário
   // tem acesso a apps escondidos do grid (ex.: Painel Administrativo), já que
@@ -322,13 +323,20 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         onGoHome={() => setPage({ name: 'home' })}
         showPainelAdmin={hasPainelAdmin}
         onOpenPainelAdmin={openPainelAdmin}
+        onExpandedChange={setSidebarExpanded}
       />
 
       {/* Sidebar agora é fixed (flutuante) e recolhe sozinha — este espaçamento
-          reserva a faixa de ícones pra ela nunca sobrepor o conteúdo. */}
+          reserva a faixa de ícones pra ela nunca sobrepor o conteúdo. Quando a
+          sidebar expande (hover ou pin), o padding acompanha em sincronia (mesma
+          duração/easing da transição de largura do <aside>) pra nunca sobrepor
+          o conteúdo da página. */}
       <div
-        className="flex-1 flex flex-col min-w-0 overflow-hidden transition-[padding] duration-300"
-        style={{ paddingLeft: isNarrow ? 0 : SIDEBAR_COLLAPSED_W + 24 }}
+        className="flex-1 flex flex-col min-w-0 overflow-hidden"
+        style={{
+          paddingLeft: isNarrow ? 0 : (sidebarExpanded ? SIDEBAR_EXPANDED_W + 24 : SIDEBAR_COLLAPSED_W + 24),
+          transition: 'padding-left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
         <Header
           query={query}

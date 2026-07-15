@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList, ChevronRight, ShieldCheck, Pin, PinOff } from 'lucide-react'
 import type { ActiveCat, Category, App } from '../types'
 import type { AuthUser } from '../services/auth'
 
 export const SIDEBAR_COLLAPSED_W = 68
+export const SIDEBAR_EXPANDED_W = 248
 const SIDEBAR_GAP = 12
 
 const NAV_MENU = [
@@ -36,6 +37,9 @@ interface Props {
   /** Painel Administrativo: só quem tem acesso (MASTER) vê esse botão fixo. */
   showPainelAdmin: boolean
   onOpenPainelAdmin: () => void
+  /** Notifica o pai quando o estado expandido/recolhido muda, pra ele poder
+   *  ajustar o espaçamento do conteúdo e não ficar sobreposto pela sidebar. */
+  onExpandedChange?: (expanded: boolean) => void
 }
 
 function NavItem({ id, label, Icon, activeCat, expanded, onClick }: {
@@ -125,7 +129,7 @@ function CategoryNavItem({ label, Icon, apps, expanded, sidebarExpanded, onToggl
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, onGoHome, showPainelAdmin, onOpenPainelAdmin }: Props) {
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
   const activeCats = new Set(apps.map(a => a.cat))
   const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
   const [expanded, setExpanded] = useState<Set<Category>>(new Set())
@@ -138,6 +142,10 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
   // cima, liberando espaço de tela. Mobile: controlado só pelo hambúrguer.
   // "pinned" permite travar o menu sempre expandido, ignorando o hover.
   const isExpanded = isNarrow ? menuOpen : (pinned || hovered)
+
+  useEffect(() => {
+    onExpandedChange?.(isExpanded)
+  }, [isExpanded])
 
   const togglePinned = () => {
     setPinned(prev => {
