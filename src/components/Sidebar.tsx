@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList, ChevronRight, ShieldCheck } from 'lucide-react'
+import { Home, Users, Building2, Wallet, LifeBuoy, LogOut, X, Globe, Scale, ClipboardList, ChevronRight, ShieldCheck, Pin, PinOff } from 'lucide-react'
 import type { ActiveCat, Category, App } from '../types'
 import type { AuthUser } from '../services/auth'
 
@@ -130,10 +130,22 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
   const navCats = ALL_CATS.filter(c => activeCats.has(c.id))
   const [expanded, setExpanded] = useState<Set<Category>>(new Set())
   const [hovered, setHovered] = useState(false)
+  const [pinned, setPinned] = useState(() => {
+    try { return localStorage.getItem('exto-hub-sidebar-pinned') === '1' } catch { return false }
+  })
 
   // Desktop: recolhe pra uma faixa de ícones e só expande com o mouse em
   // cima, liberando espaço de tela. Mobile: controlado só pelo hambúrguer.
-  const isExpanded = isNarrow ? menuOpen : hovered
+  // "pinned" permite travar o menu sempre expandido, ignorando o hover.
+  const isExpanded = isNarrow ? menuOpen : (pinned || hovered)
+
+  const togglePinned = () => {
+    setPinned(prev => {
+      const next = !prev
+      try { localStorage.setItem('exto-hub-sidebar-pinned', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
 
   const toggleCat = (cat: Category) => {
     setExpanded(prev => {
@@ -190,6 +202,16 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
               className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center cursor-pointer text-side-muted hover:bg-white/[0.06] hover:text-white border-none bg-transparent transition-colors duration-150"
             >
               <X size={18} strokeWidth={1.7} />
+            </button>
+          )}
+          {!isNarrow && isExpanded && (
+            <button
+              onClick={togglePinned}
+              aria-label={pinned ? 'Desafixar menu' : 'Fixar menu'}
+              title={pinned ? 'Desafixar menu' : 'Fixar menu'}
+              className={`p-1.5 rounded-lg transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ${pinned ? 'text-side-gold hover:bg-white/[0.06]' : 'text-side-muted hover:text-white hover:bg-white/[0.06]'}`}
+            >
+              {pinned ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
           )}
         </div>
