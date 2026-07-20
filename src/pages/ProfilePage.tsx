@@ -165,13 +165,30 @@ export function ProfilePage({ user, onBack }: Props) {
               </button>
             </div>
 
-            <div className="px-[20px] pb-[20px] pt-[16px] flex flex-col gap-[12px]">
+            <form
+              onSubmit={e => { e.preventDefault(); handleSave() }}
+              className="px-[20px] pb-[20px] pt-[16px] flex flex-col gap-[12px]"
+            >
+              {/* Campo de usuário oculto — sem ele, navegadores (Chrome/Edge)
+                  perdem a referência de "pra qual login são essas senhas" e
+                  chegam a autopreencher o e-mail salvo em outro campo de texto
+                  da página (ex.: a busca do Header), fora deste formulário. */}
+              <input
+                type="text"
+                name="username"
+                autoComplete="username"
+                value={user.email}
+                readOnly
+                hidden
+              />
+
               {(['Senha atual', 'Nova senha', 'Confirmar nova senha'] as const).map((label, i) => {
                 const val    = [current, next, confirm][i]
                 const setVal = [setCurrent, setNext, setConfirm][i]
                 const show   = [showCurrent, showNext, showConfirm][i]
                 const toggle = [() => setShowCurrent(v => !v), () => setShowNext(v => !v), () => setShowConfirm(v => !v)][i]
                 const isError = i === 2 && confirm.length > 0 && confirm !== next
+                const autoCompleteValue = i === 0 ? 'current-password' : 'new-password'
 
                 return (
                   <div key={label}>
@@ -181,11 +198,13 @@ export function ProfilePage({ user, onBack }: Props) {
                         type={show ? 'text' : 'password'}
                         value={val}
                         onChange={e => setVal(e.target.value)}
+                        name={autoCompleteValue}
+                        autoComplete={autoCompleteValue}
                         className="flex-1 bg-transparent py-[11px] font-hanken text-[14px] text-ink outline-none border-none"
                         placeholder="••••••••"
                         autoFocus={i === 0}
                       />
-                      <button onClick={toggle} className="border-none bg-transparent cursor-pointer text-text-faint hover:text-ink p-0">
+                      <button type="button" onClick={toggle} className="border-none bg-transparent cursor-pointer text-text-faint hover:text-ink p-0">
                         {show ? <EyeOff size={16} strokeWidth={1.7} /> : <Eye size={16} strokeWidth={1.7} />}
                       </button>
                     </div>
@@ -198,14 +217,14 @@ export function ProfilePage({ user, onBack }: Props) {
               {pwError && <p className="font-hanken text-[13px] text-red-500">{pwError}</p>}
 
               <button
-                onClick={handleSave}
+                type="submit"
                 disabled={!canSave}
                 className="mt-[4px] inline-flex items-center justify-center gap-[8px] bg-accent text-white border-none rounded-[10px] px-[20px] py-[11px] font-hanken font-semibold text-[14px] cursor-pointer transition-all duration-150 hover:brightness-[0.93] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saved ? <><Check size={16} strokeWidth={2} /> Senha alterada!</>
                   : saving ? 'Salvando…' : 'Salvar nova senha'}
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

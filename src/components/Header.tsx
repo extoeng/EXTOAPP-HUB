@@ -32,6 +32,8 @@ export function Header({ query, isNarrow, onSearch, onOpenMenu }: Props) {
           value={query}
           onChange={e => onSearch(e.target.value)}
           placeholder="Buscar aplicativos, ferramentas e atalhos…"
+          name="hub-search"
+          autoComplete="off"
           className="
             w-full h-[43px] border border-border-2 bg-surface rounded-[11px]
             pl-[42px] pr-[14px]
