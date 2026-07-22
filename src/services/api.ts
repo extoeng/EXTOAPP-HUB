@@ -1,4 +1,4 @@
-// Cliente da API de SSO (extoapp-api / core-api no Cloud Run).
+// Cliente da API de SSO (nexus, Cloud Run — banco core).
 // Estratégia: token Bearer guardado em localStorage; em 401 tenta /auth/refresh
 // (via cookie) uma vez e repete a chamada. Cookies não são obrigatórios.
 

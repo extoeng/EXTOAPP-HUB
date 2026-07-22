@@ -9,7 +9,7 @@ export default defineConfig({
     // Assim o front usa sempre o mesmo caminho (/api), sem CORS em dev nem prod.
     proxy: {
       '/api': {
-        target: 'https://extoapp-api-582146265415.southamerica-east1.run.app',
+        target: 'https://nexus-582146265415.southamerica-east1.run.app',
         changeOrigin: true,
         secure: true,
       },
