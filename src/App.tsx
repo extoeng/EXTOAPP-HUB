@@ -320,6 +320,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         onClose={() => setMenuOpen(false)}
         onLogout={onLogout}
         onOpenProfile={() => setPage({ name: 'profile' })}
+        isProfileActive={page.name === 'profile'}
         onGoHome={() => setPage({ name: 'home' })}
         showPainelAdmin={hasPainelAdmin}
         onOpenPainelAdmin={openPainelAdmin}

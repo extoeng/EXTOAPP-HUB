@@ -36,6 +36,11 @@ export function RecentShortcuts({
   apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais,
   showAgenda, showComunicados, showManuais, showObras, showRamais,
 }: Props) {
+  const hasNothingToShow =
+    apps.length === 0 && !showObras && !showComunicados && !showManuais && !showAgenda && !showRamais
+
+  if (hasNothingToShow) return null
+
   return (
     <div>
       <div className="mt-[30px] mb-[14px]">

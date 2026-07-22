@@ -76,16 +76,20 @@ export function ProfilePage({ user, onBack }: Props) {
           Voltar
         </button>
         <span className="text-border">|</span>
-        <span className="font-archivo font-semibold text-[14px] text-ink">Meu Perfil</span>
+        <span className="font-archivo font-semibold text-[20px] text-ink">Meu Perfil</span>
       </div>
 
       <div className="flex-1 overflow-y-auto relative">
-        {/* Wallpaper — background da tela toda, some com fade antes do fim do conteúdo */}
+        {/* Wallpaper — cobre toda a área visível (não um valor fixo em px),
+            pra sempre chegar perto do fim da tela, independente da altura
+            do viewport. Some com fade só nos ~30% finais. Recuo à direita
+            (24px) espelha o mesmo respiro que já existe entre o menu e o
+            início do conteúdo — só aqui no Meu Perfil, não vai até a borda. */}
         <div
-          className="absolute inset-x-0 top-0 h-[440px] bg-cover bg-center pointer-events-none"
+          className="absolute inset-y-0 left-0 right-[24px] bg-cover bg-center pointer-events-none"
           style={{ backgroundImage: `url(${coverUrl})` }}
         >
-          <div className="absolute inset-0 bg-gradient-to-b from-[rgba(22,20,18,0.15)] via-[rgba(244,243,241,0.55)] to-bg-app" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[rgba(22,20,18,0.15)] from-0% via-[rgba(244,243,241,0.2)] via-75% to-bg-app to-95%" />
         </div>
 
         <div className="relative px-[24px] py-[32px]">
