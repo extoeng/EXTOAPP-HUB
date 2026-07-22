@@ -107,7 +107,10 @@ function loadStoredPage(): Page {
 // Apps que existem no catálogo da API mas não devem virar card no grid/sidebar —
 // o acesso a eles é só pelo atalho dedicado em "Informações úteis" (ver Agendas)
 // ou pelo botão fixo do menu (ver Painel Administrativo, acima do usuário).
-const HIDDEN_CATALOG_SLUGS = ['agenda-publica', 'painel-admin']
+// "trajetoria" não é um app de verdade — é só o domínio de permissão do
+// módulo Departamento/Cargo dentro do Painel Administrativo, sem tela própria
+// no hub.
+const HIDDEN_CATALOG_SLUGS = ['agenda-publica', 'painel-admin', 'trajetoria']
 const hideCatalogOnly = (list: AppType[]) => list.filter(a => !HIDDEN_CATALOG_SLUGS.includes(a.id))
 
 // A API pode devolver os apps em outra ordem (ex.: alfabética) — sem isso, o
