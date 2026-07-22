@@ -7,7 +7,7 @@
       {
         "source": "/api/**",
         "run": {
-          "serviceId": "extoapp-api",
+          "serviceId": "nexus",
           "region": "southamerica-east1"
         }
       },
