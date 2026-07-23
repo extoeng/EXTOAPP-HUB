@@ -110,7 +110,7 @@ function loadStoredPage(): Page {
 // "trajetoria" não é um app de verdade — é só o domínio de permissão do
 // módulo Departamento/Cargo dentro do Painel Administrativo, sem tela própria
 // no hub.
-const HIDDEN_CATALOG_SLUGS = ['agenda-publica', 'painel-admin', 'trajetoria']
+const HIDDEN_CATALOG_SLUGS = ['agenda-publica', 'painel-admin', 'trajetoria', 'contatos']
 const hideCatalogOnly = (list: AppType[]) => list.filter(a => !HIDDEN_CATALOG_SLUGS.includes(a.id))
 
 // A API pode devolver os apps em outra ordem (ex.: alfabética) — sem isso, o
