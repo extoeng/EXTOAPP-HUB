@@ -224,7 +224,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const hasComunicados = allApps.some(a => a.id === 'comunicados')
   const hasManuais = allApps.some(a => a.id === 'manuais')
   const hasObras = allApps.some(a => a.id === 'obras')
-  const hasRamais = allApps.some(a => a.id === 'ramais')
+  const hasRamais = allApps.some(a => a.id === 'contatos')
 
   // Se a página vinda do sessionStorage (F5) exigir acesso que o usuário não
   // tem mais (perfil mudou desde a última visita), volta pro Início — sem
@@ -384,7 +384,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           )}
           {page.name === 'ramais' && hasRamais && (
             <div className="flex-1 overflow-hidden bg-bg-app">
-              <RamaisPage onBack={() => setPage({ name: 'home' })} isMaster={hasPainelAdmin} />
+              <RamaisPage onBack={() => setPage({ name: 'home' })} />
             </div>
           )}
           <main className={`flex-1 overflow-y-auto px-[24px] pt-[26px] pb-[64px] scrollbar-none${page.name !== 'home' ? ' hidden' : ''}`} style={{ scrollbarWidth: 'none' as const }}>
