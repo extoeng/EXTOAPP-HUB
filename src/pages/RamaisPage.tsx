@@ -18,17 +18,20 @@ function initialsOf(nome: string): string {
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
 }
 
-// Distribui departamentos (ordem alfabética) em NUM_COLS colunas, round-robin.
-function distribuirEmColunas(departamentos: string[]): string[][] {
-  const cols: string[][] = Array.from({ length: NUM_COLS }, () => [])
-  const ordenado = [...departamentos].sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  ordenado.forEach((d, i) => cols[i % NUM_COLS].push(d))
-  return cols
-}
+// Organização padrão definida pelo usuário na versão estática — mantida aqui
+// pra preservar a mesma ordem agora que os departamentos vêm da API.
+// Departamentos reais que não aparecerem nessa lista (novos, ou nome
+// diferente) entram na coluna mais curta via reconciliarLayout.
+const DEFAULT_LAYOUT: string[][] = [
+  ['Guarita', 'Administração', 'Arquitetura', 'Engenharia', 'GR8', 'Restaurante', 'Espaço Beauty'],
+  ['Presidência', 'Diplayers', 'Financeiro', 'Controladoria', 'Contabilidade', 'Fiscal', 'Marketing', 'Novos Negócios', 'Operações', 'Jurídico', 'Incorporação'],
+  ['Gestão de Pessoas', 'Recursos Humanos', 'Sala de Reunião', 'Suprimentos', 'T.I', 'Casa Viva', 'Comercial'],
+]
 
-// Reconcilia um layout salvo com os departamentos que existem hoje — se um
-// colaborador novo trouxer departamento novo, ou um departamento ficar vazio,
-// a organização se ajusta sem perder a posição dos que continuam.
+// Reconcilia um layout (padrão ou salvo) com os departamentos que existem
+// hoje — se um colaborador novo trouxer departamento novo, ou um
+// departamento ficar sem ninguém, a organização se ajusta sem perder a
+// posição dos que continuam.
 function reconciliarLayout(base: string[][], departamentosAtuais: string[]): string[][] {
   const atuais = new Set(departamentosAtuais)
   const colocados = new Set<string>()
@@ -49,15 +52,19 @@ function reconciliarLayout(base: string[][], departamentosAtuais: string[]): str
   return cols
 }
 
+function layoutPadrao(departamentosAtuais: string[]): string[][] {
+  return reconciliarLayout(DEFAULT_LAYOUT, departamentosAtuais)
+}
+
 function carregarLayout(departamentosAtuais: string[]): string[][] {
   try {
     const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
-    if (!raw) return distribuirEmColunas(departamentosAtuais)
+    if (!raw) return layoutPadrao(departamentosAtuais)
     const salvo = JSON.parse(raw) as string[][]
-    if (!Array.isArray(salvo) || salvo.length !== NUM_COLS) return distribuirEmColunas(departamentosAtuais)
+    if (!Array.isArray(salvo) || salvo.length !== NUM_COLS) return layoutPadrao(departamentosAtuais)
     return reconciliarLayout(salvo, departamentosAtuais)
   } catch {
-    return distribuirEmColunas(departamentosAtuais)
+    return layoutPadrao(departamentosAtuais)
   }
 }
 
@@ -96,7 +103,10 @@ function ContatoModal({ pessoa, onClose }: { pessoa: ContatoPessoa; onClose: () 
           )}
           <div className="text-center">
             <div className="font-archivo font-semibold text-[18px] leading-[1.2] text-ink">{pessoa.nome}</div>
-            <div className="font-hanken text-[13px] text-text-faint mt-[3px]">{pessoa.departamento}</div>
+            {pessoa.cargo && (
+              <div className="font-hanken text-[13px] text-text-faint mt-[3px]">{pessoa.cargo}</div>
+            )}
+            <div className="font-hanken text-[12.5px] text-text-faint mt-[2px]">{pessoa.departamento}</div>
           </div>
           <button
             onClick={onClose}

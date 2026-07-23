@@ -7,6 +7,7 @@ import { apiFetch } from './api'
 export interface ContatoPessoa {
   id: string
   nome: string
+  cargo: string
   ramal: string
   email: string
   celular: string
@@ -17,10 +18,12 @@ export interface ContatoPessoa {
 interface RawContato {
   id: string
   full_name: string
+  nome_inter: string
   ramal: string
   email_corp: string
   phone_number_corp: string
   departamento: { id: string; nome: string } | null
+  cargo: { id: string; nome: string } | null
   photo_url: string | null
 }
 
@@ -29,7 +32,10 @@ const SEM_DEPARTAMENTO = 'Sem departamento'
 function mapContato(raw: RawContato): ContatoPessoa {
   return {
     id: raw.id,
-    nome: raw.full_name,
+    // Nome interno é o preferido no diretório — nome completo só como
+    // fallback pra quem ainda não tem nome interno cadastrado.
+    nome: raw.nome_inter.trim() || raw.full_name,
+    cargo: raw.cargo?.nome ?? '',
     ramal: raw.ramal,
     email: raw.email_corp,
     celular: raw.phone_number_corp,
