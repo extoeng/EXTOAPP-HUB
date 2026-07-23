@@ -99,8 +99,12 @@ export function ProfilePage({ user, onBack }: Props) {
 
             {/* Avatar — só aparece aqui em telas estreitas; em telas largas vira a coluna da direita */}
             <div className="flex lg:hidden flex-col items-center">
-              <div className="w-[80px] h-[80px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[28px] flex-shrink-0 border-[3px] border-surface shadow-card-hover">
-                {user.initials}
+              <div className="w-[80px] h-[80px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[28px] flex-shrink-0 border-[3px] border-surface shadow-card-hover overflow-hidden">
+                {user.photoUrl ? (
+                  <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  user.initials
+                )}
               </div>
             </div>
 
@@ -138,8 +142,12 @@ export function ProfilePage({ user, onBack }: Props) {
 
           {/* Foto/avatar do colaborador — à direita dos cards, centralizada na altura deles */}
           <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center">
-            <div className="w-[220px] h-[220px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[68px] flex-shrink-0 border-[5px] border-surface shadow-card-hover">
-              {user.initials}
+            <div className="w-[220px] h-[220px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[68px] flex-shrink-0 border-[5px] border-surface shadow-card-hover overflow-hidden">
+              {user.photoUrl ? (
+                <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                user.initials
+              )}
             </div>
           </div>
 

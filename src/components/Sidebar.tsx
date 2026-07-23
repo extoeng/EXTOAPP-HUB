@@ -208,8 +208,12 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose
             title={!isExpanded ? user.name : undefined}
             className="flex items-center gap-[11px] flex-1 min-w-0 rounded-[10px] -mx-[6px] px-[6px] py-[4px]"
           >
-            <div className="w-[36px] h-[36px] rounded-full bg-accent text-white flex items-center justify-center font-archivo font-semibold text-[13px] flex-shrink-0">
-              {user.initials}
+            <div className="w-[36px] h-[36px] rounded-full bg-accent text-white flex items-center justify-center font-archivo font-semibold text-[13px] flex-shrink-0 overflow-hidden">
+              {user.photoUrl ? (
+                <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                user.initials
+              )}
             </div>
             {isExpanded && (
               <div className="flex-1 min-w-0">

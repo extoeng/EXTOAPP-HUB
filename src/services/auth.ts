@@ -14,6 +14,7 @@ export interface AuthUser {
   email: string
   phoneExtension: string
   mobile: string
+  photoUrl: string | null
   // { slug_do_app: ["view","manage", ...] }
   apps: Record<string, string[]>
 }
@@ -27,6 +28,7 @@ interface RawUser {
   phone_extension?: string
   mobile?: string
   status?: string
+  photo_url?: string | null
   apps?: Record<string, string[]>
 }
 
@@ -39,6 +41,7 @@ function mapUser(u: RawUser): AuthUser {
     email: u.email,
     phoneExtension: u.phone_extension ?? '',
     mobile: u.mobile ?? '',
+    photoUrl: u.photo_url ?? null,
     apps: u.apps ?? {},
   }
 }
