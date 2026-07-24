@@ -59,7 +59,7 @@ function NavItem({ label, Icon, active, expanded, onClick }: {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, onOpenPainelAdmin, onExpandedChange }: Props) {
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
   const [hovered, setHovered] = useState(false)
   // Sem preferência salva ainda, começa fixado (aberto) — clicar no pin
   // (ou fechar) recolhe e passa a lembrar essa escolha daí pra frente.
@@ -181,25 +181,26 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose
 
       </nav>
 
-      {/* Painel Administrativo — botão fixo. Temporariamente sempre visível
-          (sem gate de showPainelAdmin) enquanto o catálogo de permissões
-          reais ainda não existe no banco core. */}
-      <div className="px-[10px] pt-[6px]">
-        <button
-          onClick={() => { onOpenPainelAdmin(); if (isNarrow) onClose() }}
-          title={!isExpanded ? 'Painel Administrativo' : undefined}
-          className={`
-            w-full flex items-center rounded-[10px] cursor-pointer
-            font-hanken font-medium text-[13px] leading-none text-white
-            bg-white/[0.06] border border-accent/30
-            hover:bg-white/[0.1] transition-colors duration-150
-            ${isExpanded ? 'gap-[10px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
-          `}
-        >
-          <ShieldCheck size={18} strokeWidth={1.8} className="text-accent flex-shrink-0" />
-          {isExpanded && <span className="whitespace-nowrap overflow-hidden">Painel Administrativo</span>}
-        </button>
-      </div>
+      {/* Painel Administrativo — botão fixo, só pra quem tem capability no
+          app `painel-admin` (ver showPainelAdmin em App.tsx). */}
+      {showPainelAdmin && (
+        <div className="px-[10px] pt-[6px]">
+          <button
+            onClick={() => { onOpenPainelAdmin(); if (isNarrow) onClose() }}
+            title={!isExpanded ? 'Painel Administrativo' : undefined}
+            className={`
+              w-full flex items-center rounded-[10px] cursor-pointer
+              font-hanken font-medium text-[13px] leading-none text-white
+              bg-white/[0.06] border border-accent/30
+              hover:bg-white/[0.1] transition-colors duration-150
+              ${isExpanded ? 'gap-[10px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
+            `}
+          >
+            <ShieldCheck size={18} strokeWidth={1.8} className="text-accent flex-shrink-0" />
+            {isExpanded && <span className="whitespace-nowrap overflow-hidden">Painel Administrativo</span>}
+          </button>
+        </div>
+      )}
 
       {/* User card */}
       <div className={`shrink-0 p-[10px] ${!isExpanded ? 'flex justify-center' : ''}`}>
