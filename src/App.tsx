@@ -61,6 +61,20 @@ export default function App() {
     return <LoginPage onLogin={setUser} />
   }
 
+  const directTarget = DIRECT_APP_BY_EMAIL[user.email.trim().toLowerCase()]
+  const hasDirectAppAccess =
+    directTarget && (user.apps[directTarget.appSlug] ?? []).length > 0
+  const hasReturnTo = new URLSearchParams(window.location.search).has('return_to')
+
+  if (directTarget && hasDirectAppAccess && !hasReturnTo) {
+    return (
+      <DirectAppRedirect
+        target={directTarget}
+        onSessionExpired={handleSessionExpired}
+      />
+    )
+  }
+
   return (
     <Hub
       user={user}
@@ -94,15 +108,52 @@ const PAGE_STORAGE_KEY = 'exto_hub_page'
 
 // INÍCIO — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
 //
-// Direciona os e-mails listados abaixo diretamente ao app configurado, sem
-// exibir a página inicial do Hub. Para desativar/remover esta regra, apague:
+// Para desativar/remover esta regra, apague:
 // 1. este bloco DIRECT_APP_BY_EMAIL;
-// 2. directRedirectStartedRef, dentro de Hub;
-// 3. o useEffect marcado com o mesmo título, logo após fetchApps().
+// 2. o componente DirectAppRedirect abaixo;
+// 3. o bloco de decisão marcado dentro de App, antes de renderizar <Hub>.
 //
-// Troque o e-mail de exemplo pelo e-mail real do usuário.
-const DIRECT_APP_BY_EMAIL: Record<string, string> = {
-  'fabio.chaves@exto.com.br': 'relatorio-seg-trab',
+// O usuário só é direcionado se também tiver permissão para o app em user.apps.
+interface DirectAppTarget {
+  appSlug: string
+  url: string
+}
+
+const DIRECT_APP_BY_EMAIL: Record<string, DirectAppTarget> = {
+  'fabio.chaves@exto.com.br': {
+    appSlug: 'relatorio-seg-trab',
+    url: 'https://extoapp-relatorioseg.web.app',
+  },
+}
+
+function DirectAppRedirect({
+  target,
+  onSessionExpired,
+}: {
+  target: DirectAppTarget
+  onSessionExpired: () => void
+}) {
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+
+    getSatelliteCode(target.appSlug)
+      .then(code => {
+        if (!code) {
+          onSessionExpired()
+          return
+        }
+
+        const separator = target.url.includes('?') ? '&' : '?'
+        const destination = `${target.url}${separator}code=${encodeURIComponent(code)}`
+        window.location.replace(destination)
+      })
+      .catch(onSessionExpired)
+  }, [target, onSessionExpired])
+
+  return <div className="h-screen bg-bg-app" />
 }
 // FIM — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
 
@@ -153,8 +204,6 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // `apps` abaixo remove esses antes de renderizar grid/sidebar.
   const [allApps, setAllApps] = useState<AppType[]>(APPS)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Remover junto com o redirecionamento provisório documentado acima.
-  const directRedirectStartedRef = useRef(false)
 
   const isNarrow = useNarrow(860)
   const { greeting, today } = useGreeting(user.name.split(' ')[0])
@@ -172,46 +221,6 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
       setAppsLoaded(true)
     })
   }, [])
-
-  // INÍCIO — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
-  //
-  // Só redireciona depois que a API devolver os apps permitidos ao usuário.
-  // O fluxo de return_to tem prioridade, e a mesma aba é reutilizada para
-  // evitar bloqueio de pop-up e ciclo ao usar o botão Voltar.
-  useEffect(() => {
-    if (!appsLoaded || directRedirectStartedRef.current) return
-
-    const params = new URLSearchParams(window.location.search)
-    if (params.has('return_to')) return
-
-    const normalizedEmail = user.email.trim().toLowerCase()
-    const appSlug = DIRECT_APP_BY_EMAIL[normalizedEmail]
-    if (!appSlug) return
-
-    // allApps só contém apps autorizados pela API. Sem permissão, o usuário
-    // permanece no Hub mesmo que seu e-mail esteja na lista provisória.
-    const app = allApps.find(item => item.id === appSlug)
-    if (!app?.url || !app.ssoEnabled) return
-
-    const { id: appId, url: appUrl } = app
-    directRedirectStartedRef.current = true
-
-    getSatelliteCode(appId)
-      .then(code => {
-        if (!code) {
-          onSessionExpired()
-          return
-        }
-
-        const separator = appUrl.includes('?') ? '&' : '?'
-        const destination = `${appUrl}${separator}code=${encodeURIComponent(code)}`
-        window.location.replace(destination)
-      })
-      .catch(() => {
-        directRedirectStartedRef.current = false
-      })
-  }, [appsLoaded, allApps, user.email, onSessionExpired])
-  // FIM — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
 
   // Retorno automático pro app satélite que mandou o usuário de volta pro hub
   // (?return_to=<url>) — acontece quando o access token do satélite expira
