@@ -779,7 +779,7 @@ export function ObrasPage({ onBack, canManage = false }: Props) {
           Voltar
         </button>
         <span className="text-border">|</span>
-        <span className="font-archivo font-semibold text-[14px] text-ink">Dados das Obras</span>
+        <span className="font-archivo font-semibold text-[20px] text-ink">Dados das Obras</span>
         {!fromApi && <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{OBRAS_REVISAO}</span>}
         {canManage && (
           <div className="ml-auto flex items-center gap-[8px]">
