@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, Bell, HelpCircle, Menu } from 'lucide-react'
-import { NotificationPopover } from './NotificationPopover'
+import { NotificationPopover, type NotificationItem } from './NotificationPopover'
+import { fetchDocuments } from '../services/documents'
+import { isComunicadoNovo } from '../utils/comunicadoNovo'
 
 interface Props {
   query: string
@@ -9,8 +11,50 @@ interface Props {
   onOpenMenu: () => void
 }
 
+// IDs de comunicado já vistos/removidos pelo usuário nesta notificação —
+// localStorage (não sessionStorage), pra não voltar a piscar/aparecer depois.
+const LIDOS_STORAGE_KEY = 'exto_hub_notif_lidos'
+const REMOVIDOS_STORAGE_KEY = 'exto_hub_notif_removidos'
+function loadIds(key: string): number[] {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
 export function Header({ query, isNarrow, onSearch, onOpenMenu }: Props) {
   const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [lidos, setLidos] = useState<number[]>(() => loadIds(LIDOS_STORAGE_KEY))
+  const [removidos, setRemovidos] = useState<number[]>(() => loadIds(REMOVIDOS_STORAGE_KEY))
+
+  useEffect(() => {
+    fetchDocuments('comunicado').then(list => {
+      if (!list) return
+      const recentes = list.filter(c => isComunicadoNovo(c.dateISO))
+      setNotifications(recentes.map(c => ({
+        id: c.id,
+        title: c.numero ? `Comunicado Nº ${c.numero}` : 'Comunicado',
+        time: c.date,
+        color: '#AE3A23',
+      })))
+    })
+  }, [])
+
+  const visiveis = notifications.filter(n => !removidos.includes(n.id))
+  const unreadIds = visiveis.filter(n => !lidos.includes(n.id)).map(n => n.id)
+
+  function marcarTodasLidas() {
+    const next = [...new Set([...lidos, ...visiveis.map(n => n.id)])]
+    setLidos(next)
+    localStorage.setItem(LIDOS_STORAGE_KEY, JSON.stringify(next))
+  }
+
+  function remover(id: number) {
+    const next = [...new Set([...removidos, id])]
+    setRemovidos(next)
+    localStorage.setItem(REMOVIDOS_STORAGE_KEY, JSON.stringify(next))
+  }
 
   return (
     <header className="h-[70px] flex-shrink-0 flex items-center gap-[16px] px-[24px] bg-bg-app z-20">
@@ -61,9 +105,19 @@ export function Header({ query, isNarrow, onSearch, onOpenMenu }: Props) {
             className="relative w-[40px] h-[40px] rounded-[10px] flex items-center justify-center cursor-pointer text-text-muted hover:bg-[#EBE8E3] hover:text-ink border-none bg-transparent transition-all duration-150"
           >
             <Bell size={20} strokeWidth={1.7} />
-            <span className="absolute top-[9px] right-[10px] w-[8px] h-[8px] rounded-full bg-accent border-[1.5px] border-bg-app animate-ex-pulse" />
+            {unreadIds.length > 0 && (
+              <span className="absolute top-[9px] right-[10px] w-[8px] h-[8px] rounded-full bg-accent border-[1.5px] border-bg-app animate-ex-pulse" />
+            )}
           </button>
-          {notifOpen && <NotificationPopover onClose={() => setNotifOpen(false)} />}
+          {notifOpen && (
+            <NotificationPopover
+              notifications={visiveis}
+              lidos={lidos}
+              onMarcarTodasLidas={marcarTodasLidas}
+              onRemover={remover}
+              onClose={() => setNotifOpen(false)}
+            />
+          )}
         </div>
 
       </div>

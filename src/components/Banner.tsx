@@ -1,6 +1,7 @@
 import { ArrowRight, Calendar } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { fetchDocuments } from '../services/documents'
+import { isComunicadoNovo } from '../utils/comunicadoNovo'
 import type { LibraryDoc } from '../types'
 
 const INTERVAL_MS = 8000
@@ -43,6 +44,7 @@ export function Banner({ onRead }: Props) {
   if (!itens || itens.length === 0) return null
 
   const c = itens[Math.min(index, itens.length - 1)]
+  const isNovo = isComunicadoNovo(c.dateISO)
 
   const goTo = (i: number) => {
     if (i === index) return
@@ -57,13 +59,18 @@ export function Banner({ onRead }: Props) {
       </h3>
 
       <div
-        className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[14px] flex items-center gap-[26px] h-[86px]"
+        className="relative overflow-hidden bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[14px] flex items-center gap-[26px] h-[86px]"
         style={{
           transition: `opacity ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateY(0)' : 'translateY(6px)',
         }}
       >
+        {isNovo && (
+          <div className="absolute top-[9px] -left-[46px] w-[130px] h-[20px] rotate-[-45deg] bg-yellow-400 flex items-center justify-center font-archivo font-bold text-[9.5px] tracking-[0.08em] uppercase text-ink">
+            Novo
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-[12px] mb-[9px]">
             <span className="font-archivo font-semibold text-[10.5px] leading-none tracking-[0.12em] uppercase text-accent bg-[rgba(174,58,35,0.10)] px-[10px] py-[5px] rounded-[20px]">
