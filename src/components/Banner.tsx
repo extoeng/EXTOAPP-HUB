@@ -43,6 +43,13 @@ export function Banner({ onRead }: Props) {
   if (!itens || itens.length === 0) return null
 
   const c = itens[Math.min(index, itens.length - 1)]
+  // Extrai "Nº 71" do título por enquanto (ainda não existe um campo próprio
+  // pra número do comunicado — vem quando o formulário de upload ganhar esse
+  // campo). O resto do título (depois do "Nº 71 - ") vira a linha de baixo.
+  const numeroMatch = c.title.match(/n[°º]\s*(\d+)/i)
+  const tituloResto = numeroMatch
+    ? c.title.slice(numeroMatch.index! + numeroMatch[0].length).replace(/^[\s\-–—]+/, '')
+    : c.title
 
   const goTo = (i: number) => {
     if (i === index) return
@@ -57,7 +64,7 @@ export function Banner({ onRead }: Props) {
       </h3>
 
       <div
-        className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[22px] flex items-center gap-[26px] h-[152px]"
+        className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[14px] flex items-center gap-[26px] h-[104px]"
         style={{
           transition: `opacity ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
           opacity: visible ? 1 : 0,
@@ -65,7 +72,7 @@ export function Banner({ onRead }: Props) {
         }}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-[12px] mb-[11px]">
+          <div className="flex items-center justify-between gap-[12px] mb-[6px]">
             <span className="font-archivo font-semibold text-[10.5px] leading-none tracking-[0.12em] uppercase text-accent bg-[rgba(174,58,35,0.10)] px-[10px] py-[5px] rounded-[20px]">
               Comunicado
             </span>
@@ -74,12 +81,14 @@ export function Banner({ onRead }: Props) {
               {c.date}
             </span>
           </div>
-          <h2 className="m-0 mb-[6px] font-archivo font-semibold text-[19px] leading-[1.3] text-ink line-clamp-1">
-            {c.title}
+          {numeroMatch && (
+            <div className="font-archivo font-bold text-[13px] leading-[1.3] text-accent">
+              Comunicado Nº {numeroMatch[1]}
+            </div>
+          )}
+          <h2 className="m-0 font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink line-clamp-1">
+            {tituloResto}
           </h2>
-          <p className="m-0 font-hanken font-normal text-[14px] leading-[1.5] text-text-muted-2 max-w-[62ch] line-clamp-2">
-            {c.desc}
-          </p>
         </div>
         <button
           onClick={() => onRead(c.id)}
