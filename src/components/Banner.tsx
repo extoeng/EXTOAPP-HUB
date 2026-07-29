@@ -57,7 +57,7 @@ export function Banner({ onRead }: Props) {
       </h3>
 
       <div
-        className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[22px] flex items-center gap-[26px]"
+        className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[22px] flex items-center gap-[26px] h-[152px]"
         style={{
           transition: `opacity ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
           opacity: visible ? 1 : 0,
@@ -74,10 +74,10 @@ export function Banner({ onRead }: Props) {
               {c.date}
             </span>
           </div>
-          <h2 className="m-0 mb-[6px] font-archivo font-semibold text-[19px] leading-[1.3] text-ink">
+          <h2 className="m-0 mb-[6px] font-archivo font-semibold text-[19px] leading-[1.3] text-ink line-clamp-1">
             {c.title}
           </h2>
-          <p className="m-0 font-hanken font-normal text-[14px] leading-[1.5] text-text-muted-2 max-w-[62ch]">
+          <p className="m-0 font-hanken font-normal text-[14px] leading-[1.5] text-text-muted-2 max-w-[62ch] line-clamp-2">
             {c.desc}
           </p>
         </div>
