@@ -257,6 +257,14 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                   <FileText size={16} strokeWidth={1.7} style={{ color: selected?.id === c.id ? '#AE3A23' : '#9A958F' }} />
                 </div>
                 <div className="flex-1 min-w-0">
+                  {c.numero && (
+                    <div
+                      className="font-archivo font-semibold text-[10.5px] tracking-[0.04em] uppercase mb-[2px]"
+                      style={{ color: selected?.id === c.id ? '#AE3A23' : 'var(--color-ink)' }}
+                    >
+                      Comunicado Nº {c.numero}
+                    </div>
+                  )}
                   <div
                     className="font-hanken font-medium text-[13px] leading-[1.35] mb-[4px] line-clamp-2"
                     style={{ color: selected?.id === c.id ? '#AE3A23' : 'var(--color-ink)' }}
