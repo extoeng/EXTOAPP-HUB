@@ -116,11 +116,11 @@ function AppNavGroup({ label, items, isExpanded, isOpen, onToggle, onOpenApp, is
         className="
           w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
           font-hanken font-medium text-[13px] leading-none border-none
-          bg-transparent text-side-muted hover:text-white hover:bg-white/[0.06] transition-all duration-150
+          bg-transparent text-white hover:bg-white/[0.06] transition-all duration-150
         "
       >
         {isOpen ? <ChevronDown size={14} className="flex-shrink-0" /> : <ChevronRight size={14} className="flex-shrink-0" />}
-        <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[11px]">{label}</span>
+        <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[13px]">{label}</span>
       </button>
       {isOpen && (
         <div className="flex flex-col gap-[3px] pl-[16px]">

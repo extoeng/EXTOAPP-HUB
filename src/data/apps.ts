@@ -7,14 +7,14 @@ export const APPS: App[] = []
 export const CAT_LABELS: Record<Category, string> = {
   geral:    'Geral',
   rh:       'RH & Pessoas',
-  obras:    'Obras & Operações',
+  obras:    'Obras',
   fin:      'Financeiro',
   ti:       'Suporte & TI',
   juridico: 'Jurídico',
   admin:    'Administração',
 }
 
-export const CAT_ORDER: Category[] = ['geral', 'rh', 'obras', 'fin', 'ti', 'admin', 'juridico']
+export const CAT_ORDER: Category[] = ['geral', 'rh', 'admin', 'obras', 'fin', 'ti', 'juridico']
 
 export const RECENT_IDS: string[] = []
 export const DEFAULT_FAVS: string[] = []
