@@ -57,7 +57,7 @@ export function Banner({ onRead }: Props) {
       </h3>
 
       <div
-        className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[14px] flex items-center gap-[26px] h-[104px]"
+        className="bg-surface border border-border border-l-4 border-l-accent rounded-[14px] px-[26px] py-[14px] flex items-center gap-[26px] h-[86px]"
         style={{
           transition: `opacity ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
           opacity: visible ? 1 : 0,
@@ -65,20 +65,15 @@ export function Banner({ onRead }: Props) {
         }}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-[12px] mb-[6px]">
+          <div className="flex items-center gap-[12px] mb-[9px]">
             <span className="font-archivo font-semibold text-[10.5px] leading-none tracking-[0.12em] uppercase text-accent bg-[rgba(174,58,35,0.10)] px-[10px] py-[5px] rounded-[20px]">
-              Comunicado
+              Comunicado{c.numero ? ` Nº ${c.numero}` : ''}
             </span>
             <span className="inline-flex items-center gap-[6px] font-hanken font-medium text-[12px] text-text-faint">
               <Calendar size={14} strokeWidth={1.7} />
               {c.date}
             </span>
           </div>
-          {c.numero && (
-            <div className="mb-[9px] font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink uppercase">
-              Comunicado Nº {c.numero}
-            </div>
-          )}
           <h2 className="m-0 font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink line-clamp-1">
             {c.title}
           </h2>
