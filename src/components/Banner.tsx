@@ -43,13 +43,6 @@ export function Banner({ onRead }: Props) {
   if (!itens || itens.length === 0) return null
 
   const c = itens[Math.min(index, itens.length - 1)]
-  // Extrai "Nº 71" do título por enquanto (ainda não existe um campo próprio
-  // pra número do comunicado — vem quando o formulário de upload ganhar esse
-  // campo). O resto do título (depois do "Nº 71 - ") vira a linha de baixo.
-  const numeroMatch = c.title.match(/n[°º]\s*(\d+)/i)
-  const tituloResto = numeroMatch
-    ? c.title.slice(numeroMatch.index! + numeroMatch[0].length).replace(/^[\s\-–—]+/, '')
-    : c.title
 
   const goTo = (i: number) => {
     if (i === index) return
@@ -81,13 +74,13 @@ export function Banner({ onRead }: Props) {
               {c.date}
             </span>
           </div>
-          {numeroMatch && (
+          {c.numero && (
             <div className="mb-[2px] font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink uppercase">
-              Comunicado Nº {numeroMatch[1]}
+              Comunicado Nº {c.numero}
             </div>
           )}
           <h2 className="m-0 font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink line-clamp-1">
-            {tituloResto}
+            {c.title}
           </h2>
         </div>
         <button
