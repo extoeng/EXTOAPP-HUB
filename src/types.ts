@@ -31,6 +31,8 @@ export interface LibraryDoc {
   dateISO: string
   title: string
   desc: string
+  /** Número do comunicado (só usado no tipo "comunicado"). */
+  numero?: string
   pdfUrl?: string
   /** Marcado manualmente pra aparecer no card da home (ver Banner.tsx). */
   destaque?: boolean

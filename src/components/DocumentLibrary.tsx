@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus, Trash2, Loader2, Star } from 'lucide-react'
+import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus, Trash2, Loader2, Star, Upload } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryDoc } from '../types'
 import { fetchDocuments, uploadDocument, deleteDocument, setDestaque, type DocType } from '../services/documents'
@@ -23,15 +23,17 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
   // só cai pro fallback se a chamada de fato falhar.
   const [docs, setDocs] = useState<LibraryDoc[] | null>(null)
   const [selected, setSelected] = useState<LibraryDoc | undefined>(undefined)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [searchDate, setSearchDate] = useState('')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [togglingDestaque, setTogglingDestaque] = useState(false)
+  const [showComunicadoModal, setShowComunicadoModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dateFilterRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setDocs(null)
@@ -58,6 +60,22 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
     setDocs(prev => [doc, ...(prev ?? [])])
     setSelected(doc)
     setVisibleCount(PAGE_SIZE)
+  }
+
+  const handleComunicadoSubmit = async (data: { numero: string; dataISO: string; titulo: string; file: File }) => {
+    setUploading(true)
+    setUploadError(null)
+    const doc = await uploadDocument(tipo, data.file, data.titulo, { numero: data.numero, dataISO: data.dataISO })
+    setUploading(false)
+    if (!doc) {
+      setUploadError('Não foi possível enviar o comunicado. Tente novamente.')
+      return false
+    }
+    setDocs(prev => [doc, ...(prev ?? [])])
+    setSelected(doc)
+    setVisibleCount(PAGE_SIZE)
+    setShowComunicadoModal(false)
+    return true
   }
 
   const handleDelete = async () => {
@@ -89,23 +107,32 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
   }
 
   const filtered = useMemo(() => {
+    const q = searchText.trim().toLowerCase()
     return (docs ?? []).filter(c => {
-      if (dateFrom && c.dateISO < dateFrom) return false
-      if (dateTo && c.dateISO > dateTo) return false
+      if (q && !c.title.toLowerCase().includes(q)) return false
+      if (searchDate && c.dateISO !== searchDate) return false
       return true
     })
-  }, [docs, dateFrom, dateTo])
+  }, [docs, searchText, searchDate])
 
   const visible = filtered.slice(0, visibleCount)
   const hasMore = filtered.length > visibleCount
 
-  const updateFilter = (from: string, to: string) => {
-    setDateFrom(from)
-    setDateTo(to)
+  const updateSearchText = (value: string) => {
+    setSearchText(value)
     setVisibleCount(PAGE_SIZE)
   }
 
-  const clearFilter = () => updateFilter('', '')
+  const updateSearchDate = (value: string) => {
+    setSearchDate(value)
+    setVisibleCount(PAGE_SIZE)
+  }
+
+  const clearFilter = () => {
+    setSearchText('')
+    setSearchDate('')
+    setVisibleCount(PAGE_SIZE)
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -128,7 +155,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                 <span className="font-hanken text-[12px] text-red-600">{uploadError}</span>
               )}
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => (tipo === 'comunicado' ? setShowComunicadoModal(true) : fileInputRef.current?.click())}
                 disabled={uploading}
                 className="
                   inline-flex items-center gap-[6px] px-[14px] py-[8px] rounded-[9px]
@@ -155,13 +182,13 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside className="flex flex-col flex-shrink-0 border-r border-border" style={{ width: '280px' }}>
-          {/* Filtro de data */}
+          {/* Filtro */}
           <div className="px-[16px] pt-[14px] pb-[12px] border-b border-border flex-shrink-0">
             <div className="flex items-center justify-between mb-[8px]">
               <span className="font-archivo font-semibold text-[11px] tracking-[0.08em] uppercase text-label">
-                Filtrar por data
+                Filtro
               </span>
-              {(dateFrom || dateTo) && (
+              {(searchText || searchDate) && (
                 <button
                   onClick={clearFilter}
                   className="inline-flex items-center gap-[3px] border-none bg-transparent cursor-pointer font-hanken text-[11px] text-accent p-0"
@@ -173,17 +200,31 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
             </div>
             <div className="flex gap-[8px]">
               <input
-                type="date"
-                value={dateFrom}
-                onChange={e => updateFilter(e.target.value, dateTo)}
-                className="flex-1 min-w-0 border border-border rounded-[8px] px-[8px] py-[6px] font-hanken text-[12px] text-ink bg-bg-app outline-none focus:border-accent"
+                type="text"
+                placeholder="Buscar por título"
+                value={searchText}
+                onChange={e => updateSearchText(e.target.value)}
+                className="flex-1 min-w-0 border border-border rounded-[8px] px-[10px] py-[7px] font-hanken text-[12px] text-ink bg-bg-app outline-none focus:border-accent"
               />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => updateFilter(dateFrom, e.target.value)}
-                className="flex-1 min-w-0 border border-border rounded-[8px] px-[8px] py-[6px] font-hanken text-[12px] text-ink bg-bg-app outline-none focus:border-accent"
-              />
+              <button
+                onClick={() => dateFilterRef.current?.showPicker?.() ?? dateFilterRef.current?.click()}
+                title="Buscar por data"
+                className={`
+                  relative flex-shrink-0 w-[32px] h-[32px] rounded-[8px] border cursor-pointer
+                  flex items-center justify-center transition-colors duration-150
+                  ${searchDate ? 'border-accent bg-[rgba(174,58,35,0.08)] text-accent' : 'border-border bg-bg-app text-text-muted hover:border-border-hover'}
+                `}
+              >
+                <Calendar size={15} strokeWidth={1.8} />
+                <input
+                  ref={dateFilterRef}
+                  type="date"
+                  value={searchDate}
+                  onChange={e => updateSearchDate(e.target.value)}
+                  className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                  tabIndex={-1}
+                />
+              </button>
             </div>
           </div>
 
@@ -323,6 +364,152 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
               <span className="font-hanken text-[14px]">{docs === null ? 'Carregando...' : emptyMessage}</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {showComunicadoModal && (
+        <ComunicadoModal
+          onClose={() => setShowComunicadoModal(false)}
+          onSubmit={handleComunicadoSubmit}
+          submitting={uploading}
+          error={uploadError}
+        />
+      )}
+    </div>
+  )
+}
+
+interface ComunicadoModalProps {
+  onClose: () => void
+  onSubmit: (data: { numero: string; dataISO: string; titulo: string; file: File }) => Promise<boolean>
+  submitting: boolean
+  error: string | null
+}
+
+function ComunicadoModal({ onClose, onSubmit, submitting, error }: ComunicadoModalProps) {
+  const [numero, setNumero] = useState('')
+  const [dataISO, setDataISO] = useState(() => new Date().toISOString().slice(0, 10))
+  const [titulo, setTitulo] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const podeEnviar = titulo.trim() !== '' && dataISO !== '' && !!file && !submitting
+
+  const handleSubmit = async () => {
+    if (!file || !podeEnviar) return
+    await onSubmit({ numero: numero.trim(), dataISO, titulo: titulo.trim(), file })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-[16px]"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface rounded-[16px] w-full max-w-[440px] shadow-card-hover"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-[24px] py-[18px] border-b border-border">
+          <span className="font-archivo font-semibold text-[16px] text-ink">Novo comunicado</span>
+          <button
+            onClick={onClose}
+            className="border-none bg-transparent cursor-pointer text-text-muted hover:text-ink p-0 flex items-center"
+          >
+            <X size={18} strokeWidth={2} />
+          </button>
+        </div>
+
+        <div className="px-[24px] py-[20px] flex flex-col gap-[14px]">
+          <div className="flex gap-[12px]">
+            <label className="flex-1 flex flex-col gap-[6px]">
+              <span className="font-archivo font-semibold text-[11px] tracking-[0.06em] uppercase text-label">
+                Número do comunicado
+              </span>
+              <input
+                type="text"
+                value={numero}
+                onChange={e => setNumero(e.target.value)}
+                placeholder="Ex.: 72"
+                className="border border-border rounded-[9px] px-[12px] py-[9px] font-hanken text-[13px] text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <label className="flex-1 flex flex-col gap-[6px]">
+              <span className="font-archivo font-semibold text-[11px] tracking-[0.06em] uppercase text-label">
+                Data
+              </span>
+              <input
+                type="date"
+                value={dataISO}
+                onChange={e => setDataISO(e.target.value)}
+                className="border border-border rounded-[9px] px-[12px] py-[9px] font-hanken text-[13px] text-ink outline-none focus:border-accent"
+              />
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-[6px]">
+            <span className="font-archivo font-semibold text-[11px] tracking-[0.06em] uppercase text-label">
+              Título
+            </span>
+            <input
+              type="text"
+              value={titulo}
+              onChange={e => setTitulo(e.target.value)}
+              placeholder="Título do comunicado"
+              className="border border-border rounded-[9px] px-[12px] py-[9px] font-hanken text-[13px] text-ink outline-none focus:border-accent"
+            />
+          </label>
+
+          <label className="flex flex-col gap-[6px]">
+            <span className="font-archivo font-semibold text-[11px] tracking-[0.06em] uppercase text-label">
+              PDF
+            </span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="
+                border border-dashed border-border rounded-[9px] px-[12px] py-[14px]
+                flex items-center gap-[10px] cursor-pointer bg-bg-app
+                hover:border-accent transition-colors duration-150
+              "
+            >
+              <Upload size={16} strokeWidth={1.8} className="text-text-muted flex-shrink-0" />
+              <span className="font-hanken text-[13px] text-text-muted truncate">
+                {file ? file.name : 'Selecionar arquivo PDF'}
+              </span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={e => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+
+          {error && (
+            <span className="font-hanken text-[12px] text-red-600">{error}</span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-[10px] px-[24px] py-[16px] border-t border-border">
+          <button
+            onClick={onClose}
+            className="border-none bg-transparent cursor-pointer font-hanken font-medium text-[13px] text-text-muted px-[14px] py-[9px]"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!podeEnviar}
+            className="
+              inline-flex items-center gap-[6px] border-none rounded-[9px] px-[16px] py-[9px]
+              bg-accent text-white font-hanken font-semibold text-[13px] cursor-pointer
+              disabled:opacity-50 disabled:cursor-default hover:brightness-95 transition-[filter] duration-150
+            "
+          >
+            {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
+            {submitting ? 'Enviando...' : 'Publicar comunicado'}
+          </button>
         </div>
       </div>
     </div>
