@@ -65,7 +65,7 @@ export function Banner({ onRead }: Props) {
         }}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-[12px] mb-[12px]">
+          <div className="flex items-center gap-[12px] mb-[9px]">
             <span className="font-archivo font-semibold text-[10.5px] leading-none tracking-[0.12em] uppercase text-accent bg-[rgba(174,58,35,0.10)] px-[10px] py-[5px] rounded-[20px]">
               Comunicado
             </span>
@@ -75,7 +75,7 @@ export function Banner({ onRead }: Props) {
             </span>
           </div>
           {c.numero && (
-            <div className="mb-[12px] font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink uppercase">
+            <div className="mb-[9px] font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink uppercase">
               Comunicado Nº {c.numero}
             </div>
           )}
