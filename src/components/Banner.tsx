@@ -75,7 +75,7 @@ export function Banner({ onRead }: Props) {
             </span>
           </div>
           {c.numero && (
-            <div className="mb-[2px] font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink uppercase">
+            <div className="mb-[12px] font-archivo font-semibold text-[16.5px] leading-[1.3] text-ink uppercase">
               Comunicado Nº {c.numero}
             </div>
           )}
