@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff } from 'lucide-react'
+import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, LayoutGrid } from 'lucide-react'
 import type { ActiveCat, App } from '../types'
 import type { AuthUser } from '../services/auth'
 import logoUrl from '../assets/exto-logo-2.png'
@@ -59,7 +59,30 @@ function NavItem({ label, Icon, active, expanded, onClick }: {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
+function AppNavItem({ app, expanded, onClick }: { app: App; expanded: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={!expanded ? app.name : undefined}
+      className={`
+        w-full flex items-center rounded-[10px] cursor-pointer
+        font-hanken font-medium text-[14px] leading-none
+        transition-all duration-150 border-none
+        ${expanded ? 'gap-[12px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
+        bg-transparent text-white/90 hover:text-white hover:bg-white/[0.06]
+      `}
+    >
+      <span className="flex-shrink-0 w-[19px] h-[19px] rounded-[5px] overflow-hidden flex items-center justify-center">
+        {app.icon
+          ? <img src={app.icon} alt="" className="w-full h-full object-cover" />
+          : <LayoutGrid size={19} strokeWidth={1.7} />}
+      </span>
+      {expanded && <span className="whitespace-nowrap overflow-hidden text-ellipsis">{app.name}</span>}
+    </button>
+  )
+}
+
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
   const [hovered, setHovered] = useState(false)
   // Sem preferência salva ainda, começa fixado (aberto) — clicar no pin
   // (ou fechar) recolhe e passa a lembrar essa escolha daí pra frente.
@@ -179,6 +202,19 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, onSetCat, onClose
           {isExpanded && <span className="whitespace-nowrap overflow-hidden">Meu Perfil</span>}
         </button>
 
+        {apps.length > 0 && (
+          <>
+            <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
+            {apps.map(app => (
+              <AppNavItem
+                key={app.id}
+                app={app}
+                expanded={isExpanded}
+                onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }}
+              />
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Painel Administrativo — botão fixo, só pra quem tem capability no
