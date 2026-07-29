@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, LayoutGrid } from 'lucide-react'
-import type { ActiveCat, App } from '../types'
+import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, LayoutGrid, ChevronRight, ChevronDown } from 'lucide-react'
+import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
+import { CAT_LABELS, CAT_ORDER } from '../data/apps'
 import logoUrl from '../assets/exto-logo-2.png'
 
 export const SIDEBAR_COLLAPSED_W = 68
@@ -82,6 +83,57 @@ function AppNavItem({ app, expanded, onClick }: { app: App; expanded: boolean; o
   )
 }
 
+// Agrupa os apps do menu pela mesma categoria usada no grid da home
+// (CAT_LABELS/CAT_ORDER de data/apps.ts) — só entra grupo com pelo menos
+// 1 app que o usuário tem acesso.
+function AppNavGroup({ label, items, isExpanded, isOpen, onToggle, onOpenApp, isNarrow, onClose }: {
+  label: string
+  items: App[]
+  isExpanded: boolean
+  isOpen: boolean
+  onToggle: () => void
+  onOpenApp: (name: string) => void
+  isNarrow: boolean
+  onClose: () => void
+}) {
+  if (!isExpanded) {
+    // Sidebar recolhida (faixa de ícones): sem espaço pro rótulo do grupo,
+    // mostra os apps soltos (mesmo tratamento de antes de agrupar).
+    return (
+      <>
+        {items.map(app => (
+          <AppNavItem key={app.id} app={app} expanded={false}
+            onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
+        ))}
+      </>
+    )
+  }
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="
+          w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
+          font-hanken font-medium text-[13px] leading-none border-none
+          bg-transparent text-side-muted hover:text-white hover:bg-white/[0.06] transition-all duration-150
+        "
+      >
+        {isOpen ? <ChevronDown size={14} className="flex-shrink-0" /> : <ChevronRight size={14} className="flex-shrink-0" />}
+        <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[11px]">{label}</span>
+      </button>
+      {isOpen && (
+        <div className="flex flex-col gap-[3px] pl-[16px]">
+          {items.map(app => (
+            <AppNavItem key={app.id} app={app} expanded
+              onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
   const [hovered, setHovered] = useState(false)
   // Sem preferência salva ainda, começa fixado (aberto) — clicar no pin
@@ -120,6 +172,20 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
     onOpenProfile()
     if (isNarrow) onClose()
   }
+
+  // Grupos de app no menu — mesma categoria/ordem do grid da home. Fecha por
+  // padrão; clicar no grupo expande/recolhe (independente dos outros).
+  const [openGroups, setOpenGroups] = useState<Set<Category>>(new Set())
+  const toggleGroup = (cat: Category) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat); else next.add(cat)
+      return next
+    })
+  }
+  const appGroups = CAT_ORDER
+    .map(cat => ({ cat, label: CAT_LABELS[cat], items: apps.filter(a => a.cat === cat) }))
+    .filter(g => g.items.length > 0)
 
   return (
     <aside
@@ -187,11 +253,30 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
           />
         ))}
 
+        {appGroups.length > 0 && (
+          <>
+            <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
+            {appGroups.map(g => (
+              <AppNavGroup
+                key={g.cat}
+                label={g.label}
+                items={g.items}
+                isExpanded={isExpanded}
+                isOpen={openGroups.has(g.cat)}
+                onToggle={() => toggleGroup(g.cat)}
+                onOpenApp={onOpenApp}
+                isNarrow={isNarrow}
+                onClose={onClose}
+              />
+            ))}
+          </>
+        )}
+
         <button
           onClick={handleProfile}
           title={!isExpanded ? 'Meu Perfil' : undefined}
           className={`
-            w-full flex items-center rounded-[10px] cursor-pointer
+            mt-auto w-full flex items-center rounded-[10px] cursor-pointer
             font-hanken font-medium text-[14px] leading-none
             transition-all duration-150 border-none
             ${isExpanded ? 'gap-[12px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
@@ -201,20 +286,6 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
           <User size={19} strokeWidth={1.7} className="flex-shrink-0" />
           {isExpanded && <span className="whitespace-nowrap overflow-hidden">Meu Perfil</span>}
         </button>
-
-        {apps.length > 0 && (
-          <>
-            <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
-            {apps.map(app => (
-              <AppNavItem
-                key={app.id}
-                app={app}
-                expanded={isExpanded}
-                onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }}
-              />
-            ))}
-          </>
-        )}
       </nav>
 
       {/* Painel Administrativo — botão fixo, só pra quem tem capability no
