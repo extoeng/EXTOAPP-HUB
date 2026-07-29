@@ -10,18 +10,26 @@ export async function fetchDocuments(tipo: DocType): Promise<LibraryDoc[] | null
   return await res.json()
 }
 
+interface UploadOptions {
+  numero?: string
+  dataISO?: string
+  descricao?: string
+}
+
 /** Exige capability 'manage' no app 'comunicados'/'manuais' — 403 se não tiver. */
 export async function uploadDocument(
   tipo: DocType,
   file: File,
   titulo?: string,
-  descricao?: string,
+  opts?: UploadOptions,
 ): Promise<LibraryDoc | null> {
   const form = new FormData()
   form.append('tipo', tipo)
   form.append('pdf', file)
   if (titulo) form.append('titulo', titulo)
-  if (descricao) form.append('descricao', descricao)
+  if (opts?.numero) form.append('numero', opts.numero)
+  if (opts?.dataISO) form.append('data', opts.dataISO)
+  if (opts?.descricao) form.append('descricao', opts.descricao)
 
   const res = await apiFetch('/documentos/', { method: 'POST', body: form })
   if (!res.ok) return null
