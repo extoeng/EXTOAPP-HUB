@@ -6,6 +6,7 @@ import type { ActiveCat, App as AppType } from './types'
 import type { AuthUser } from './services/auth'
 import { getMe, fetchApps, getSatelliteCode, logout as apiLogout } from './services/auth'
 import { getToken, setToken } from './services/api'
+import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { LoginPage } from './pages/LoginPage'
@@ -106,6 +107,7 @@ type Page =
 // indefinidamente entre sessões diferentes.
 const PAGE_STORAGE_KEY = 'exto_hub_page'
 
+
 // INÍCIO — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
 //
 // Para desativar/remover esta regra, apague:
@@ -195,7 +197,15 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   }, [page])
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState<ActiveCat>('all')
+  // Favoritos: vem da API (por usuário, não por navegador) — DEFAULT_FAVS só
+  // como fallback enquanto a chamada não responde (ou se ela falhar).
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
+
+  useEffect(() => {
+    fetchFavoritos().then(list => {
+      if (list) setFavs(list)
+    })
+  }, [])
   const [menuOpen, setMenuOpen] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -347,7 +357,15 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const openPainelAdmin = () => openViaSatelliteHandoff('painel-admin', 'https://extoapp-painel-adm.web.app')
 
   const toggleFav = (id: string) => {
-    setFavs(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id])
+    const eraFav = favs.includes(id)
+    setFavs(prev => eraFav ? prev.filter(f => f !== id) : [...prev, id])
+    const ok = eraFav ? removeFavorito(id) : addFavorito(id)
+    ok.then(sucesso => {
+      if (sucesso) return
+      // reverte se a API recusou (ex.: sessão expirada) — evita favorito
+      // "fantasma" que volta assim que a página recarregar.
+      setFavs(prev => eraFav ? [...prev, id] : prev.filter(f => f !== id))
+    })
   }
 
   const q = query.trim().toLowerCase()
