@@ -65,7 +65,7 @@ export function Banner({ onRead }: Props) {
         }}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-[12px] mb-[9px]">
+          <div className="flex items-center gap-[12px] mb-[6px]">
             <span className="font-archivo font-semibold text-[10.5px] leading-none tracking-[0.12em] uppercase text-accent bg-[rgba(174,58,35,0.10)] px-[10px] py-[5px] rounded-[20px]">
               Comunicado
             </span>
