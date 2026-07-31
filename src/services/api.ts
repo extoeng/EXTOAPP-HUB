@@ -20,22 +20,28 @@ export function getToken() {
   return accessToken
 }
 
-async function tryRefresh(): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+// Single-flight: o backend rotaciona o refresh e põe o antigo na blacklist, então
+// dois 401 em paralelo (comum no boot, várias chamadas juntas) mandariam o MESMO
+// refresh — a segunda chegaria com o token já invalidado e derrubaria a sessão.
+// Todos esperam a mesma promise.
+let renovando: Promise<boolean> | null = null
+
+function tryRefresh(): Promise<boolean> {
+  if (!renovando) {
+    renovando = fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
     })
-    if (!res.ok) return false
-    const data = await res.json()
-    if (data?.access) {
-      setToken(data.access)
-      return true
-    }
-    return false
-  } catch {
-    return false
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!data?.access) return false
+        setToken(data.access)
+        return true
+      })
+      .catch(() => false)
+      .finally(() => { renovando = null })
   }
+  return renovando
 }
 
 export async function apiFetch(

@@ -233,9 +233,10 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   }, [])
 
   // Retorno automático pro app satélite que mandou o usuário de volta pro hub
-  // (?return_to=<url>) — acontece quando o access token do satélite expira
-  // (ou nunca existiu, ex.: F5 direto nele) e ele não tem como renovar sozinho
-  // (SSO Fase 1: satélite só recebe `access`, nunca `refresh`). Sem isso, o
+  // (?return_to=<url>) — hoje é só fallback: o satélite renova o próprio access
+  // pelo cookie que o exchange-code deixa na origem dele, então só cai aqui
+  // quando nem o refresh vale mais (inatividade longa, sessão revogada) ou
+  // quando ele nunca teve token (F5 direto no domínio do app). Sem isso, o
   // usuário caía na home do hub e precisava clicar no app de novo manualmente.
   // Roda com `allApps` (não a lista filtrada) pra achar também apps escondidos
   // do grid, ex. Painel Administrativo/Agenda Pública.
