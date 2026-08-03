@@ -318,17 +318,16 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                     title={selected.destaque ? 'Remover destaque da home' : 'Destacar na home'}
                     className="
                       w-[38px] h-[38px] rounded-[10px]
-                      bg-surface border border-border shadow-card-hover
-                      flex items-center justify-center cursor-pointer
-                      hover:border-border-hover hover:-translate-y-[1px]
+                      bg-accent border border-accent shadow-card-hover
+                      flex items-center justify-center cursor-pointer text-white
+                      hover:brightness-[0.93] hover:-translate-y-[1px]
                       disabled:opacity-60 disabled:cursor-default disabled:hover:translate-y-0
                       transition-all duration-150
                     "
-                    style={{ color: selected.destaque ? '#AE3A23' : '#3C3A37' }}
                   >
                     {togglingDestaque
                       ? <Loader2 size={17} className="animate-spin" />
-                      : <Star size={17} strokeWidth={1.8} fill={selected.destaque ? '#AE3A23' : 'none'} />}
+                      : <Star size={17} strokeWidth={1.8} fill={selected.destaque ? '#fff' : 'none'} />}
                   </button>
                 )}
                 {canManage && (
@@ -338,9 +337,9 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                     title="Excluir documento"
                     className="
                       w-[38px] h-[38px] rounded-[10px]
-                      bg-surface border border-border shadow-card-hover
-                      flex items-center justify-center text-icon-default cursor-pointer
-                      hover:border-border-hover hover:-translate-y-[1px] hover:text-accent
+                      bg-accent border border-accent shadow-card-hover
+                      flex items-center justify-center text-white cursor-pointer
+                      hover:brightness-[0.93] hover:-translate-y-[1px]
                       disabled:opacity-60 disabled:cursor-default disabled:hover:translate-y-0
                       transition-all duration-150
                     "
@@ -356,9 +355,9 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                   title="Baixar PDF"
                   className="
                     w-[38px] h-[38px] rounded-[10px]
-                    bg-surface border border-border shadow-card-hover
-                    flex items-center justify-center text-icon-default no-underline
-                    hover:border-border-hover hover:-translate-y-[1px]
+                    bg-accent border border-accent shadow-card-hover
+                    flex items-center justify-center text-white no-underline
+                    hover:brightness-[0.93] hover:-translate-y-[1px]
                     transition-all duration-150
                   "
                 >
