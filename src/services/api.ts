@@ -44,6 +44,29 @@ function tryRefresh(): Promise<boolean> {
   return renovando
 }
 
+// Refresh PROATIVO. O reativo (401 acima) só roda quando há chamada — aba sem
+// tráfego deixa o próprio refresh vencer por inatividade e o próximo clique cai
+// na tela de login, mesmo com o usuário "ativo" na tela. Renova a cada 10min
+// (2/3 do access de 15) só se houve interação desde então: mantém o logout por
+// ociosidade real, tira o bounce de quem está de fato usando o HUB. Lock em
+// localStorage porque o single-flight acima é só por aba — várias abas do HUB
+// renovando juntas mandariam o mesmo refresh e a rotação/blacklist do backend
+// derrubaria a sessão.
+const REFRESH_INTERVAL_MS = 10 * 60_000
+const REFRESH_LOCK_KEY = 'exto_last_refresh'
+
+let ultimaAtividade = Date.now()
+for (const evento of ['pointerdown', 'keydown'] as const) {
+  addEventListener(evento, () => { ultimaAtividade = Date.now() }, { passive: true })
+}
+
+setInterval(() => {
+  if (Date.now() - ultimaAtividade > REFRESH_INTERVAL_MS) return
+  if (Date.now() - Number(localStorage.getItem(REFRESH_LOCK_KEY) ?? 0) < REFRESH_INTERVAL_MS - 60_000) return
+  localStorage.setItem(REFRESH_LOCK_KEY, String(Date.now()))
+  void tryRefresh()
+}, REFRESH_INTERVAL_MS)
+
 export async function apiFetch(
   path: string,
   opts: RequestInit = {},
