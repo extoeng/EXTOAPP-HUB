@@ -54,8 +54,12 @@ export default function App() {
 
   const handleLogout = async () => {
     await apiLogout()
-    setUser(null)
     sessionStorage.removeItem(PAGE_STORAGE_KEY)
+    // Navega direto pro app de login com o flag de logout — não basta
+    // limpar a sessão local: sem o flag, o app de login (dono do cookie
+    // "mestre" do SSO) reautenticaria sozinho e devolveria o usuário pra
+    // cá sem pedir credenciais de novo (ver goToLogin em services/api.ts).
+    goToLogin(undefined, { logout: true })
   }
 
   // Sessão morreu no servidor (refresh já tentado e falhou) — não vale a
