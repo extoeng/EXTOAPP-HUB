@@ -13,11 +13,19 @@ const TOKEN_KEY = 'exto_access'
 
 let accessToken: string | null = localStorage.getItem(TOKEN_KEY)
 
-/** Manda pro app de login, com `return_to` opcional pra voltar sozinho depois. */
-export function goToLogin(returnTo?: string) {
-  window.location.href = returnTo
-    ? `${LOGIN_URL}?return_to=${encodeURIComponent(returnTo)}`
-    : LOGIN_URL
+/**
+ * Manda pro app de login, com `return_to` opcional pra voltar sozinho depois.
+ * `logout: true` sinaliza que foi o usuário quem pediu pra saltar
+ * intencionalmente — sem isso, o app de login (dono do cookie "mestre" do
+ * SSO) manteria a própria sessão viva e devolveria o usuário autenticado de
+ * novo sem pedir credenciais, mesmo depois de um logout explícito.
+ */
+export function goToLogin(returnTo?: string, opts?: { logout?: boolean }) {
+  const params = new URLSearchParams()
+  if (returnTo) params.set('return_to', returnTo)
+  if (opts?.logout) params.set('logout', '1')
+  const qs = params.toString()
+  window.location.href = qs ? `${LOGIN_URL}?${qs}` : LOGIN_URL
 }
 
 export function setToken(token: string | null) {
