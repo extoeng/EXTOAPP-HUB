@@ -61,6 +61,20 @@ export async function login(credentials: LoginCredentials): Promise<AuthUser> {
   return mapUser(data.user)
 }
 
+/** Troca o one-time code (vindo do app de login via ?code=) por um access token. */
+export async function exchangeCode(code: string): Promise<boolean> {
+  const res = await apiFetch(
+    '/auth/exchange-code',
+    { method: 'POST', body: JSON.stringify({ code }) },
+    false,
+  )
+  if (!res.ok) return false
+  const data = await res.json()
+  if (!data?.access) return false
+  setToken(data.access)
+  return true
+}
+
 /** Restaura a sessão a partir do token salvo (retorna null se inválido). */
 export async function getMe(): Promise<AuthUser | null> {
   const res = await apiFetch('/me')

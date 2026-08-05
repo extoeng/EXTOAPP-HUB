@@ -6,9 +6,19 @@
 // em dev o Vite faz proxy de /api (ver vite.config.ts). Sem CORS, cookies OK.
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
+const LOGIN_URL =
+  import.meta.env.VITE_LOGIN_URL ?? 'https://extoapp-login.web.app'
+
 const TOKEN_KEY = 'exto_access'
 
 let accessToken: string | null = localStorage.getItem(TOKEN_KEY)
+
+/** Manda pro app de login, com `return_to` opcional pra voltar sozinho depois. */
+export function goToLogin(returnTo?: string) {
+  window.location.href = returnTo
+    ? `${LOGIN_URL}?return_to=${encodeURIComponent(returnTo)}`
+    : LOGIN_URL
+}
 
 export function setToken(token: string | null) {
   accessToken = token

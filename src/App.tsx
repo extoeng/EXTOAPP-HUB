@@ -4,12 +4,11 @@ import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
 import type { ActiveCat, App as AppType } from './types'
 import type { AuthUser } from './services/auth'
-import { getMe, fetchApps, getSatelliteCode, logout as apiLogout } from './services/auth'
-import { getToken, setToken } from './services/api'
+import { getMe, fetchApps, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
+import { getToken, setToken, goToLogin } from './services/api'
 import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
-import { LoginPage } from './pages/LoginPage'
 import { ComunicadosPage } from './pages/ComunicadosPage'
 import { ManuaisPage } from './pages/ManuaisPage'
 import { ObrasPage } from './pages/ObrasPage'
@@ -29,15 +28,28 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [restoring, setRestoring] = useState(true)
 
-  // Restaura sessão a partir do token salvo
   useEffect(() => {
-    if (!getToken()) {
-      setRestoring(false)
-      return
+    async function restaurarSessao() {
+      // Se o app de login redirecionou com ?code=, troca pelo access token
+      // e limpa a URL antes de seguir.
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+      if (code) {
+        await exchangeCode(code)
+        params.delete('code')
+        window.history.replaceState({}, '', params.toString() ? `?${params}` : window.location.pathname)
+      }
+
+      // Restaura sessão a partir do token salvo
+      if (!getToken()) {
+        setRestoring(false)
+        return
+      }
+      getMe()
+        .then(u => setUser(u))
+        .finally(() => setRestoring(false))
     }
-    getMe()
-      .then(u => setUser(u))
-      .finally(() => setRestoring(false))
+    restaurarSessao()
   }, [])
 
   const handleLogout = async () => {
@@ -59,7 +71,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={setUser} />
+    return <SemSessao />
   }
 
   const directTarget = DIRECT_APP_BY_EMAIL[user.email.trim().toLowerCase()]
@@ -83,6 +95,22 @@ export default function App() {
       onUserChange={setUser}
       onSessionExpired={handleSessionExpired}
     />
+  )
+}
+
+// Exibido quando não há sessão ativa (sem token, sessão expirada, e o
+// refresh via cookie também falhou — ou logout manual). Sempre volta pro
+// app de login com `?return_to=` — ele autentica (ou já reconhece sessão
+// própria) e devolve pra cá sozinho via ?code=, sem exigir ação manual.
+function SemSessao() {
+  useEffect(() => {
+    goToLogin(window.location.href)
+  }, [])
+
+  return (
+    <div className="h-screen flex items-center justify-center bg-bg-app">
+      <p className="font-hanken text-[14px] text-text-muted">Redirecionando…</p>
+    </div>
   )
 }
 
