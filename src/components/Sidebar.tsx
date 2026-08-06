@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, LayoutGrid, ChevronRight, ChevronDown } from 'lucide-react'
+import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight, ChevronDown } from 'lucide-react'
 import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
 import { CAT_LABELS, CAT_ORDER } from '../data/apps'
@@ -60,25 +60,19 @@ function NavItem({ label, Icon, active, expanded, onClick }: {
   )
 }
 
-function AppNavItem({ app, expanded, onClick }: { app: App; expanded: boolean; onClick: () => void }) {
+function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      title={!expanded ? app.name : undefined}
+      title={app.name}
       className={`
         w-full flex items-center rounded-[10px] cursor-pointer
         font-hanken font-medium text-[14px] leading-none
-        transition-all duration-150 border-none
-        ${expanded ? 'gap-[12px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
+        transition-all duration-150 border-none px-[12px] py-[10px]
         bg-transparent text-white/90 hover:text-white hover:bg-white/[0.06]
       `}
     >
-      <span className="flex-shrink-0 w-[19px] h-[19px] rounded-[5px] overflow-hidden flex items-center justify-center">
-        {app.icon
-          ? <img src={app.icon} alt="" className="w-full h-full object-cover" />
-          : <LayoutGrid size={19} strokeWidth={1.7} />}
-      </span>
-      {expanded && <span className="whitespace-nowrap overflow-hidden text-ellipsis">{app.name}</span>}
+      <span className="whitespace-nowrap overflow-hidden text-ellipsis">{app.name}</span>
     </button>
   )
 }
@@ -102,7 +96,7 @@ function AppNavGroup({ label, items, isExpanded, isOpen, onToggle, onOpenApp, is
     return (
       <>
         {items.map(app => (
-          <AppNavItem key={app.id} app={app} expanded={false}
+          <AppNavItem key={app.id} app={app}
             onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
         ))}
       </>
@@ -125,7 +119,7 @@ function AppNavGroup({ label, items, isExpanded, isOpen, onToggle, onOpenApp, is
       {isOpen && (
         <div className="flex flex-col gap-[3px] pl-[16px]">
           {items.map(app => (
-            <AppNavItem key={app.id} app={app} expanded
+            <AppNavItem key={app.id} app={app}
               onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
           ))}
         </div>
