@@ -1,6 +1,9 @@
 // Cliente da API de SSO (nexus, Cloud Run — banco core).
-// Estratégia: token Bearer guardado em localStorage; em 401 tenta /auth/refresh
-// (via cookie) uma vez e repete a chamada. Cookies não são obrigatórios.
+// Estratégia: token Bearer guardado em sessionStorage (não localStorage: não
+// pode sobreviver a fechar a aba/navegador — senão reabrir com o access token
+// ainda válido pula direto pro app sem passar pelo login, mesmo depois de
+// "sair completamente"); em 401 tenta /auth/refresh (via cookie) uma vez e
+// repete a chamada. Cookies não são obrigatórios.
 
 // Mesmo domínio: em produção o Firebase Hosting faz rewrite de /api → Cloud Run;
 // em dev o Vite faz proxy de /api (ver vite.config.ts). Sem CORS, cookies OK.
@@ -11,7 +14,7 @@ const LOGIN_URL =
 
 const TOKEN_KEY = 'exto_access'
 
-let accessToken: string | null = localStorage.getItem(TOKEN_KEY)
+let accessToken: string | null = sessionStorage.getItem(TOKEN_KEY)
 
 /**
  * Manda pro app de login, com `return_to` opcional pra voltar sozinho depois.
@@ -30,8 +33,8 @@ export function goToLogin(returnTo?: string, opts?: { logout?: boolean }) {
 
 export function setToken(token: string | null) {
   accessToken = token
-  if (token) localStorage.setItem(TOKEN_KEY, token)
-  else localStorage.removeItem(TOKEN_KEY)
+  if (token) sessionStorage.setItem(TOKEN_KEY, token)
+  else sessionStorage.removeItem(TOKEN_KEY)
 }
 
 export function getToken() {
