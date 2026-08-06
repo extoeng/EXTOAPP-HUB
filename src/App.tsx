@@ -59,7 +59,12 @@ export default function App() {
     // limpar a sessão local: sem o flag, o app de login (dono do cookie
     // "mestre" do SSO) reautenticaria sozinho e devolveria o usuário pra
     // cá sem pedir credenciais de novo (ver goToLogin em services/api.ts).
-    goToLogin(undefined, { logout: true })
+    // Manda `return_to` também: sem ele, depois de logar de novo o app de
+    // login não sabe pra onde te devolver (cai em "não foi possível
+    // identificar para onde te levar"). Seguro mesmo no fluxo de logout
+    // porque `logout=1` nunca passa pelo tryRefresh() — vai direto pro
+    // formulário, sem risco do loop de reautenticação silenciosa.
+    goToLogin(window.location.href, { logout: true })
   }
 
   // Sessão morreu no servidor (refresh já tentado e falhou) — não vale a
