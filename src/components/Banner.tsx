@@ -73,7 +73,7 @@ export function Banner({ onRead }: Props) {
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-[12px] mb-[9px]">
-            <span className="font-archivo font-semibold text-[10.5px] leading-none tracking-[0.12em] uppercase text-accent bg-[rgba(174,58,35,0.10)] px-[10px] py-[5px] rounded-[20px]">
+            <span className="font-archivo font-semibold text-[10.5px] leading-none tracking-[0.12em] uppercase text-accent bg-[rgba(179,28,28,0.10)] px-[10px] py-[5px] rounded-[20px]">
               Comunicado{c.numero ? ` Nº ${c.numero}` : ''}
             </span>
             <span className="inline-flex items-center gap-[6px] font-hanken font-medium text-[12px] text-text-faint">
@@ -110,7 +110,7 @@ export function Banner({ onRead }: Props) {
               style={{
                 width: i === index ? '18px' : '6px',
                 height: '6px',
-                background: i === index ? '#AE3A23' : '#D9D5D0',
+                background: i === index ? '#B31C1C' : '#D9D5D0',
               }}
             />
           ))}

@@ -90,7 +90,7 @@ export function LoginPage({ onLogin }: Props) {
                   h-[46px] border border-border-2 bg-bg-app rounded-[11px]
                   px-[14px] font-hanken font-normal text-[14px] text-ink
                   outline-none transition-all duration-150
-                  focus:border-accent focus:shadow-[0_0_0_3px_rgba(174,58,35,0.12)]
+                  focus:border-accent focus:shadow-[0_0_0_3px_rgba(179,28,28,0.12)]
                   focus:bg-surface
                 "
               />
@@ -104,7 +104,7 @@ export function LoginPage({ onLogin }: Props) {
                 </label>
                 <button
                   type="button"
-                  className="font-hanken text-[12px] text-accent hover:text-[#8a2e1b] transition-colors duration-150 border-none bg-transparent cursor-pointer"
+                  className="font-hanken text-[12px] text-accent hover:text-[#8e1616] transition-colors duration-150 border-none bg-transparent cursor-pointer"
                 >
                   Esqueci minha senha
                 </button>
@@ -121,7 +121,7 @@ export function LoginPage({ onLogin }: Props) {
                     w-full h-[46px] border border-border-2 bg-bg-app rounded-[11px]
                     pl-[14px] pr-[44px] font-hanken font-normal text-[14px] text-ink
                     outline-none transition-all duration-150
-                    focus:border-accent focus:shadow-[0_0_0_3px_rgba(174,58,35,0.12)]
+                    focus:border-accent focus:shadow-[0_0_0_3px_rgba(179,28,28,0.12)]
                     focus:bg-surface
                   "
                 />
@@ -137,7 +137,7 @@ export function LoginPage({ onLogin }: Props) {
 
             {/* Error */}
             {error && (
-              <div className="font-hanken text-[13px] text-accent bg-[rgba(174,58,35,0.08)] px-[14px] py-[10px] rounded-[10px] animate-ex-float">
+              <div className="font-hanken text-[13px] text-accent bg-[rgba(179,28,28,0.08)] px-[14px] py-[10px] rounded-[10px] animate-ex-float">
                 {error}
               </div>
             )}
@@ -168,7 +168,7 @@ export function LoginPage({ onLogin }: Props) {
 
           <p className="text-center font-hanken text-[12px] text-text-faint mt-[28px]">
             Problemas para acessar? Fale com o{' '}
-            <button className="text-accent hover:text-[#8a2e1b] transition-colors duration-150 border-none bg-transparent cursor-pointer font-hanken text-[12px]">
+            <button className="text-accent hover:text-[#8e1616] transition-colors duration-150 border-none bg-transparent cursor-pointer font-hanken text-[12px]">
               Suporte & TI
             </button>
           </p>

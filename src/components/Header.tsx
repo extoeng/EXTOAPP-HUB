@@ -36,7 +36,7 @@ export function Header({ query, isNarrow, onSearch, onOpenMenu }: Props) {
         id: c.id,
         title: c.numero ? `Comunicado Nº ${c.numero}` : 'Comunicado',
         time: c.date,
-        color: '#AE3A23',
+        color: '#B31C1C',
       })))
     })
   }, [])
@@ -84,7 +84,7 @@ export function Header({ query, isNarrow, onSearch, onOpenMenu }: Props) {
             font-hanken font-normal text-[14px] text-ink
             outline-none
             transition-all duration-150
-            focus:border-accent focus:shadow-[0_0_0_3px_rgba(174,58,35,0.12)]
+            focus:border-accent focus:shadow-[0_0_0_3px_rgba(179,28,28,0.12)]
           "
         />
       </div>

@@ -452,7 +452,7 @@ function ObraEditForm({ obra, onCancel, onSaved, onDeleted }: {
         <div className="flex flex-col gap-[6px]"><Rotulo>Telefones</Rotulo><TelefonesEditor tels={f.telefones} onChange={t => set({ telefones: t })} /></div>
         <div className="flex flex-col gap-[6px]"><Rotulo>Equipe de obra</Rotulo><EquipeEditor equipe={f.equipe} onChange={e => set({ equipe: e })} /></div>
 
-        {erro && <div className="font-hanken text-[12.5px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[9px] px-[12px] py-[9px]">{erro}</div>}
+        {erro && <div className="font-hanken text-[12.5px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[9px] px-[12px] py-[9px]">{erro}</div>}
 
         <div className="flex items-center gap-[10px] pt-[4px]">
           <button onClick={salvar} disabled={salvando}
@@ -631,7 +631,7 @@ function ObraDrawer({ obra, canManage, onClose, onSaved, onDelete }: {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-[10px] mb-[6px]">
               {obra.numero && !editando && (
-                <span className="inline-flex items-center gap-[3px] font-hanken font-semibold text-[12px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[7px] px-[8px] py-[3px]">
+                <span className="inline-flex items-center gap-[3px] font-hanken font-semibold text-[12px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[7px] px-[8px] py-[3px]">
                   <Hash size={11} strokeWidth={2.4} />{obra.numero}
                 </span>
               )}
@@ -653,7 +653,7 @@ function ObraDrawer({ obra, canManage, onClose, onSaved, onDelete }: {
 
           {podeEditar && !editando && (
             <button onClick={() => setEditando(true)} title="Editar obra"
-              className="flex-shrink-0 inline-flex items-center gap-[5px] font-hanken font-medium text-[12.5px] text-accent bg-[rgba(174,58,35,0.08)] rounded-[9px] px-[10px] py-[6px] border-none cursor-pointer hover:bg-[rgba(174,58,35,0.14)]">
+              className="flex-shrink-0 inline-flex items-center gap-[5px] font-hanken font-medium text-[12.5px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[9px] px-[10px] py-[6px] border-none cursor-pointer hover:bg-[rgba(179,28,28,0.14)]">
               <Pencil size={13} /> Editar
             </button>
           )}

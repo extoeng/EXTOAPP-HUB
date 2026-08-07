@@ -18,9 +18,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
 }
 
 const BADGE_STYLES = {
-  ok:     { text: 'text-[#2F7D5B]', bg: 'bg-[rgba(47,125,91,0.10)]' },
-  warn:   { text: 'text-[#9A6A12]', bg: 'bg-[rgba(154,106,18,0.12)]' },
-  accent: { text: 'text-accent',    bg: 'bg-[rgba(174,58,35,0.10)]' },
+  ok:     { text: 'text-[#15803D]', bg: 'bg-[#DCFCE7]' },
+  warn:   { text: 'text-[#92400E]', bg: 'bg-[#FEF3C7]' },
+  accent: { text: 'text-accent',    bg: 'bg-[rgba(179,28,28,0.10)]' },
 }
 
 interface Props {
@@ -54,7 +54,7 @@ export function AppCard({ app, isFav, onOpen, onToggleFav }: Props) {
           onClick={onToggleFav}
           title={isFav ? 'Remover dos favoritos' : 'Favoritar'}
           className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-tile-bg flex-shrink-0"
-          style={{ color: isFav ? '#AE3A23' : '#CBC6BE' }}
+          style={{ color: isFav ? '#B31C1C' : '#CBC6BE' }}
         >
           <Star size={17} strokeWidth={1.7} fill={isFav ? 'currentColor' : 'none'} stroke={isFav ? 'none' : 'currentColor'} />
         </button>

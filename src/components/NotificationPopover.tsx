@@ -110,7 +110,7 @@ export function NotificationPopover({ notifications, lidos, onMarcarTodasLidas, 
         <div className="flex items-center gap-[8px]">
           <span className="font-archivo font-semibold text-[14px] text-ink">Notificações</span>
           {unreadCount > 0 && (
-            <span className="font-hanken font-semibold text-[11px] text-accent bg-[rgba(174,58,35,0.10)] px-[7px] py-[2px] rounded-full">
+            <span className="font-hanken font-semibold text-[11px] text-accent bg-[rgba(179,28,28,0.10)] px-[7px] py-[2px] rounded-full">
               {unreadCount} novas
             </span>
           )}
@@ -144,7 +144,7 @@ export function NotificationPopover({ notifications, lidos, onMarcarTodasLidas, 
         <div className="border-t border-border px-[18px] py-[12px]">
           <button
             onClick={() => setShowAll(true)}
-            className="w-full text-center font-hanken font-medium text-[13px] text-accent hover:text-[#8a2e1b] transition-colors duration-150 border-none bg-transparent cursor-pointer"
+            className="w-full text-center font-hanken font-medium text-[13px] text-accent hover:text-[#8e1616] transition-colors duration-150 border-none bg-transparent cursor-pointer"
           >
             Ver todas as notificações
           </button>
