@@ -14,7 +14,7 @@ export default {
         'icon-default': '#3C3A37',
         'icon-inactive': '#9C978F',
         'star-empty': '#CBC6BE',
-        accent: '#AE3A23',
+        accent: '#B31C1C',
         'bg-app': '#F4F3F1',
         surface: '#FFFFFF',
         'tile-bg': '#F4F2EE',

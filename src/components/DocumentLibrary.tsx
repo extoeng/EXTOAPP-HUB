@@ -212,7 +212,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                 className={`
                   relative flex-shrink-0 w-[32px] h-[32px] rounded-[8px] border cursor-pointer
                   flex items-center justify-center transition-colors duration-150
-                  ${searchDate ? 'border-accent bg-[rgba(174,58,35,0.08)] text-accent' : 'border-border bg-bg-app text-text-muted hover:border-border-hover'}
+                  ${searchDate ? 'border-accent bg-[rgba(179,28,28,0.08)] text-accent' : 'border-border bg-bg-app text-text-muted hover:border-border-hover'}
                 `}
               >
                 <Calendar size={15} strokeWidth={1.8} />
@@ -247,27 +247,27 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
                 className={`
                   w-full text-left px-[16px] py-[14px] border-none cursor-pointer transition-colors duration-150
                   flex items-start gap-[12px] border-b border-border
-                  ${selected?.id === c.id ? 'bg-[rgba(174,58,35,0.06)]' : 'bg-transparent hover:bg-tile-bg'}
+                  ${selected?.id === c.id ? 'bg-[rgba(179,28,28,0.06)]' : 'bg-transparent hover:bg-tile-bg'}
                 `}
               >
                 <div
                   className="flex-shrink-0 w-[36px] h-[36px] rounded-[10px] flex items-center justify-center mt-[1px]"
-                  style={{ background: selected?.id === c.id ? 'rgba(174,58,35,0.12)' : '#F0EDE8' }}
+                  style={{ background: selected?.id === c.id ? 'rgba(179,28,28,0.12)' : '#F0EDE8' }}
                 >
-                  <FileText size={16} strokeWidth={1.7} style={{ color: selected?.id === c.id ? '#AE3A23' : '#9A958F' }} />
+                  <FileText size={16} strokeWidth={1.7} style={{ color: selected?.id === c.id ? '#B31C1C' : '#9A958F' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   {c.numero && (
                     <div
                       className="font-archivo font-semibold text-[10.5px] tracking-[0.04em] uppercase mb-[2px]"
-                      style={{ color: selected?.id === c.id ? '#AE3A23' : 'var(--color-ink)' }}
+                      style={{ color: selected?.id === c.id ? '#B31C1C' : 'var(--color-ink)' }}
                     >
                       Comunicado Nº {c.numero}
                     </div>
                   )}
                   <div
                     className="font-hanken font-medium text-[13px] leading-[1.35] mb-[4px] line-clamp-2"
-                    style={{ color: selected?.id === c.id ? '#AE3A23' : 'var(--color-ink)' }}
+                    style={{ color: selected?.id === c.id ? '#B31C1C' : 'var(--color-ink)' }}
                   >
                     {c.title}
                   </div>
