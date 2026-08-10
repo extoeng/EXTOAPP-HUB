@@ -374,11 +374,13 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     else window.open(target, '_blank', 'noopener,noreferrer') // fallback se a 1ª chamada foi bloqueada
   }
 
-  const openApp = async (name: string) => {
-    const app = apps.find(a => a.name === name)
+  // Aceita tanto o nome (launcher/sidebar) quanto o slug (ex.: notificação
+  // do sino traz `app` = slug do catálogo, não o nome de exibição).
+  const openApp = async (nameOrSlug: string) => {
+    const app = apps.find(a => a.name === nameOrSlug || a.id === nameOrSlug)
     if (!app?.url) {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-      setToast(name)
+      setToast(nameOrSlug)
       toastTimerRef.current = setTimeout(() => setToast(null), 2200)
       return
     }
@@ -468,6 +470,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           isNarrow={isNarrow}
           onSearch={setQuery}
           onOpenMenu={() => setMenuOpen(true)}
+          onOpenApp={openApp}
         />
 
         <div className="flex flex-1 overflow-hidden">

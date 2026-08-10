@@ -1,59 +1,52 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search, Bell, HelpCircle, Menu } from 'lucide-react'
-import { NotificationPopover, type NotificationItem } from './NotificationPopover'
-import { fetchDocuments } from '../services/documents'
-import { isComunicadoNovo } from '../utils/comunicadoNovo'
+import { NotificationPopover } from './NotificationPopover'
+import { fetchNotificacoes, marcarNotificacaoLida, marcarTodasNotificacoesLidas, type Notificacao } from '../services/notificacoes'
 
 interface Props {
   query: string
   isNarrow: boolean
   onSearch: (q: string) => void
   onOpenMenu: () => void
+  /** Abre um app do catálogo pelo slug (mesmo mecanismo do launcher). */
+  onOpenApp: (slug: string) => void
 }
 
-// IDs de comunicado já vistos/removidos pelo usuário nesta notificação —
-// localStorage (não sessionStorage), pra não voltar a piscar/aparecer depois.
-const LIDOS_STORAGE_KEY = 'exto_hub_notif_lidos'
-const REMOVIDOS_STORAGE_KEY = 'exto_hub_notif_removidos'
-function loadIds(key: string): number[] {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
+// Sem push/websocket no backend — polling no intervalo abaixo, mais uma
+// busca extra sempre que o usuário abre o sino (não espera o próximo tick).
+const POLL_MS = 45_000
 
-export function Header({ query, isNarrow, onSearch, onOpenMenu }: Props) {
+export function Header({ query, isNarrow, onSearch, onOpenMenu, onOpenApp }: Props) {
   const [notifOpen, setNotifOpen] = useState(false)
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [lidos, setLidos] = useState<number[]>(() => loadIds(LIDOS_STORAGE_KEY))
-  const [removidos, setRemovidos] = useState<number[]>(() => loadIds(REMOVIDOS_STORAGE_KEY))
+  const [notifications, setNotifications] = useState<Notificacao[]>([])
+
+  const carregar = useRef(() => {
+    fetchNotificacoes().then(list => { if (list) setNotifications(list) })
+  })
 
   useEffect(() => {
-    fetchDocuments('comunicado').then(list => {
-      if (!list) return
-      const recentes = list.filter(c => isComunicadoNovo(c.dateISO))
-      setNotifications(recentes.map(c => ({
-        id: c.id,
-        title: c.numero ? `Comunicado Nº ${c.numero}` : 'Comunicado',
-        time: c.date,
-        color: '#B31C1C',
-      })))
-    })
+    carregar.current()
+    const id = setInterval(() => carregar.current(), POLL_MS)
+    return () => clearInterval(id)
   }, [])
 
-  const visiveis = notifications.filter(n => !removidos.includes(n.id))
-  const unreadIds = visiveis.filter(n => !lidos.includes(n.id)).map(n => n.id)
+  const unreadCount = notifications.filter(n => n.lida_em === null).length
 
   function marcarTodasLidas() {
-    const next = [...new Set([...lidos, ...visiveis.map(n => n.id)])]
-    setLidos(next)
-    localStorage.setItem(LIDOS_STORAGE_KEY, JSON.stringify(next))
+    marcarTodasNotificacoesLidas().then(ok => {
+      if (!ok) return
+      setNotifications(prev => prev.map(n => ({ ...n, lida_em: n.lida_em ?? new Date().toISOString() })))
+    })
   }
 
-  function remover(id: number) {
-    const next = [...new Set([...removidos, id])]
-    setRemovidos(next)
-    localStorage.setItem(REMOVIDOS_STORAGE_KEY, JSON.stringify(next))
+  function selecionar(n: Notificacao) {
+    setNotifOpen(false)
+    onOpenApp(n.app)
+    if (n.lida_em !== null) return
+    marcarNotificacaoLida(n.id).then(atualizada => {
+      if (!atualizada) return
+      setNotifications(prev => prev.map(x => x.id === atualizada.id ? atualizada : x))
+    })
   }
 
   return (
@@ -101,20 +94,19 @@ export function Header({ query, isNarrow, onSearch, onOpenMenu }: Props) {
         <div className="relative">
           <button
             title="Notificações"
-            onClick={() => setNotifOpen(o => !o)}
+            onClick={() => { setNotifOpen(o => !o); carregar.current() }}
             className="relative w-[40px] h-[40px] rounded-[10px] flex items-center justify-center cursor-pointer text-text-muted hover:bg-[#EBE8E3] hover:text-ink border-none bg-transparent transition-all duration-150"
           >
             <Bell size={20} strokeWidth={1.7} />
-            {unreadIds.length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute top-[9px] right-[10px] w-[8px] h-[8px] rounded-full bg-accent border-[1.5px] border-bg-app animate-ex-pulse" />
             )}
           </button>
           {notifOpen && (
             <NotificationPopover
-              notifications={visiveis}
-              lidos={lidos}
+              notifications={notifications}
               onMarcarTodasLidas={marcarTodasLidas}
-              onRemover={remover}
+              onSelect={selecionar}
               onClose={() => setNotifOpen(false)}
             />
           )}

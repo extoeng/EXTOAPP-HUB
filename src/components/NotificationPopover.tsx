@@ -1,55 +1,69 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, CheckCheck, X } from 'lucide-react'
-
-export interface NotificationItem {
-  id: number
-  title: string
-  time: string
-  color: string
-}
+import { Bell, CheckCheck, Package, Mail, FileText, DoorOpen, CalendarClock, Bike, X } from 'lucide-react'
+import type { Notificacao } from '../services/notificacoes'
 
 const MAX_VISIVEIS = 5
 
+// Prefixo antes do ponto no `tipo` indicaria a origem (hoje só "recepcao.");
+// mapeamos pelo tipo completo pra um ícone mais específico e caímos no
+// genérico (Bell) pra qualquer tipo que ainda não conhecemos.
+const ICON_BY_TIPO: Record<string, React.ElementType> = {
+  'recepcao.encomenda_recebida': Package,
+  'recepcao.correspondencia_recebida': Mail,
+  'recepcao.documento_recebido': FileText,
+  'recepcao.reserva_sala': DoorOpen,
+  'recepcao.reserva_espaco': CalendarClock,
+  'recepcao.motoboy_solicitado': Bike,
+}
+
+function formatRelativo(iso: string): string {
+  const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
+  if (diffMin < 1) return 'agora'
+  if (diffMin < 60) return `há ${diffMin} min`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24) return `há ${diffH}h`
+  const diffD = Math.floor(diffH / 24)
+  if (diffD < 7) return `há ${diffD}d`
+  return new Date(iso).toLocaleDateString('pt-BR')
+}
+
 interface Props {
-  notifications: NotificationItem[]
-  lidos: number[]
+  notifications: Notificacao[]
   onMarcarTodasLidas: () => void
-  onRemover: (id: number) => void
+  onSelect: (n: Notificacao) => void
   onClose: () => void
 }
 
-function NotificationRow({ n, unread, onRemover }: { n: NotificationItem; unread: boolean; onRemover: (id: number) => void }) {
+function NotificationRow({ n, onSelect }: { n: Notificacao; onSelect: (n: Notificacao) => void }) {
+  const unread = n.lida_em === null
+  const Icon = ICON_BY_TIPO[n.tipo] ?? Bell
   return (
-    <div className="group flex items-start gap-[12px] px-[18px] py-[12px] cursor-pointer hover:bg-[#F9F8F6] transition-colors duration-150">
-      <div className="flex-shrink-0 mt-[3px]">
-        <div
-          className="w-[8px] h-[8px] rounded-full mt-[1px]"
-          style={{ background: unread ? n.color : 'transparent', border: unread ? 'none' : '1.5px solid #D6D1C9' }}
-        />
+    <button
+      onClick={() => onSelect(n)}
+      className="w-full flex items-start gap-[12px] px-[18px] py-[12px] cursor-pointer border-none bg-transparent text-left hover:bg-[#F9F8F6] transition-colors duration-150"
+    >
+      <div className={`flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center ${unread ? 'bg-[rgba(174,58,35,0.10)] text-accent' : 'bg-tile-bg text-text-faint'}`}>
+        <Icon size={15} strokeWidth={1.8} />
       </div>
       <div className="flex-1 min-w-0">
         <div className={`font-hanken text-[13px] leading-[1.35] ${unread ? 'font-medium text-ink' : 'font-normal text-text-muted'}`}>
-          {n.title}
+          {n.titulo}
+        </div>
+        <div className="font-hanken text-[12px] text-text-muted mt-[2px] line-clamp-2">
+          {n.mensagem}
         </div>
         <div className="font-hanken text-[11px] text-text-faint mt-[4px]">
-          {n.time}
+          {formatRelativo(n.criado_em)}
         </div>
       </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onRemover(n.id) }}
-        title="Remover notificação"
-        className="flex-shrink-0 inline-flex items-center justify-center w-[22px] h-[22px] rounded-[6px] border-none bg-transparent cursor-pointer text-text-faint opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-tile-bg transition-all duration-150"
-      >
-        <X size={13} strokeWidth={2} />
-      </button>
-    </div>
+      {unread && <div className="flex-shrink-0 mt-[6px] w-[8px] h-[8px] rounded-full bg-accent" />}
+    </button>
   )
 }
 
-function TodasNotificacoesModal({ notifications, lidos, onRemover, onClose }: {
-  notifications: NotificationItem[]
-  lidos: number[]
-  onRemover: (id: number) => void
+function TodasNotificacoesModal({ notifications, onSelect, onClose }: {
+  notifications: Notificacao[]
+  onSelect: (n: Notificacao) => void
   onClose: () => void
 }) {
   return (
@@ -69,7 +83,7 @@ function TodasNotificacoesModal({ notifications, lidos, onRemover, onClose }: {
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
           {notifications.map(n => (
-            <NotificationRow key={n.id} n={n} unread={!lidos.includes(n.id)} onRemover={onRemover} />
+            <NotificationRow key={n.id} n={n} onSelect={onSelect} />
           ))}
         </div>
       </div>
@@ -77,7 +91,7 @@ function TodasNotificacoesModal({ notifications, lidos, onRemover, onClose }: {
   )
 }
 
-export function NotificationPopover({ notifications, lidos, onMarcarTodasLidas, onRemover, onClose }: Props) {
+export function NotificationPopover({ notifications, onMarcarTodasLidas, onSelect, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const [showAll, setShowAll] = useState(false)
 
@@ -89,7 +103,7 @@ export function NotificationPopover({ notifications, lidos, onMarcarTodasLidas, 
     return () => document.removeEventListener('mousedown', handler)
   }, [onClose])
 
-  const unreadCount = notifications.filter(n => !lidos.includes(n.id)).length
+  const unreadCount = notifications.filter(n => n.lida_em === null).length
   const visiveis = notifications.slice(0, MAX_VISIVEIS)
   const temMais = notifications.length > MAX_VISIVEIS
 
@@ -135,7 +149,7 @@ export function NotificationPopover({ notifications, lidos, onMarcarTodasLidas, 
           </div>
         )}
         {visiveis.map(n => (
-          <NotificationRow key={n.id} n={n} unread={!lidos.includes(n.id)} onRemover={onRemover} />
+          <NotificationRow key={n.id} n={n} onSelect={onSelect} />
         ))}
       </div>
 
@@ -154,8 +168,7 @@ export function NotificationPopover({ notifications, lidos, onMarcarTodasLidas, 
       {showAll && (
         <TodasNotificacoesModal
           notifications={notifications}
-          lidos={lidos}
-          onRemover={onRemover}
+          onSelect={onSelect}
           onClose={() => setShowAll(false)}
         />
       )}
