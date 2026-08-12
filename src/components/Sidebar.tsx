@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight, ChevronDown } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight } from 'lucide-react'
 import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
 import { CAT_LABELS, CAT_ORDER } from '../data/apps'
@@ -80,16 +81,27 @@ function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
 // Agrupa os apps do menu pela mesma categoria usada no grid da home
 // (CAT_LABELS/CAT_ORDER de data/apps.ts) — só entra grupo com pelo menos
 // 1 app que o usuário tem acesso.
-function AppNavGroup({ label, items, isExpanded, isOpen, onToggle, onOpenApp, isNarrow, onClose }: {
+//
+// Subitens não empurram o menu (sem expandir em linha) — clicar no grupo
+// abre um popup lateral (flyout) na altura do botão, via portal pro body
+// pra escapar do overflow-hidden da sidebar. Sai do grupo/popup com o
+// mouse fecha o popup (com um pequeno delay pra tolerar o gap até ele).
+function AppNavGroup({ cat, label, items, isExpanded, isOpen, onOpen, onCloseFlyout, onCancelClose, onScheduleClose, onOpenApp, isNarrow, onClose }: {
+  cat: Category
   label: string
   items: App[]
   isExpanded: boolean
   isOpen: boolean
-  onToggle: () => void
+  onOpen: (cat: Category, rect: DOMRect) => void
+  onCloseFlyout: () => void
+  onCancelClose: () => void
+  onScheduleClose: () => void
   onOpenApp: (name: string) => void
   isNarrow: boolean
   onClose: () => void
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null)
+
   if (!isExpanded) {
     // Sidebar recolhida (faixa de ícones): sem espaço pro rótulo do grupo,
     // mostra os apps soltos (mesmo tratamento de antes de agrupar).
@@ -103,26 +115,54 @@ function AppNavGroup({ label, items, isExpanded, isOpen, onToggle, onOpenApp, is
     )
   }
 
+  const handleClick = () => {
+    if (isOpen) { onCloseFlyout(); return }
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (rect) onOpen(cat, rect)
+  }
+
+  const selectApp = (app: App) => {
+    onCloseFlyout()
+    onOpenApp(app.name)
+    if (isNarrow) onClose()
+  }
+
   return (
-    <div>
+    <div onMouseEnter={onCancelClose} onMouseLeave={onScheduleClose}>
       <button
-        onClick={onToggle}
-        className="
+        ref={btnRef}
+        onClick={handleClick}
+        className={`
           w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
           font-hanken font-medium text-[13px] leading-none border-none
-          bg-transparent text-white hover:bg-white/[0.06] transition-all duration-150
-        "
+          transition-all duration-150
+          ${isOpen ? 'bg-white/[0.06] text-white' : 'bg-transparent text-white hover:bg-white/[0.06]'}
+        `}
       >
-        {isOpen ? <ChevronDown size={14} className="flex-shrink-0" /> : <ChevronRight size={14} className="flex-shrink-0" />}
+        <ChevronRight size={14} className="flex-shrink-0" />
         <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[13px]">{label}</span>
       </button>
-      {isOpen && (
-        <div className="flex flex-col gap-[3px] pl-[16px]">
+
+      {isOpen && btnRef.current && createPortal(
+        <div
+          onMouseEnter={onCancelClose}
+          onMouseLeave={onScheduleClose}
+          className="fixed z-50 flex flex-col gap-[3px] py-[8px] px-[6px] animate-ex-float"
+          style={{
+            top: btnRef.current.getBoundingClientRect().top,
+            left: btnRef.current.getBoundingClientRect().right + 8,
+            width: 220,
+            background: '#20211f',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '12px',
+            boxShadow: '0 16px 40px -10px rgba(0,0,0,0.45)',
+          }}
+        >
           {items.map(app => (
-            <AppNavItem key={app.id} app={app}
-              onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
+            <AppNavItem key={app.id} app={app} onClick={() => selectApp(app)} />
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -167,16 +207,26 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
     if (isNarrow) onClose()
   }
 
-  // Grupos de app no menu — mesma categoria/ordem do grid da home. Fecha por
-  // padrão; clicar no grupo expande/recolhe (independente dos outros).
-  const [openGroups, setOpenGroups] = useState<Set<Category>>(new Set())
-  const toggleGroup = (cat: Category) => {
-    setOpenGroups(prev => {
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat); else next.add(cat)
-      return next
-    })
+  // Grupos de app no menu — mesma categoria/ordem do grid da home. Clicar no
+  // grupo abre um popup lateral (flyout) só com os subitens dele; só um
+  // aberto por vez. Sair do grupo/popup com o mouse fecha (delay curto pro
+  // gap até o popup).
+  const [flyoutCat, setFlyoutCat] = useState<Category | null>(null)
+  const closeTimer = useRef<number | null>(null)
+  const cancelClose = () => {
+    if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null }
   }
+  const openFlyout = (cat: Category) => { cancelClose(); setFlyoutCat(cat) }
+  const closeFlyout = () => { cancelClose(); setFlyoutCat(null) }
+  const scheduleClose = () => {
+    cancelClose()
+    closeTimer.current = window.setTimeout(() => setFlyoutCat(null), 150)
+  }
+
+  useEffect(() => {
+    if (!isExpanded) closeFlyout()
+  }, [isExpanded])
+
   const appGroups = CAT_ORDER
     .map(cat => ({ cat, label: CAT_LABELS[cat], items: apps.filter(a => a.cat === cat) }))
     .filter(g => g.items.length > 0)
@@ -253,11 +303,15 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
             {appGroups.map(g => (
               <AppNavGroup
                 key={g.cat}
+                cat={g.cat}
                 label={g.label}
                 items={g.items}
                 isExpanded={isExpanded}
-                isOpen={openGroups.has(g.cat)}
-                onToggle={() => toggleGroup(g.cat)}
+                isOpen={flyoutCat === g.cat}
+                onOpen={openFlyout}
+                onCloseFlyout={closeFlyout}
+                onCancelClose={cancelClose}
+                onScheduleClose={scheduleClose}
                 onOpenApp={onOpenApp}
                 isNarrow={isNarrow}
                 onClose={onClose}

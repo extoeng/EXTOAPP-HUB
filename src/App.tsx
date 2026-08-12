@@ -24,12 +24,41 @@ import { EmptyState } from './components/EmptyState'
 import { Toast } from './components/Toast'
 import { RightPanel } from './components/RightPanel'
 
+// Bypass de login só em `npm run dev` (import.meta.env.DEV nunca é true em
+// build de produção) — evita ter que logar de verdade só pra ver o layout
+// localmente. Sem chamadas à API real (o token seria inválido); a sidebar e
+// o grid usam o fallback estático de data/apps.ts mesmo assim.
+const DEV_BYPASS_USER: AuthUser = {
+  id: 'dev', name: 'Dev Local', role: 'Desenvolvedor', initials: 'DL',
+  email: 'dev@exto.com.br', phoneExtension: '', mobile: '', photoUrl: null,
+  apps: {},
+}
+
+// Catálogo real (data/apps.ts) está vazio de propósito — sem apps não dá pra
+// ver os grupos/flyout da sidebar. Só usado se a API não devolver nada
+// (fetchApps falha sem token real de qualquer forma, no bypass acima).
+const DEV_MOCK_APPS: AppType[] = [
+  { id: 'dev-rh-1', cat: 'rh', name: 'Folha de Pagamento', desc: '' },
+  { id: 'dev-rh-2', cat: 'rh', name: 'Recrutamento', desc: '' },
+  { id: 'dev-rh-3', cat: 'rh', name: 'Benefícios', desc: '' },
+  { id: 'dev-obras-1', cat: 'obras', name: 'Cronograma de Obras', desc: '' },
+  { id: 'dev-obras-2', cat: 'obras', name: 'Medições', desc: '' },
+  { id: 'dev-fin-1', cat: 'fin', name: 'Contas a Pagar', desc: '' },
+  { id: 'dev-fin-2', cat: 'fin', name: 'Faturamento', desc: '' },
+]
+
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [restoring, setRestoring] = useState(true)
 
   useEffect(() => {
     async function restaurarSessao() {
+      if (import.meta.env.DEV) {
+        setUser(DEV_BYPASS_USER)
+        setRestoring(false)
+        return
+      }
+
       // Se o app de login redirecionou com ?code=, troca pelo access token
       // e limpa a URL antes de seguir.
       const params = new URLSearchParams(window.location.search)
@@ -249,7 +278,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // Lista completa (não filtrada) — precisa dela crua pra saber se o usuário
   // tem acesso a apps escondidos do grid (ex.: Painel Administrativo), já que
   // `apps` abaixo remove esses antes de renderizar grid/sidebar.
-  const [allApps, setAllApps] = useState<AppType[]>(APPS)
+  const [allApps, setAllApps] = useState<AppType[]>(import.meta.env.DEV ? DEV_MOCK_APPS : APPS)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isNarrow = useNarrow(860)
