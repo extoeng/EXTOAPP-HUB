@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
 import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
-import type { ActiveCat, App as AppType } from './types'
+import type { ActiveCat, App as AppType, LibraryDoc } from './types'
 import type { AuthUser } from './services/auth'
 import { getMe, fetchApps, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
 import { getToken, setToken, goToLogin } from './services/api'
 import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
+import { fetchDocuments } from './services/documents'
+import coverUrl from './assets/perfil-sede.webp'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { ComunicadosPage } from './pages/ComunicadosPage'
@@ -271,6 +273,31 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     fetchFavoritos().then(list => {
       if (list) setFavs(list)
     })
+  }, [])
+
+  // Comunicados pro Banner — buscado aqui (em paralelo com apps/favoritos),
+  // não dentro do próprio Banner: antes o Banner só montava depois que
+  // fetchApps confirmava acesso (hasComunicados), fazendo o request de
+  // comunicados esperar o de apps terminar pra só então começar (waterfall
+  // visível: menu -> grid -> comunicados). Documentos é aberto a qualquer
+  // autenticado (ver services/documents.ts), então não há problema em já
+  // ter os dados prontos antes de saber se o Banner vai aparecer.
+  const [comunicadosBanner, setComunicadosBanner] = useState<LibraryDoc[] | null>(null)
+  useEffect(() => {
+    fetchDocuments('comunicado').then(list => {
+      if (!list) { setComunicadosBanner([]); return }
+      const destacados = list.filter(c => c.destaque)
+      setComunicadosBanner(destacados.length > 0 ? destacados : list.slice(0, 5))
+    })
+  }, [])
+
+  // Aquece o cache do navegador pro plano de fundo do Perfil — sem isso, só
+  // começa a baixar (246KB) quando o usuário já clicou em "Meu Perfil",
+  // daí o "pop-in" perceptível. Silencioso: só um prefetch, sem afetar o
+  // primeiro paint da Home.
+  useEffect(() => {
+    const img = new Image()
+    img.src = coverUrl
   }, [])
   const [menuOpen, setMenuOpen] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
@@ -553,7 +580,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
             </div>
 
             {showExtras && hasComunicados && (
-              <Banner onRead={(id) => setPage({ name: 'comunicados', id })} />
+              <Banner itens={comunicadosBanner} onRead={(id) => setPage({ name: 'comunicados', id })} />
             )}
 
             {showExtras && (
