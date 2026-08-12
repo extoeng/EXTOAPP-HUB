@@ -1,33 +1,22 @@
 import { ArrowRight, Calendar } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { fetchDocuments } from '../services/documents'
 import { isComunicadoNovo } from '../utils/comunicadoNovo'
 import type { LibraryDoc } from '../types'
 
 const INTERVAL_MS = 8000
 const TRANSITION_MS = 650
-const MAX_RECENTES = 5
 
 interface Props {
+  // null = ainda carregando (App busca em paralelo com apps/favoritos, ver
+  // App.tsx). [] = API respondeu e não há nenhum comunicado — o card
+  // inteiro some (ver render abaixo), não mostra mock nesse caso.
+  itens: LibraryDoc[] | null
   onRead: (id: number) => void
 }
 
-export function Banner({ onRead }: Props) {
-  // null = carregando. [] = API respondeu e não há nenhum comunicado — o
-  // card inteiro some (ver render abaixo), não mostra mock nesse caso.
-  const [itens, setItens] = useState<LibraryDoc[] | null>(null)
+export function Banner({ itens, onRead }: Props) {
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(true)
-
-  useEffect(() => {
-    fetchDocuments('comunicado').then(list => {
-      if (!list) { setItens([]); return }
-      // Prioriza os marcados como "destaque"; sem nenhum marcado, cai pros
-      // mais recentes (a lista já vem ordenada -data,-created_at pela API).
-      const destacados = list.filter(c => c.destaque)
-      setItens(destacados.length > 0 ? destacados : list.slice(0, MAX_RECENTES))
-    })
-  }, [])
 
   useEffect(() => {
     if (!itens || itens.length < 2) return
