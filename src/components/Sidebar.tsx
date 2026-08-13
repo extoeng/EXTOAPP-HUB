@@ -4,7 +4,7 @@ import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight } from 'l
 import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
 import { CAT_LABELS, CAT_ORDER } from '../data/apps'
-import logoUrl from '../assets/exto-logo-2.png'
+import logoUrl from '../assets/exto-logo-transparent.png'
 
 export const SIDEBAR_COLLAPSED_W = 68
 export const SIDEBAR_EXPANDED_W = 216
@@ -257,7 +257,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
             <img
               src={logoUrl}
               alt="Exto"
-              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[52px]' : 'h-[36px]'}`}
+              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[64px]' : 'h-[36px]'}`}
             />
           </div>
           {isNarrow && isExpanded && (
