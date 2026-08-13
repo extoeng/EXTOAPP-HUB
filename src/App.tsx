@@ -489,20 +489,19 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     })
   }
 
+  // Busca do Header é só pro dropdown de resultados (ver searchResults) —
+  // não filtra a tela do Início, que fica sempre igual enquanto se digita.
   const q = query.trim().toLowerCase()
-
-  const match = (app: AppType) =>
-    q === '' || app.name.toLowerCase().includes(q) || app.desc.toLowerCase().includes(q)
 
   const groups = CAT_ORDER
     .map(cat => ({
       cat,
       label: CAT_LABELS[cat],
-      apps: apps.filter(a => a.cat === cat && (activeCat === 'all' || activeCat === cat) && match(a)),
+      apps: apps.filter(a => a.cat === cat && (activeCat === 'all' || activeCat === cat)),
     }))
     .filter(g => g.apps.length > 0)
 
-  const showExtras = q === '' && activeCat === 'all'
+  const showExtras = activeCat === 'all'
   const favApps = apps.filter(a => favs.includes(a.id))
   const recentApps = RECENT_IDS.map(id => apps.find(a => a.id === id)!).filter(Boolean)
   const isEmpty = groups.length === 0
