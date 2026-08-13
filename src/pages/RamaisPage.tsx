@@ -4,6 +4,8 @@ import { fetchDiretorio, type ContatoPessoa } from '../services/diretorio'
 
 interface Props {
   onBack: () => void
+  /** Abre direto o modal deste contato — usado pela busca global do Header. */
+  initialContatoId?: string
 }
 
 const NUM_COLS = 3
@@ -213,7 +215,7 @@ function DepartamentoCard({
   )
 }
 
-export function RamaisPage({ onBack }: Props) {
+export function RamaisPage({ onBack, initialContatoId }: Props) {
   const [query, setQuery] = useState('')
   const [selectedPessoa, setSelectedPessoa] = useState<ContatoPessoa | null>(null)
   const [pessoas, setPessoas] = useState<ContatoPessoa[] | null>(null)
@@ -225,6 +227,12 @@ export function RamaisPage({ onBack }: Props) {
       .then(setPessoas)
       .catch(e => setErro(e instanceof Error ? e.message : 'Falha ao carregar diretório de contatos.'))
   }, [])
+
+  useEffect(() => {
+    if (!pessoas || !initialContatoId) return
+    const p = pessoas.find(x => x.id === initialContatoId)
+    if (p) setSelectedPessoa(p)
+  }, [pessoas, initialContatoId])
 
   const departamentosAtuais = useMemo(() => {
     if (!pessoas) return []

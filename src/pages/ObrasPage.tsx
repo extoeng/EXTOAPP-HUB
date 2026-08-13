@@ -15,6 +15,8 @@ interface Props {
   // Só quem tem a capability `manage` ("Administrador") no app `obras` vê os
   // controles de edição. O backend é a barreira real (403); isto só esconde a UI.
   canManage?: boolean
+  /** Abre direto o card desta obra (ver `rowKey`) — usado pela busca global do Header. */
+  initialSelectKey?: string
 }
 
 // Linha de obra usada na tela: o shape do fallback estático + os campos de
@@ -170,7 +172,9 @@ function agruparPorCategoria(obras: ObraRow[]): { key: string; meta: CategoriaMe
 }
 
 // Chave estável de uma obra na lista (id da API quando existe; senão nome+nº).
-function rowKey(o: ObraRow): string {
+// Exportada pra App.tsx conseguir montar o mesmo link de "abrir direto" que a
+// busca global usa (ver `initialSelectKey` abaixo).
+export function rowKey(o: ObraRow): string {
   return o.id != null ? `id:${o.id}` : `n:${o.nome}|${o.numero}`
 }
 
@@ -673,10 +677,10 @@ function ObraDrawer({ obra, canManage, onClose, onSaved, onDelete }: {
 }
 
 // ── Página ────────────────────────────────────────────────────────────────────
-export function ObrasPage({ onBack, canManage = false }: Props) {
+export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props) {
   const [query, setQuery] = useState('')
   const [aba, setAba] = useState<'all' | typeof ABAS[number]>('all')
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [selectedKey, setSelectedKey] = useState<string | null>(initialSelectKey ?? null)
   const [creating, setCreating] = useState(false)
 
   // Modo de reordenação (arrastar): força busca/filtro neutros pra garantir

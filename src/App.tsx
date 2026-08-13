@@ -1,19 +1,22 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
 import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
-import type { ActiveCat, App as AppType, LibraryDoc } from './types'
+import { OBRAS, type Obra } from './data/obras'
+import type { ActiveCat, App as AppType, LibraryDoc, SearchResult } from './types'
 import type { AuthUser } from './services/auth'
 import { getMe, fetchApps, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
 import { getToken, setToken, goToLogin } from './services/api'
 import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
 import { fetchDocuments } from './services/documents'
+import { fetchObras } from './services/obras'
+import { fetchDiretorio, type ContatoPessoa } from './services/diretorio'
 import coverUrl from './assets/perfil-sede.webp'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { ComunicadosPage } from './pages/ComunicadosPage'
 import { ManuaisPage } from './pages/ManuaisPage'
-import { ObrasPage } from './pages/ObrasPage'
+import { ObrasPage, rowKey as obraRowKey } from './pages/ObrasPage'
 import { RamaisPage } from './pages/RamaisPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { Sidebar, SIDEBAR_COLLAPSED_W, SIDEBAR_EXPANDED_W } from './components/Sidebar'
@@ -166,8 +169,10 @@ type Page =
   | { name: 'comunicados'; id: number }
   | { name: 'manuais'; id: number }
   | { name: 'profile' }
-  | { name: 'obras' }
-  | { name: 'ramais' }
+  // openKey/openContatoId: vêm da busca global do Header, pra abrir direto
+  // o card/modal do resultado clicado (ver `searchResults` abaixo).
+  | { name: 'obras'; openKey?: string }
+  | { name: 'ramais'; openContatoId?: string }
 
 // Guarda a página atual entre reloads (F5/Ctrl+Shift+R) — sem isso o usuário
 // sempre "voltava pro Início" ao atualizar, já que não há router/URL real.
@@ -275,21 +280,30 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     })
   }, [])
 
-  // Comunicados pro Banner — buscado aqui (em paralelo com apps/favoritos),
-  // não dentro do próprio Banner: antes o Banner só montava depois que
-  // fetchApps confirmava acesso (hasComunicados), fazendo o request de
-  // comunicados esperar o de apps terminar pra só então começar (waterfall
-  // visível: menu -> grid -> comunicados). Documentos é aberto a qualquer
-  // autenticado (ver services/documents.ts), então não há problema em já
-  // ter os dados prontos antes de saber se o Banner vai aparecer.
-  const [comunicadosBanner, setComunicadosBanner] = useState<LibraryDoc[] | null>(null)
+  // Comunicados — buscado aqui (em paralelo com apps/favoritos), não dentro
+  // do próprio Banner: antes o Banner só montava depois que fetchApps
+  // confirmava acesso (hasComunicados), fazendo o request de comunicados
+  // esperar o de apps terminar pra só então começar (waterfall visível: menu
+  // -> grid -> comunicados). Documentos é aberto a qualquer autenticado (ver
+  // services/documents.ts), então não há problema em já ter os dados
+  // prontos antes de saber se o Banner vai aparecer. Lista completa (não só
+  // os destaque do Banner) também alimenta a busca global do Header.
+  const [comunicados, setComunicados] = useState<LibraryDoc[] | null>(null)
   useEffect(() => {
-    fetchDocuments('comunicado').then(list => {
-      if (!list) { setComunicadosBanner([]); return }
-      const destacados = list.filter(c => c.destaque)
-      setComunicadosBanner(destacados.length > 0 ? destacados : list.slice(0, 5))
-    })
+    fetchDocuments('comunicado').then(list => setComunicados(list ?? []))
   }, [])
+  const comunicadosBanner = useMemo(() => {
+    if (!comunicados) return null
+    const destacados = comunicados.filter(c => c.destaque)
+    return destacados.length > 0 ? destacados : comunicados.slice(0, 5)
+  }, [comunicados])
+
+  // Obras/Contatos pra busca global do Header — só busca pra quem tem acesso
+  // (mesma capability que já decide a visibilidade do atalho, ver
+  // hasObras/hasRamais abaixo). Fallback estático (OBRAS) enquanto a API não
+  // responde, mesmo padrão do allApps.
+  const [obrasSearch, setObrasSearch] = useState<Obra[]>(OBRAS)
+  const [contatosSearch, setContatosSearch] = useState<ContatoPessoa[]>([])
 
   // Aquece o cache do navegador pro plano de fundo do Perfil — sem isso, só
   // começa a baixar (246KB) quando o usuário já clicou em "Meu Perfil",
@@ -395,6 +409,17 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const hasObras = allApps.some(a => a.id === 'obras')
   const hasRamais = allApps.some(a => a.id === 'contatos')
 
+  // Dados pra busca global (ver searchResults) — só busca pra quem tem
+  // acesso, mesmo critério de hasObras/hasRamais acima.
+  useEffect(() => {
+    if (!hasObras) return
+    fetchObras().then(list => { if (list && list.length) setObrasSearch(list) })
+  }, [hasObras])
+  useEffect(() => {
+    if (!hasRamais) return
+    fetchDiretorio().then(setContatosSearch).catch(() => {})
+  }, [hasRamais])
+
   // Se a página vinda do sessionStorage (F5) exigir acesso que o usuário não
   // tem mais (perfil mudou desde a última visita), volta pro Início — sem
   // isso a área principal ficaria em branco (as páginas abaixo só renderizam
@@ -482,6 +507,53 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   const recentApps = RECENT_IDS.map(id => apps.find(a => a.id === id)!).filter(Boolean)
   const isEmpty = groups.length === 0
 
+  // Busca global do Header — varre apps/comunicados/contatos/obras (não só
+  // o grid de apps) e monta um resultado único por item, com o `type` que o
+  // Header usa pra desenhar a tag à esquerda. Cap de 8 por categoria: lista
+  // é só um atalho rápido, não uma tela de resultados completa.
+  const searchResults = useMemo<SearchResult[]>(() => {
+    if (!q) return []
+    const out: SearchResult[] = []
+
+    apps
+      .filter(a => a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q))
+      .slice(0, 8)
+      .forEach(a => out.push({
+        type: 'app', id: `app:${a.id}`, title: a.name, subtitle: a.desc,
+        onSelect: () => openApp(a.name),
+      }))
+
+    ;(comunicados ?? [])
+      .filter(c => c.title.toLowerCase().includes(q) || (c.numero ?? '').toLowerCase().includes(q))
+      .slice(0, 8)
+      .forEach(c => out.push({
+        type: 'comunicado', id: `comunicado:${c.id}`, title: c.title, subtitle: c.date,
+        onSelect: () => setPage({ name: 'comunicados', id: c.id }),
+      }))
+
+    contatosSearch
+      .filter(p =>
+        p.nome.toLowerCase().includes(q) || p.cargo.toLowerCase().includes(q) ||
+        p.departamento.toLowerCase().includes(q) || p.ramal.includes(q))
+      .slice(0, 8)
+      .forEach(p => out.push({
+        type: 'contato', id: `contato:${p.id}`, title: p.nome, subtitle: p.cargo || p.departamento,
+        onSelect: () => setPage({ name: 'ramais', openContatoId: p.id }),
+      }))
+
+    obrasSearch
+      .filter(o =>
+        o.nome.toLowerCase().includes(q) || o.numero.toLowerCase().includes(q) ||
+        o.organizacao.toLowerCase().includes(q))
+      .slice(0, 8)
+      .forEach(o => out.push({
+        type: 'obra', id: `obra:${obraRowKey(o)}`, title: o.nome, subtitle: o.organizacao,
+        onSelect: () => setPage({ name: 'obras', openKey: obraRowKey(o) }),
+      }))
+
+    return out
+  }, [q, apps, comunicados, contatosSearch, obrasSearch])
+
   return (
     <div className="h-screen flex overflow-hidden font-hanken text-ink bg-bg-app">
       {isNarrow && menuOpen && (
@@ -527,6 +599,8 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           onSearch={setQuery}
           onOpenMenu={() => setMenuOpen(true)}
           onOpenApp={openApp}
+          searchResults={searchResults}
+          onSelectSearchResult={r => { r.onSelect(); setQuery('') }}
         />
 
         <div className="flex flex-1 overflow-hidden">
@@ -559,12 +633,12 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           )}
           {page.name === 'obras' && hasObras && (
             <div className="flex-1 overflow-hidden bg-bg-app">
-              <ObrasPage onBack={() => setPage({ name: 'home' })} canManage={canManageObras} />
+              <ObrasPage onBack={() => setPage({ name: 'home' })} canManage={canManageObras} initialSelectKey={page.openKey} />
             </div>
           )}
           {page.name === 'ramais' && hasRamais && (
             <div className="flex-1 overflow-hidden bg-bg-app">
-              <RamaisPage onBack={() => setPage({ name: 'home' })} />
+              <RamaisPage onBack={() => setPage({ name: 'home' })} initialContatoId={page.openContatoId} />
             </div>
           )}
           <main className={`flex-1 overflow-y-auto px-[24px] pt-[26px] pb-[64px] scrollbar-none${page.name !== 'home' ? ' hidden' : ''}`} style={{ scrollbarWidth: 'none' as const }}>

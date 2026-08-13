@@ -37,3 +37,12 @@ export interface LibraryDoc {
   /** Marcado manualmente pra aparecer no card da home (ver Banner.tsx). */
   destaque?: boolean
 }
+
+/** Um resultado da busca global do Header (ver App.tsx `searchResults`). */
+export interface SearchResult {
+  type: 'app' | 'comunicado' | 'contato' | 'obra'
+  id: string
+  title: string
+  subtitle?: string
+  onSelect: () => void
+}
