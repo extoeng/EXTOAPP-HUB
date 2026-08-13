@@ -7,7 +7,7 @@ import { CAT_LABELS, CAT_ORDER } from '../data/apps'
 import logoUrl from '../assets/exto-logo-2.png'
 
 export const SIDEBAR_COLLAPSED_W = 68
-export const SIDEBAR_EXPANDED_W = 248
+export const SIDEBAR_EXPANDED_W = 216
 const SIDEBAR_GAP = 12
 
 const NAV_MENU = [
@@ -244,21 +244,20 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         top: isNarrow ? 0 : SIDEBAR_GAP,
         left: isNarrow ? 0 : SIDEBAR_GAP,
         bottom: isNarrow ? 0 : SIDEBAR_GAP,
-        width: isExpanded ? '248px' : (isNarrow ? '248px' : `${SIDEBAR_COLLAPSED_W}px`),
+        width: isExpanded ? `${SIDEBAR_EXPANDED_W}px` : (isNarrow ? `${SIDEBAR_EXPANDED_W}px` : `${SIDEBAR_COLLAPSED_W}px`),
         borderRadius: isNarrow ? 0 : 20,
         transform: isNarrow && !menuOpen ? 'translateX(-110%)' : 'translateX(0)',
         boxShadow: isNarrow ? 'none' : '0 8px 40px -8px rgba(20,18,16,0.45)',
       }}
     >
-      {/* Header / logo — mesmo modelo (logo + separador + nome + subtítulo) usado
-          nos apps satélite (Estoque, Frota), com o logo "cheio" que o HUB já tinha. */}
-      <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[20px]' : 'pt-[22px] pb-[16px]'}`}>
+      {/* Header / logo — logo centralizado e nome abaixo dele, centralizado. */}
+      <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[22px]' : 'pt-[22px] pb-[16px]'}`}>
         <div className="flex items-center justify-between w-full">
           <div className="flex-1 flex justify-center">
             <img
               src={logoUrl}
               alt="Exto"
-              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[40px]' : 'h-[36px]'}`}
+              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[52px]' : 'h-[36px]'}`}
             />
           </div>
           {isNarrow && isExpanded && (
@@ -282,15 +281,9 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         </div>
 
         {isExpanded && (
-          <>
-            <div className="w-full h-px my-[14px] bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
-            <p className="font-archivo font-bold text-[13px] text-white tracking-[0.06em] uppercase leading-none whitespace-nowrap">
-              Hub
-            </p>
-            <p className="font-hanken font-semibold text-[9.5px] text-side-gold tracking-[0.08em] mt-[7px] text-center leading-[1.4]">
-              Central de aplicativos Exto
-            </p>
-          </>
+          <p className="font-archivo font-medium text-[13px] text-white/85 tracking-[0.01em] mt-[10px] text-center leading-tight whitespace-nowrap">
+            Hub
+          </p>
         )}
       </div>
 
