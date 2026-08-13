@@ -250,20 +250,26 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         boxShadow: isNarrow ? 'none' : '0 8px 40px -8px rgba(20,18,16,0.45)',
       }}
     >
-      {/* Header / logo — logo centralizado e nome abaixo dele, centralizado. */}
-      <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[22px]' : 'pt-[22px] pb-[16px]'}`}>
-        <div className="flex items-center justify-between w-full">
-          <div className="flex-1 flex justify-center">
+      {/* Header / logo — mesmo modelo dos apps satélite (Adição de Fornecedores etc.):
+          logo pequeno e nome ao lado, na mesma linha. */}
+      <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[20px]' : 'pt-[22px] pb-[16px]'}`}>
+        <div className="flex items-center w-full">
+          <div className={`flex items-center flex-shrink-0 ${isExpanded ? 'gap-[8px]' : 'justify-center flex-1'}`}>
             <img
               src={logoUrl}
               alt="Exto"
-              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[64px]' : 'h-[36px]'}`}
+              className={`object-contain flex-shrink-0 transition-all duration-300 ${isExpanded ? 'h-[34px]' : 'h-[32px]'}`}
             />
+            {isExpanded && (
+              <span className="font-archivo font-semibold text-[13px] leading-tight text-white whitespace-nowrap">
+                Hub
+              </span>
+            )}
           </div>
           {isNarrow && isExpanded && (
             <button
               onClick={onClose}
-              className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center cursor-pointer text-side-muted hover:bg-white/[0.06] hover:text-white border-none bg-transparent transition-colors duration-150"
+              className="ml-auto w-[34px] h-[34px] rounded-[9px] flex items-center justify-center cursor-pointer text-side-muted hover:bg-white/[0.06] hover:text-white border-none bg-transparent transition-colors duration-150"
             >
               <X size={18} strokeWidth={1.7} />
             </button>
@@ -273,18 +279,12 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
               onClick={togglePinned}
               aria-label={pinned ? 'Desafixar menu' : 'Fixar menu'}
               title={pinned ? 'Desafixar menu' : 'Fixar menu'}
-              className={`p-1.5 rounded-lg transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ${pinned ? 'text-accent hover:bg-white/[0.06]' : 'text-side-muted hover:text-white hover:bg-white/[0.06]'}`}
+              className={`ml-auto p-1.5 rounded-lg transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ${pinned ? 'text-accent hover:bg-white/[0.06]' : 'text-side-muted hover:text-white hover:bg-white/[0.06]'}`}
             >
               {pinned ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
           )}
         </div>
-
-        {isExpanded && (
-          <p className="font-archivo font-medium text-[13px] text-white/85 tracking-[0.01em] mt-[10px] text-center leading-tight whitespace-nowrap">
-            Hub
-          </p>
-        )}
       </div>
 
       <div className="shrink-0 h-px mx-[14px] bg-white/[0.06]" />
