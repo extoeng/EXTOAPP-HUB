@@ -4,10 +4,10 @@ import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight } from 'l
 import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
 import { CAT_LABELS, CAT_ORDER } from '../data/apps'
-import logoUrl from '../assets/exto-logo-transparent.png'
+import logoUrl from '../assets/exto-logo-full.png'
 
 export const SIDEBAR_COLLAPSED_W = 68
-export const SIDEBAR_EXPANDED_W = 216
+export const SIDEBAR_EXPANDED_W = 248
 const SIDEBAR_GAP = 12
 
 const NAV_MENU = [
