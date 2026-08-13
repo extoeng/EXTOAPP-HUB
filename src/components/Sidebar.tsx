@@ -250,14 +250,15 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         boxShadow: isNarrow ? 'none' : '0 8px 40px -8px rgba(20,18,16,0.45)',
       }}
     >
-      {/* Header / logo */}
+      {/* Header / logo — mesmo modelo (logo + separador + nome + subtítulo) usado
+          nos apps satélite (Estoque, Frota), com o logo "cheio" que o HUB já tinha. */}
       <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[20px]' : 'pt-[22px] pb-[16px]'}`}>
         <div className="flex items-center justify-between w-full">
           <div className="flex-1 flex justify-center">
             <img
               src={logoUrl}
               alt="Exto"
-              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[64px]' : 'h-[36px]'}`}
+              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[40px]' : 'h-[36px]'}`}
             />
           </div>
           {isNarrow && isExpanded && (
@@ -280,6 +281,17 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
           )}
         </div>
 
+        {isExpanded && (
+          <>
+            <div className="w-full h-px my-[14px] bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+            <p className="font-archivo font-bold text-[13px] text-white tracking-[0.06em] uppercase leading-none whitespace-nowrap">
+              Hub
+            </p>
+            <p className="font-hanken font-semibold text-[9.5px] text-side-gold tracking-[0.08em] mt-[7px] text-center leading-[1.4]">
+              Central de aplicativos Exto
+            </p>
+          </>
+        )}
       </div>
 
       <div className="shrink-0 h-px mx-[14px] bg-white/[0.06]" />
