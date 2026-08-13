@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight, ArrowLeft } from 'lucide-react'
+import {
+  Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight, ArrowLeft,
+  LayoutGrid, Users, HardHat, Wallet, Monitor, Scale, Briefcase,
+} from 'lucide-react'
 import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
 import { CAT_LABELS, CAT_ORDER } from '../data/apps'
@@ -12,6 +15,18 @@ const SIDEBAR_GAP = 12
 const NAV_MENU = [
   { id: 'all' as ActiveCat, label: 'Início', Icon: Home },
 ]
+
+// Ícone por categoria — mesmo usado no rótulo (menu expandido) e sozinho no
+// lugar do nome quando o menu recolhe pra faixa de ícones.
+const CAT_ICON: Record<Category, React.ElementType> = {
+  geral: LayoutGrid,
+  rh: Users,
+  obras: HardHat,
+  fin: Wallet,
+  ti: Monitor,
+  juridico: Scale,
+  admin: Briefcase,
+}
 
 interface Props {
   activeCat: ActiveCat
@@ -78,19 +93,33 @@ function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
 }
 
 // Linha de grupo na listagem raiz — clicar entra na cascata (drill-down)
-// mostrando só os subitens dele (ver `openCat` em Sidebar).
-function AppGroupRow({ label, onClick }: { label: string; onClick: () => void }) {
+// mostrando só os subitens dele (ver `openCat` em Sidebar). Menu recolhido
+// (faixa de ícones): mostra só o ícone da categoria, no lugar do nome.
+function AppGroupRow({ label, Icon, expanded, onClick }: {
+  label: string
+  Icon: React.ElementType
+  expanded: boolean
+  onClick: () => void
+}) {
   return (
     <button
       onClick={onClick}
-      className="
-        w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
+      title={!expanded ? label : undefined}
+      className={`
+        w-full flex items-center rounded-[10px] cursor-pointer
         font-hanken font-medium text-[13px] leading-none border-none
-        bg-transparent text-white hover:bg-white/[0.06] transition-all duration-150
-      "
+        transition-all duration-150
+        ${expanded ? 'gap-[10px] px-[12px] py-[9px]' : 'justify-center p-[12px]'}
+        bg-transparent text-white hover:bg-white/[0.06]
+      `}
     >
-      <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[13px]">{label}</span>
-      <ChevronRight size={14} className="flex-shrink-0" />
+      <Icon size={16} strokeWidth={1.8} className="flex-shrink-0" />
+      {expanded && (
+        <>
+          <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[13px]">{label}</span>
+          <ChevronRight size={14} className="flex-shrink-0" />
+        </>
+      )}
     </button>
   )
 }
@@ -260,16 +289,13 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
               <>
                 <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
                 {appGroups.map(g => (
-                  isExpanded ? (
-                    <AppGroupRow key={g.cat} label={g.label} onClick={() => setOpenCat(g.cat)} />
-                  ) : (
-                    // Sidebar recolhida (faixa de ícones): sem espaço pro
-                    // rótulo do grupo nem pra cascata — mostra os apps soltos.
-                    g.items.map(app => (
-                      <AppNavItem key={app.id} app={app}
-                        onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
-                    ))
-                  )
+                  <AppGroupRow
+                    key={g.cat}
+                    label={g.label}
+                    Icon={CAT_ICON[g.cat]}
+                    expanded={isExpanded}
+                    onClick={() => setOpenCat(g.cat)}
+                  />
                 ))}
               </>
             )}
