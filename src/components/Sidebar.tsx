@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight, ArrowLeft } from 'lucide-react'
 import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
 import { CAT_LABELS, CAT_ORDER } from '../data/apps'
@@ -78,93 +77,38 @@ function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
   )
 }
 
-// Agrupa os apps do menu pela mesma categoria usada no grid da home
-// (CAT_LABELS/CAT_ORDER de data/apps.ts) — só entra grupo com pelo menos
-// 1 app que o usuário tem acesso.
-//
-// Subitens não empurram o menu (sem expandir em linha) — clicar no grupo
-// abre um popup lateral (flyout) na altura do botão, via portal pro body
-// pra escapar do overflow-hidden da sidebar. Sai do grupo/popup com o
-// mouse fecha o popup (com um pequeno delay pra tolerar o gap até ele).
-function AppNavGroup({ cat, label, items, isExpanded, isOpen, onOpen, onCloseFlyout, onCancelClose, onScheduleClose, onOpenApp, isNarrow, onClose }: {
-  cat: Category
-  label: string
-  items: App[]
-  isExpanded: boolean
-  isOpen: boolean
-  onOpen: (cat: Category, rect: DOMRect) => void
-  onCloseFlyout: () => void
-  onCancelClose: () => void
-  onScheduleClose: () => void
-  onOpenApp: (name: string) => void
-  isNarrow: boolean
-  onClose: () => void
-}) {
-  const btnRef = useRef<HTMLButtonElement>(null)
-
-  if (!isExpanded) {
-    // Sidebar recolhida (faixa de ícones): sem espaço pro rótulo do grupo,
-    // mostra os apps soltos (mesmo tratamento de antes de agrupar).
-    return (
-      <>
-        {items.map(app => (
-          <AppNavItem key={app.id} app={app}
-            onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
-        ))}
-      </>
-    )
-  }
-
-  const handleClick = () => {
-    if (isOpen) { onCloseFlyout(); return }
-    const rect = btnRef.current?.getBoundingClientRect()
-    if (rect) onOpen(cat, rect)
-  }
-
-  const selectApp = (app: App) => {
-    onCloseFlyout()
-    onOpenApp(app.name)
-    if (isNarrow) onClose()
-  }
-
+// Linha de grupo na listagem raiz — clicar entra na cascata (drill-down)
+// mostrando só os subitens dele (ver `openCat` em Sidebar).
+function AppGroupRow({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <div onMouseEnter={onCancelClose} onMouseLeave={onScheduleClose}>
-      <button
-        ref={btnRef}
-        onClick={handleClick}
-        className={`
-          w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
-          font-hanken font-medium text-[13px] leading-none border-none
-          transition-all duration-150
-          ${isOpen ? 'bg-white/[0.06] text-white' : 'bg-transparent text-white hover:bg-white/[0.06]'}
-        `}
-      >
-        <ChevronRight size={14} className="flex-shrink-0" />
-        <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[13px]">{label}</span>
-      </button>
+    <button
+      onClick={onClick}
+      className="
+        w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
+        font-hanken font-medium text-[13px] leading-none border-none
+        bg-transparent text-white hover:bg-white/[0.06] transition-all duration-150
+      "
+    >
+      <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[13px]">{label}</span>
+      <ChevronRight size={14} className="flex-shrink-0" />
+    </button>
+  )
+}
 
-      {isOpen && btnRef.current && createPortal(
-        <div
-          onMouseEnter={onCancelClose}
-          onMouseLeave={onScheduleClose}
-          className="fixed z-50 flex flex-col gap-[3px] py-[8px] px-[6px] animate-ex-float"
-          style={{
-            top: btnRef.current.getBoundingClientRect().top,
-            left: btnRef.current.getBoundingClientRect().right + 8,
-            width: 220,
-            background: '#20211f',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '12px',
-            boxShadow: '0 16px 40px -10px rgba(0,0,0,0.45)',
-          }}
-        >
-          {items.map(app => (
-            <AppNavItem key={app.id} app={app} onClick={() => selectApp(app)} />
-          ))}
-        </div>,
-        document.body
-      )}
-    </div>
+// Cabeçalho "<- Voltar" da cascata — some a listagem raiz e volta pra ela.
+function BackRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="
+        w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
+        font-hanken font-medium text-[13px] leading-none border-none mb-[3px]
+        bg-transparent text-white/70 hover:text-white hover:bg-white/[0.06] transition-all duration-150
+      "
+    >
+      <ArrowLeft size={15} className="flex-shrink-0" />
+      <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-[0.04em] text-[12px]">{label}</span>
+    </button>
   )
 }
 
@@ -208,28 +152,19 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
   }
 
   // Grupos de app no menu — mesma categoria/ordem do grid da home. Clicar no
-  // grupo abre um popup lateral (flyout) só com os subitens dele; só um
-  // aberto por vez. Sair do grupo/popup com o mouse fecha (delay curto pro
-  // gap até o popup).
-  const [flyoutCat, setFlyoutCat] = useState<Category | null>(null)
-  const closeTimer = useRef<number | null>(null)
-  const cancelClose = () => {
-    if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null }
-  }
-  const openFlyout = (cat: Category) => { cancelClose(); setFlyoutCat(cat) }
-  const closeFlyout = () => { cancelClose(); setFlyoutCat(null) }
-  const scheduleClose = () => {
-    cancelClose()
-    closeTimer.current = window.setTimeout(() => setFlyoutCat(null), 150)
-  }
+  // grupo entra em cascata: a listagem raiz some e mostra só os subitens
+  // dele, com "<- Voltar" no topo pra retornar. Só um nível de profundidade
+  // (sem sub-sub-grupos hoje).
+  const [openCat, setOpenCat] = useState<Category | null>(null)
 
   useEffect(() => {
-    if (!isExpanded) closeFlyout()
+    if (!isExpanded) setOpenCat(null)
   }, [isExpanded])
 
   const appGroups = CAT_ORDER
     .map(cat => ({ cat, label: CAT_LABELS[cat], items: apps.filter(a => a.cat === cat) }))
     .filter(g => g.items.length > 0)
+  const openGroup = appGroups.find(g => g.cat === openCat)
 
   return (
     <aside
@@ -291,39 +226,56 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-[10px] pb-[14px] flex flex-col gap-[3px]">
-        {NAV_MENU.map(({ id, label, Icon }) => (
-          <NavItem
-            key={id}
-            label={label}
-            Icon={Icon}
-            active={activeCat === id && !isProfileActive}
-            expanded={isExpanded}
-            onClick={() => handleCat(id)}
-          />
-        ))}
-
-        {appGroups.length > 0 && (
+        <style>{`
+          @keyframes exCascadeIn { from { transform: translateX(14px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+          @keyframes exCascadeBack { from { transform: translateX(-14px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+        `}</style>
+        <div
+          key={openGroup ? openGroup.cat : 'root'}
+          className="flex flex-col gap-[3px]"
+          style={{ animation: `${openGroup ? 'exCascadeIn' : 'exCascadeBack'} 0.18s ease` }}
+        >
+        {isExpanded && openGroup ? (
           <>
-            <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
-            {appGroups.map(g => (
-              <AppNavGroup
-                key={g.cat}
-                cat={g.cat}
-                label={g.label}
-                items={g.items}
-                isExpanded={isExpanded}
-                isOpen={flyoutCat === g.cat}
-                onOpen={openFlyout}
-                onCloseFlyout={closeFlyout}
-                onCancelClose={cancelClose}
-                onScheduleClose={scheduleClose}
-                onOpenApp={onOpenApp}
-                isNarrow={isNarrow}
-                onClose={onClose}
-              />
+            <BackRow label={openGroup.label} onClick={() => setOpenCat(null)} />
+            {openGroup.items.map(app => (
+              <AppNavItem key={app.id} app={app}
+                onClick={() => { onOpenApp(app.name); setOpenCat(null); if (isNarrow) onClose() }} />
             ))}
           </>
+        ) : (
+          <>
+            {NAV_MENU.map(({ id, label, Icon }) => (
+              <NavItem
+                key={id}
+                label={label}
+                Icon={Icon}
+                active={activeCat === id && !isProfileActive}
+                expanded={isExpanded}
+                onClick={() => handleCat(id)}
+              />
+            ))}
+
+            {appGroups.length > 0 && (
+              <>
+                <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
+                {appGroups.map(g => (
+                  isExpanded ? (
+                    <AppGroupRow key={g.cat} label={g.label} onClick={() => setOpenCat(g.cat)} />
+                  ) : (
+                    // Sidebar recolhida (faixa de ícones): sem espaço pro
+                    // rótulo do grupo nem pra cascata — mostra os apps soltos.
+                    g.items.map(app => (
+                      <AppNavItem key={app.id} app={app}
+                        onClick={() => { onOpenApp(app.name); if (isNarrow) onClose() }} />
+                    ))
+                  )
+                ))}
+              </>
+            )}
+          </>
         )}
+        </div>
 
         <button
           onClick={handleProfile}
