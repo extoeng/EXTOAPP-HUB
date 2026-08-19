@@ -197,7 +197,7 @@ interface DirectAppTarget {
 const DIRECT_APP_BY_EMAIL: Record<string, DirectAppTarget> = {
   'fabio.chaves@exto.com.br': {
     appSlug: 'relatorio-seg-trab',
-    url: 'https://extoapp-relatorioseg.web.app',
+    url: 'https://relatorioseg.extoapp.com.br',
   },
 }
 
@@ -474,8 +474,8 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     window.open(app.url, '_blank', 'noopener,noreferrer')
   }
 
-  const openAgenda = () => openViaSatelliteHandoff('agenda-publica', 'https://extoapp-agenda.web.app')
-  const openPainelAdmin = () => openViaSatelliteHandoff('painel-admin', 'https://extoapp-painel-adm.web.app')
+  const openAgenda = () => openViaSatelliteHandoff('agenda-publica', 'https://agenda.extoapp.com.br')
+  const openPainelAdmin = () => openViaSatelliteHandoff('painel-admin', 'https://adm.extoapp.com.br')
 
   const toggleFav = (id: string) => {
     const eraFav = favs.includes(id)
