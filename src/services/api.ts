@@ -10,7 +10,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 const LOGIN_URL =
-  import.meta.env.VITE_LOGIN_URL ?? 'https://extoapp-login.web.app'
+  import.meta.env.VITE_LOGIN_URL ?? 'https://extoapp.com.br'
 
 const TOKEN_KEY = 'exto_access'
 
