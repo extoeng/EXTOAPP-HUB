@@ -47,7 +47,7 @@ export function getToken() {
 // Todos esperam a mesma promise.
 let renovando: Promise<boolean> | null = null
 
-function tryRefresh(): Promise<boolean> {
+export function tryRefresh(): Promise<boolean> {
   if (!renovando) {
     renovando = fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',

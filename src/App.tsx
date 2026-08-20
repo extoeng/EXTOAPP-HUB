@@ -6,7 +6,7 @@ import { OBRAS, type Obra } from './data/obras'
 import type { ActiveCat, App as AppType, LibraryDoc, SearchResult } from './types'
 import type { AuthUser } from './services/auth'
 import { getMe, fetchApps, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
-import { getToken, setToken, goToLogin } from './services/api'
+import { getToken, setToken, goToLogin, tryRefresh } from './services/api'
 import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
 import { fetchDocuments } from './services/documents'
 import { fetchObras } from './services/obras'
@@ -74,8 +74,11 @@ export default function App() {
         window.history.replaceState({}, '', params.toString() ? `?${params}` : window.location.pathname)
       }
 
-      // Restaura sessão a partir do token salvo
-      if (!getToken()) {
+      // Restaura sessão a partir do token salvo. Fase 2 (sessão compartilhada):
+      // sem token, tenta renovar pelo cookie de refresh do domínio
+      // (.extoapp.com.br) antes de mandar pro login — quem já logou em outro
+      // app entra sem handoff. Falhou = sem sessão, cai no login como antes.
+      if (!getToken() && !(await tryRefresh())) {
         setRestoring(false)
         return
       }
