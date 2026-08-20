@@ -218,17 +218,12 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
           logo pequeno e nome ao lado, na mesma linha. */}
       <div className={`shrink-0 flex flex-col items-center transition-all duration-300 ${isExpanded ? 'px-[20px] pt-[26px] pb-[20px]' : 'pt-[22px] pb-[16px]'}`}>
         <div className="flex items-center w-full">
-          <div className={`flex items-center flex-shrink-0 ${isExpanded ? 'gap-[8px]' : 'justify-center flex-1'}`}>
+          <div className="flex flex-1 justify-center">
             <img
               src={logoUrl}
               alt="Exto"
-              className={`object-contain flex-shrink-0 transition-all duration-300 ${isExpanded ? 'h-[34px]' : 'h-[32px]'}`}
+              className={`object-contain transition-all duration-300 ${isExpanded ? 'h-[64px] w-auto rotate-0' : 'h-[36px] w-[36px] -rotate-90'}`}
             />
-            {isExpanded && (
-              <span className="font-archivo font-semibold text-[13px] leading-tight text-white whitespace-nowrap">
-                Hub
-              </span>
-            )}
           </div>
           {isNarrow && isExpanded && (
             <button
