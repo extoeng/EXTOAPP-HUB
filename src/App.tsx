@@ -236,6 +236,19 @@ function DirectAppRedirect({
 // FIM — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
 
 function loadStoredPage(): Page {
+  // Deep-link vindo da cascata dos satélites: ?page=perfil abre o Meu Perfil
+  // direto (o item MEU PERFIL do nível Hub nos outros apps navega pra cá).
+  // Sobrevive ao exchange do ?code= (o boot só remove o param `code`).
+  try {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('page') === 'perfil') {
+      params.delete('page')
+      window.history.replaceState({}, '', params.toString() ? `?${params}` : window.location.pathname)
+      return { name: 'profile' }
+    }
+  } catch {
+    // URL indisponível/malformada — segue pro fluxo normal.
+  }
   try {
     const raw = sessionStorage.getItem(PAGE_STORAGE_KEY)
     if (!raw) return { name: 'home' }
