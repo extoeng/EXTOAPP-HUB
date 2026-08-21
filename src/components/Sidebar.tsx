@@ -70,7 +70,7 @@ function NavItem({ label, Icon, active, expanded, onClick }: {
       `}
     >
       <Icon size={19} strokeWidth={1.7} className="flex-shrink-0" />
-      {expanded && <span className="whitespace-nowrap overflow-hidden">{label}</span>}
+      {expanded && <span className="whitespace-nowrap overflow-hidden uppercase tracking-[0.04em] text-[13px]">{label}</span>}
     </button>
   )
 }
@@ -322,7 +322,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
           `}
         >
           <User size={19} strokeWidth={1.7} className="flex-shrink-0" />
-          {isExpanded && <span className="whitespace-nowrap overflow-hidden">Meu Perfil</span>}
+          {isExpanded && <span className="whitespace-nowrap overflow-hidden uppercase tracking-[0.04em] text-[13px]">Meu Perfil</span>}
         </button>
       </nav>
 
@@ -342,7 +342,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
             `}
           >
             <ShieldCheck size={18} strokeWidth={1.8} className="text-accent flex-shrink-0" />
-            {isExpanded && <span className="whitespace-nowrap overflow-hidden">Painel Administrativo</span>}
+            {isExpanded && <span className="whitespace-nowrap overflow-hidden uppercase tracking-[0.04em] text-[12px]">Painel Administrativo</span>}
           </button>
         </div>
       )}
