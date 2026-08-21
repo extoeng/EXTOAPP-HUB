@@ -24,7 +24,7 @@ export default defineConfig({
         short_name: 'extoapp',
         description: 'Hub de acesso aos apps da Exto',
         lang: 'pt-BR',
-        theme_color: '#7e14ff',
+        theme_color: '#B31C1C', // mesmo accent do tailwind.config.js — o vermelho do "x" da logo
         background_color: '#F4F3F1', // mesmo tom de bg-app (tailwind.config.js) — evita flash escuro no boot
         display: 'standalone',
         start_url: '/',
