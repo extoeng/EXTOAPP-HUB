@@ -185,6 +185,17 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
   // dele, com "<- Voltar" no topo pra retornar. Só um nível de profundidade
   // (sem sub-sub-grupos hoje).
   const [openCat, setOpenCat] = useState<Category | null>(null)
+  // Saída da cascata ao abrir um app: os subitens deslizam pra fora enquanto
+  // o satellite-code é buscado — a página navega (mesma aba) logo em seguida,
+  // então a animação "emenda" com a entrada do menu do app no destino. O
+  // timer é só failsafe: se a navegação não acontecer (app sem URL → toast),
+  // a lista volta.
+  const [leaving, setLeaving] = useState(false)
+  useEffect(() => {
+    if (!leaving) return
+    const t = setTimeout(() => setLeaving(false), 1600)
+    return () => clearTimeout(t)
+  }, [leaving])
 
   useEffect(() => {
     if (!isExpanded) setOpenCat(null)
@@ -253,18 +264,19 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         <style>{`
           @keyframes exCascadeIn { from { transform: translateX(14px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
           @keyframes exCascadeBack { from { transform: translateX(-14px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+          @keyframes exCascadeOut { to { transform: translateX(-14px); opacity: 0 } }
         `}</style>
         <div
           key={openGroup ? openGroup.cat : 'root'}
           className="flex flex-col gap-[3px]"
-          style={{ animation: `${openGroup ? 'exCascadeIn' : 'exCascadeBack'} 0.18s ease` }}
+          style={{ animation: leaving ? 'exCascadeOut 0.18s ease forwards' : `${openGroup ? 'exCascadeIn' : 'exCascadeBack'} 0.18s ease` }}
         >
         {isExpanded && openGroup ? (
           <>
             <BackRow label={openGroup.label} onClick={() => setOpenCat(null)} />
             {openGroup.items.map(app => (
               <AppNavItem key={app.id} app={app}
-                onClick={() => { onOpenApp(app.name); setOpenCat(null); if (isNarrow) onClose() }} />
+                onClick={() => { setLeaving(true); onOpenApp(app.name) }} />
             ))}
           </>
         ) : (

@@ -437,25 +437,22 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     if (page.name in precisaDe && !precisaDe[page.name]) setPage({ name: 'home' })
   }, [appsLoaded, page.name, hasComunicados, hasManuais, hasObras, hasRamais])
 
-  // Handoff SSO cross-domain (Fase 1, interina): abre o satélite já autenticado
-  // via code de curta duração. Reutilizado por qualquer app/atalho com SSO,
-  // esteja ele no catálogo (apps[]) ou seja um atalho estático (ex.: Agendas).
+  // Handoff SSO (Fase 1, interina): navega pro satélite já autenticado via
+  // code de curta duração — na MESMA aba, pra experiência de portal único
+  // (o menu do app "substitui" o do hub, cascata contínua). Navegar a aba
+  // atual não sofre bloqueio de pop-up, então não precisa mais do
+  // window.open('', '_blank') síncrono que existia aqui antes. Reutilizado
+  // por qualquer app/atalho com SSO, esteja ele no catálogo (apps[]) ou
+  // seja um atalho estático (ex.: Agendas).
   const openViaSatelliteHandoff = async (appSlug: string, url: string) => {
-    // Abre a aba já (síncrono, dentro do gesto de clique) para não ser
-    // bloqueada como pop-up — o navegador só permite window.open sem bloqueio
-    // se ele ocorrer antes de qualquer await.
-    const janela = window.open('', '_blank')
     const code = await getSatelliteCode(appSlug)
     if (!code) {
       // apiFetch já tentou renovar o access e falhou — sessão está morta.
       // Não navega pro satélite sem code; volta pro login (fluxo já existente).
       onSessionExpired()
-      janela?.close()
       return
     }
-    const target = `${url}${url.includes('?') ? '&' : '?'}code=${encodeURIComponent(code)}`
-    if (janela) janela.location.href = target
-    else window.open(target, '_blank', 'noopener,noreferrer') // fallback se a 1ª chamada foi bloqueada
+    window.location.href = `${url}${url.includes('?') ? '&' : '?'}code=${encodeURIComponent(code)}`
   }
 
   // Aceita tanto o nome (launcher/sidebar) quanto o slug (ex.: notificação
@@ -474,7 +471,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
       return
     }
 
-    window.open(app.url, '_blank', 'noopener,noreferrer')
+    window.location.href = app.url
   }
 
   const openAgenda = () => openViaSatelliteHandoff('agenda-publica', 'https://agenda.extoapp.com.br')
