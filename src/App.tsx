@@ -484,6 +484,17 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
       return
     }
 
+    // App externo (fora de *.extoapp.com.br, ex.: Mega ERP): abre em ABA
+    // NOVA — é só um direcionamento, o portal continua onde estava. Apps
+    // internos sem SSO seguem na mesma aba (portal unificado). window.open
+    // aqui é síncrono com o clique (nenhum await antes), sem popup-blocker.
+    const hostname = (() => { try { return new URL(app.url).hostname } catch { return '' } })()
+    const interno = hostname === 'extoapp.com.br' || hostname.endsWith('.extoapp.com.br')
+    if (!interno) {
+      window.open(app.url, '_blank', 'noopener,noreferrer')
+      return
+    }
+
     window.location.href = app.url
   }
 
