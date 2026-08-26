@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight, ArrowLeft,
-  LayoutGrid, Users, HardHat, Wallet, Monitor, Scale, Briefcase,
+  LayoutGrid, Users, HardHat, Wallet, Monitor, Scale, Briefcase, CalendarDays,
 } from 'lucide-react'
 import type { ActiveCat, App, Category } from '../types'
 import type { AuthUser } from '../services/auth'
@@ -45,6 +45,10 @@ interface Props {
   /** Painel Administrativo: só quem tem acesso (MASTER) vê esse botão fixo. */
   showPainelAdmin: boolean
   onOpenPainelAdmin: () => void
+  /** Eventos: só quem tem capability no app `eventos` vê o item do menu. */
+  showEventos: boolean
+  isEventosActive: boolean
+  onOpenEventos: () => void
   /** Notifica o pai quando o estado expandido/recolhido muda, pra ele poder
    *  ajustar o espaçamento do conteúdo e não ficar sobreposto pela sidebar. */
   onExpandedChange?: (expanded: boolean) => void
@@ -141,7 +145,7 @@ function BackRow({ label, onClick }: { label: string; onClick: () => void }) {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, showEventos, isEventosActive, onOpenEventos, onExpandedChange }: Props) {
   const [hovered, setHovered] = useState(false)
   // Sem preferência salva ainda, começa fixado (aberto) — clicar no pin
   // (ou fechar) recolhe e passa a lembrar essa escolha daí pra frente.
@@ -296,14 +300,49 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
               <>
                 <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
                 {appGroups.map(g => (
-                  <AppGroupRow
-                    key={g.cat}
-                    label={g.label}
-                    Icon={CAT_ICON[g.cat]}
-                    expanded={isExpanded}
-                    onClick={() => setOpenCat(g.cat)}
-                  />
+                  <Fragment key={g.cat}>
+                    <AppGroupRow
+                      label={g.label}
+                      Icon={CAT_ICON[g.cat]}
+                      expanded={isExpanded}
+                      onClick={() => setOpenCat(g.cat)}
+                    />
+                    {/* EVENTOS entre RH & PESSOAS e ADMINISTRAÇÃO — posição
+                        validada no rascunho da Home 8a (2026-08-25). */}
+                    {g.cat === 'rh' && showEventos && (
+                      <NavItem
+                        label="Eventos"
+                        Icon={CalendarDays}
+                        active={isEventosActive}
+                        expanded={isExpanded}
+                        onClick={() => { onOpenEventos(); if (isNarrow) onClose() }}
+                      />
+                    )}
+                  </Fragment>
                 ))}
+                {/* Usuário com eventos mas sem nenhum app de RH: o item entra
+                    depois dos grupos, pra não sumir do menu. */}
+                {showEventos && !appGroups.some(g => g.cat === 'rh') && (
+                  <NavItem
+                    label="Eventos"
+                    Icon={CalendarDays}
+                    active={isEventosActive}
+                    expanded={isExpanded}
+                    onClick={() => { onOpenEventos(); if (isNarrow) onClose() }}
+                  />
+                )}
+              </>
+            )}
+            {appGroups.length === 0 && showEventos && (
+              <>
+                <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
+                <NavItem
+                  label="Eventos"
+                  Icon={CalendarDays}
+                  active={isEventosActive}
+                  expanded={isExpanded}
+                  onClick={() => { onOpenEventos(); if (isNarrow) onClose() }}
+                />
               </>
             )}
           </>

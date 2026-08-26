@@ -3,18 +3,21 @@ import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/ap
 import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
 import { OBRAS, type Obra } from './data/obras'
-import type { ActiveCat, App as AppType, LibraryDoc, SearchResult } from './types'
+import type { ActiveCat, App as AppType, Evento, LibraryDoc, SearchResult } from './types'
 import type { AuthUser } from './services/auth'
 import { getMe, fetchApps, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
 import { getToken, setToken, goToLogin, tryRefresh } from './services/api'
 import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
 import { fetchDocuments } from './services/documents'
+import { fetchEventos, setRsvp } from './services/eventos'
 import { fetchObras } from './services/obras'
 import { fetchDiretorio, type ContatoPessoa } from './services/diretorio'
 import coverUrl from './assets/perfil-sede.webp'
+import { eventoFuturo } from './utils/eventoData'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { ComunicadosPage } from './pages/ComunicadosPage'
+import { EventosPage } from './pages/EventosPage'
 import { ManuaisPage } from './pages/ManuaisPage'
 import { ObrasPage, rowKey as obraRowKey } from './pages/ObrasPage'
 import { RamaisPage } from './pages/RamaisPage'
@@ -22,6 +25,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { Sidebar, SIDEBAR_COLLAPSED_W, SIDEBAR_EXPANDED_W } from './components/Sidebar'
 import { Header } from './components/Header'
 import { Banner } from './components/Banner'
+import { EventosBanner } from './components/EventosBanner'
 import { RecentShortcuts } from './components/RecentShortcuts'
 import { AppGrid } from './components/AppGrid'
 import { AppCard } from './components/AppCard'
@@ -50,6 +54,9 @@ const DEV_MOCK_APPS: AppType[] = [
   { id: 'dev-obras-2', cat: 'obras', name: 'Medições', desc: '' },
   { id: 'dev-fin-1', cat: 'fin', name: 'Contas a Pagar', desc: '' },
   { id: 'dev-fin-2', cat: 'fin', name: 'Faturamento', desc: '' },
+  // Liga o gate hasEventos no dev (slug está em HIDDEN_CATALOG_SLUGS, não
+  // vira card) — sem backend local a lista vem vazia, banner some.
+  { id: 'eventos', cat: 'geral', name: 'Eventos', desc: '' },
 ]
 
 export default function App() {
@@ -171,6 +178,7 @@ type Page =
   | { name: 'home' }
   | { name: 'comunicados'; id: number }
   | { name: 'manuais'; id: number }
+  | { name: 'eventos'; id?: number }
   | { name: 'profile' }
   // openKey/openContatoId: vêm da busca global do Header, pra abrir direto
   // o card/modal do resultado clicado (ver `searchResults` abaixo).
@@ -266,7 +274,7 @@ function loadStoredPage(): Page {
 // "trajetoria" não é um app de verdade — é só o domínio de permissão do
 // módulo Departamento/Cargo dentro do Painel Administrativo, sem tela própria
 // no hub.
-const HIDDEN_CATALOG_SLUGS = ['agenda-publica', 'painel-admin', 'trajetoria', 'contatos', 'obras', 'comunicados', 'spe', 'disparo-email']
+const HIDDEN_CATALOG_SLUGS = ['agenda-publica', 'painel-admin', 'trajetoria', 'contatos', 'obras', 'comunicados', 'eventos', 'spe', 'disparo-email']
 const hideCatalogOnly = (list: AppType[]) => list.filter(a => !HIDDEN_CATALOG_SLUGS.includes(a.id))
 
 // A API pode devolver os apps em outra ordem (ex.: alfabética) — sem isso, o
@@ -313,6 +321,33 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     const destacados = comunicados.filter(c => c.destaque)
     return destacados.length > 0 ? destacados : comunicados.slice(0, 5)
   }, [comunicados])
+
+  // Eventos — mesmo racional dos comunicados (busca em paralelo, leitura
+  // aberta a qualquer autenticado). null = carregando; [] = nenhum evento
+  // (o banner some por conta do contrato do EventosBanner).
+  const [eventos, setEventos] = useState<Evento[] | null>(null)
+  useEffect(() => {
+    fetchEventos().then(list => setEventos(list ?? []))
+  }, [])
+  const eventosBanner = useMemo(() => {
+    if (!eventos) return null
+    // Só eventos que ainda não passaram, do mais próximo pro mais distante.
+    return eventos
+      .filter(e => eventoFuturo(e.inicioISO))
+      .sort((a, b) => a.inicioISO.localeCompare(b.inicioISO))
+      .slice(0, 5)
+  }, [eventos])
+
+  // RSVP do banner: otimista, reverte se a API recusar (mesmo padrão dos
+  // favoritos).
+  const handleRsvpBanner = (ev: Evento) => {
+    const confirmar = !ev.confirmado
+    setEventos(prev => (prev ?? []).map(e => e.id === ev.id ? { ...e, confirmado: confirmar } : e))
+    setRsvp(ev.id, confirmar).then(updated => {
+      if (updated) setEventos(prev => (prev ?? []).map(e => e.id === updated.id ? updated : e))
+      else setEventos(prev => (prev ?? []).map(e => e.id === ev.id ? { ...e, confirmado: ev.confirmado } : e))
+    })
+  }
 
   // Obras/Contatos pra busca global do Header — só busca pra quem tem acesso
   // (mesma capability que já decide a visibilidade do atalho, ver
@@ -421,6 +456,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // capability do app `controle-recepcao` (ver `hasAgenda` acima), que
   // pertence ao app Recepção, um sistema diferente — não mexer nisso.
   const hasComunicados = allApps.some(a => a.id === 'comunicados')
+  const hasEventos = allApps.some(a => a.id === 'eventos')
   const hasManuais = allApps.some(a => a.id === 'manuais')
   const hasObras = allApps.some(a => a.id === 'obras')
   const hasRamais = allApps.some(a => a.id === 'contatos')
@@ -446,9 +482,10 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     if (!appsLoaded) return
     const precisaDe: Partial<Record<Page['name'], boolean>> = {
       comunicados: hasComunicados, manuais: hasManuais, obras: hasObras, ramais: hasRamais,
+      eventos: hasEventos,
     }
     if (page.name in precisaDe && !precisaDe[page.name]) setPage({ name: 'home' })
-  }, [appsLoaded, page.name, hasComunicados, hasManuais, hasObras, hasRamais])
+  }, [appsLoaded, page.name, hasComunicados, hasManuais, hasObras, hasRamais, hasEventos])
 
   // Handoff SSO (Fase 1, interina): navega pro satélite já autenticado via
   // code de curta duração — na MESMA aba, pra experiência de portal único
@@ -601,6 +638,9 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         onGoHome={() => setPage({ name: 'home' })}
         showPainelAdmin={hasPainelAdmin}
         onOpenPainelAdmin={openPainelAdmin}
+        showEventos={hasEventos}
+        isEventosActive={page.name === 'eventos'}
+        onOpenEventos={() => setPage({ name: 'eventos' })}
         onExpandedChange={setSidebarExpanded}
       />
 
@@ -633,6 +673,16 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
                 initialId={page.id}
                 onBack={() => setPage({ name: 'home' })}
                 user={user}
+              />
+            </div>
+          )}
+          {page.name === 'eventos' && hasEventos && (
+            <div className="flex-1 overflow-hidden bg-bg-app">
+              <EventosPage
+                initialId={page.id}
+                onBack={() => setPage({ name: 'home' })}
+                user={user}
+                onEventosChange={setEventos}
               />
             </div>
           )}
@@ -678,6 +728,16 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
 
             {showExtras && hasComunicados && (
               <Banner itens={comunicadosBanner} onRead={(id) => setPage({ name: 'comunicados', id })} />
+            )}
+
+            {/* Sem evento futuro cadastrado, a seção inteira some — mesmo
+                contrato do Banner de Comunicados acima. */}
+            {showExtras && hasEventos && (
+              <EventosBanner
+                itens={eventosBanner}
+                onRsvp={handleRsvpBanner}
+                onOpen={(id) => setPage({ name: 'eventos', id })}
+              />
             )}
 
             {showExtras && (

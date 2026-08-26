@@ -38,6 +38,24 @@ export interface LibraryDoc {
   destaque?: boolean
 }
 
+/** Evento interno do HUB (banner na home + tela Eventos) — shape vindo
+ *  pronto de GET /api/eventos/ (eventos/serializers.py do NEXUS). */
+export interface Evento {
+  id: number
+  /** Rótulo livre da pill (Confraternização, Treinamento...). */
+  tipo: string
+  title: string
+  desc: string
+  /** Data/hora do evento em ISO com timezone. */
+  inicioISO: string
+  local: string
+  coverUrl: string | null
+  /** false = evento informativo, sem botão de confirmar presença. */
+  rsvpEnabled: boolean
+  /** O usuário logado já confirmou presença. */
+  confirmado: boolean
+}
+
 /** Um resultado da busca global do Header (ver App.tsx `searchResults`). */
 export interface SearchResult {
   type: 'app' | 'comunicado' | 'contato' | 'obra'
