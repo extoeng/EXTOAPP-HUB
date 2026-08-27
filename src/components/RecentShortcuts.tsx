@@ -1,4 +1,4 @@
-import { Clock, Receipt, Building2, LifeBuoy, Phone, CalendarDays, Megaphone, BookOpen } from 'lucide-react'
+import { Clock, Receipt, Building2, LifeBuoy, Phone, CalendarDays, CalendarRange, Megaphone, BookOpen } from 'lucide-react'
 import type { App } from '../types'
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -12,6 +12,7 @@ interface Props {
   apps: App[]
   onOpen: (name: string) => void
   onOpenComunicados: () => void
+  onOpenEventos: () => void
   onOpenManuais: () => void
   onOpenAgenda: () => void
   onOpenObras: () => void
@@ -20,6 +21,7 @@ interface Props {
   showAgenda: boolean
   /** Os 4 abaixo: só quem tem `view` ou `manage` no app correspondente (2026-07-13). */
   showComunicados: boolean
+  showEventos: boolean
   showManuais: boolean
   showObras: boolean
   showRamais: boolean
@@ -33,11 +35,11 @@ const chipClass = `
 `
 
 export function RecentShortcuts({
-  apps, onOpen, onOpenComunicados, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais,
-  showAgenda, showComunicados, showManuais, showObras, showRamais,
+  apps, onOpen, onOpenComunicados, onOpenEventos, onOpenManuais, onOpenAgenda, onOpenObras, onOpenRamais,
+  showAgenda, showComunicados, showEventos, showManuais, showObras, showRamais,
 }: Props) {
   const hasNothingToShow =
-    apps.length === 0 && !showObras && !showComunicados && !showManuais && !showAgenda && !showRamais
+    apps.length === 0 && !showObras && !showComunicados && !showEventos && !showManuais && !showAgenda && !showRamais
 
   if (hasNothingToShow) return null
 
@@ -80,6 +82,15 @@ export function RecentShortcuts({
             <Megaphone size={19} strokeWidth={1.7} className="text-icon-default" />
             <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
               Comunicados
+            </span>
+          </button>
+        )}
+
+        {showEventos && (
+          <button onClick={onOpenEventos} className={chipClass}>
+            <CalendarRange size={19} strokeWidth={1.7} className="text-icon-default" />
+            <span className="font-hanken font-medium text-[13.5px] text-ink-soft whitespace-nowrap">
+              Eventos
             </span>
           </button>
         )}
