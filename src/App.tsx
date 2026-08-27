@@ -638,9 +638,6 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         onGoHome={() => setPage({ name: 'home' })}
         showPainelAdmin={hasPainelAdmin}
         onOpenPainelAdmin={openPainelAdmin}
-        showEventos={hasEventos}
-        isEventosActive={page.name === 'eventos'}
-        onOpenEventos={() => setPage({ name: 'eventos' })}
         onExpandedChange={setSidebarExpanded}
       />
 
@@ -745,12 +742,14 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
                 apps={recentApps}
                 onOpen={openApp}
                 onOpenComunicados={() => setPage({ name: 'comunicados', id: COMUNICADOS[0].id })}
+                onOpenEventos={() => setPage({ name: 'eventos' })}
                 onOpenManuais={() => setPage({ name: 'manuais', id: MANUAIS[0].id })}
                 onOpenAgenda={openAgenda}
                 onOpenObras={() => setPage({ name: 'obras' })}
                 onOpenRamais={() => setPage({ name: 'ramais' })}
                 showAgenda={hasAgenda}
                 showComunicados={hasComunicados}
+                showEventos={hasEventos}
                 showManuais={hasManuais}
                 showObras={hasObras}
                 showRamais={hasRamais}
