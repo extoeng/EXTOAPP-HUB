@@ -494,6 +494,18 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // window.open('', '_blank') síncrono que existia aqui antes. Reutilizado
   // por qualquer app/atalho com SSO, esteja ele no catálogo (apps[]) ou
   // seja um atalho estático (ex.: Agendas).
+  // Apps cujo front já tem o /refresh-no-boot DEPLOYADO (Fase 2 do plano de
+  // sessão compartilhada): navegação direta, a sessão entra pelo refresh
+  // cookie de `.extoapp.com.br` — sem satellite-code, sem `?code=` na URL.
+  // Quem não está aqui segue no handoff por code (agenda, contratações e
+  // fronts ainda não confirmados em produção): falha segura — o pior caso é
+  // continuar como hoje. ponytail: allowlist manual; cresce a cada front
+  // confirmado e morre inteira na Fase 4 (quando todo front for cookie-only).
+  const COOKIE_NAV_APPS = new Set([
+    'controle-recepcao', 'solicitacoes', 'painel-admin', 'frota',
+    'ad-forn-ctts', 'ctrl-estoque',
+  ])
+
   const openViaSatelliteHandoff = async (appSlug: string, url: string) => {
     const code = await getSatelliteCode(appSlug)
     if (!code) {
@@ -517,6 +529,10 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     }
 
     if (app.ssoEnabled) {
+      if (COOKIE_NAV_APPS.has(app.id)) {
+        window.location.href = app.url
+        return
+      }
       await openViaSatelliteHandoff(app.id, app.url)
       return
     }
@@ -536,7 +552,8 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   }
 
   const openAgenda = () => openViaSatelliteHandoff('agenda-publica', 'https://agenda.extoapp.com.br')
-  const openPainelAdmin = () => openViaSatelliteHandoff('painel-admin', 'https://adm.extoapp.com.br')
+  // painel-admin está na COOKIE_NAV_APPS — entra pelo cookie compartilhado.
+  const openPainelAdmin = () => { window.location.href = 'https://adm.extoapp.com.br' }
 
   const toggleFav = (id: string) => {
     const eraFav = favs.includes(id)
