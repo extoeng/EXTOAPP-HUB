@@ -503,7 +503,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // confirmado e morre inteira na Fase 4 (quando todo front for cookie-only).
   const COOKIE_NAV_APPS = new Set([
     'controle-recepcao', 'solicitacoes', 'painel-admin', 'frota',
-    'ad-forn-ctts', 'ctrl-estoque',
+    'ad-forn-ctts', 'ctrl-estoque', 'extosign', 'listjur',
   ])
 
   const openViaSatelliteHandoff = async (appSlug: string, url: string) => {
