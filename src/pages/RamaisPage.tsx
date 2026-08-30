@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2 } from 'lucide-react'
+import { Lottie } from 'lottie-react'
+import loadingContatosAnim from '../assets/lottie/loading-contatos.json'
+import { delay } from '../utils/delay'
 import { fetchDiretorio, type ContatoPessoa } from '../services/diretorio'
 
 interface Props {
@@ -9,6 +12,9 @@ interface Props {
 }
 
 const NUM_COLS = 3
+// Tempo mínimo de exibição da animação de carregamento — mesmo padrão de
+// Comunicados (DocumentLibrary): resposta rápida da API não corta a animação.
+const CARREGANDO_MIN_MS = 3000
 // Guarda a organização (coluna + ordem) dos cards de departamento que o
 // usuário escolheu — preferência pessoal de navegação, não dado nenhum.
 const LAYOUT_STORAGE_KEY = 'exto_ramais_layout'
@@ -223,8 +229,8 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
   const [layout, setLayout] = useState<string[][] | null>(null)
 
   useEffect(() => {
-    fetchDiretorio()
-      .then(setPessoas)
+    Promise.all([fetchDiretorio(), delay(CARREGANDO_MIN_MS)])
+      .then(([list]) => setPessoas(list))
       .catch(e => setErro(e instanceof Error ? e.message : 'Falha ao carregar diretório de contatos.'))
   }, [])
 
@@ -328,8 +334,8 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
               <span className="font-hanken text-[14px]">{erro}</span>
             </div>
           ) : !pessoas || !layout ? (
-            <div className="flex flex-col items-center justify-center gap-[12px] py-[80px] text-center text-text-faint">
-              <Loader2 size={32} strokeWidth={1.8} className="animate-spin" />
+            <div className="flex flex-col items-center justify-center gap-[12px] py-[40px] text-center text-text-faint">
+              <Lottie src={loadingContatosAnim} autoplay loop style={{ width: 320, height: 320 }} />
               <span className="font-hanken text-[14px]">Carregando contatos…</span>
             </div>
           ) : !temResultado ? (
