@@ -238,7 +238,7 @@ function DirectAppRedirect({
       .catch(onSessionExpired)
   }, [target, onSessionExpired])
 
-  return <div className="h-screen bg-bg-app flex items-center justify-center"><div className="h-8 w-8 rounded-full border-2 border-accent/30 border-t-accent animate-spin" /></div>
+  return <div className="h-screen bg-bg-app flex items-center justify-center"><LoadingBars /></div>
 }
 // FIM — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
 
