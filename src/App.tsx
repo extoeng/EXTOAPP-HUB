@@ -781,7 +781,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               /* Revelação única: uma animação só enquanto TODOS os fetches da
                  home resolvem, em vez de cada seção pipocar na sua vez. */
               <div className="flex flex-col items-center justify-center gap-[12px] text-text-faint" style={{ minHeight: '55vh' }}>
-                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 320, height: 320 }} />
+                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 'min(460px, 80vw)', height: 'min(460px, 80vw)' }} />
                 <span className="font-hanken text-[14px]">Carregando seu portal...</span>
               </div>
             ) : (
