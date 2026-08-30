@@ -11,7 +11,7 @@ interface Props {
   initialContatoId?: string
 }
 
-const NUM_COLS = 3
+const NUM_COLS = 4
 // Tempo mínimo de exibição da animação de carregamento — mesmo padrão de
 // Comunicados (DocumentLibrary): resposta rápida da API não corta a animação.
 const CARREGANDO_MIN_MS = 3000
@@ -32,9 +32,21 @@ function initialsOf(nome: string): string {
 // diferente) entram na coluna mais curta via reconciliarLayout.
 const DEFAULT_LAYOUT: string[][] = [
   ['Guarita', 'Administração', 'Arquitetura', 'Engenharia', 'GR8', 'Restaurante', 'Espaço Beauty'],
-  ['Presidência', 'Diplayers', 'Financeiro', 'Controladoria', 'Contabilidade', 'Fiscal', 'Marketing', 'Novos Negócios', 'Operações', 'Jurídico', 'Incorporação'],
-  ['Gestão de Pessoas', 'Recursos Humanos', 'Sala de Reunião', 'Suprimentos', 'T.I', 'Casa Viva', 'Comercial'],
+  ['Presidência', 'Diplayers', 'Financeiro', 'Controladoria', 'Contabilidade', 'Fiscal'],
+  ['Marketing', 'Novos Negócios', 'Operações', 'Jurídico', 'Incorporação', 'Gestão de Pessoas'],
+  ['Recursos Humanos', 'Sala de Reunião', 'Suprimentos', 'T.I', 'Casa Viva', 'Comercial'],
 ]
+
+// Hierarquia de cargos pra ordenar colaboradores dentro do departamento.
+// Match por substring no nome do cargo (sem acento, minúsculo) — "Diretora
+// Financeira" casa com "diretor". Cargo fora da lista vai pro fim.
+const CARGO_ORDEM = ['president', 'diretor', 'head', 'gerente', 'coordenador', 'analista', 'assistente', 'auxiliar', 'estagiario', 'jovem aprendiz']
+
+function cargoRank(cargo: string): number {
+  const c = cargo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const i = CARGO_ORDEM.findIndex(t => c.includes(t))
+  return i === -1 ? CARGO_ORDEM.length : i
+}
 
 // Reconcilia um layout (padrão ou salvo) com os departamentos que existem
 // hoje — se um colaborador novo trouxer departamento novo, ou um
@@ -265,6 +277,9 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
       if (q && !p.nome.toLowerCase().includes(q) && !p.ramal.includes(q) && !p.departamento.toLowerCase().includes(q)) continue
       if (!map[p.departamento]) map[p.departamento] = []
       map[p.departamento].push(p)
+    }
+    for (const lista of Object.values(map)) {
+      lista.sort((a, b) => cargoRank(a.cargo) - cargoRank(b.cargo) || a.nome.localeCompare(b.nome, 'pt-BR'))
     }
     return map
   }, [pessoas, q])
