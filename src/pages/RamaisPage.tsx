@@ -15,10 +15,6 @@ const NUM_COLS = 4
 // Tempo mínimo de exibição da animação de carregamento — mesmo padrão de
 // Comunicados (DocumentLibrary): resposta rápida da API não corta a animação.
 const CARREGANDO_MIN_MS = 3000
-// Guarda a organização (coluna + ordem) dos cards de departamento que o
-// usuário escolheu — preferência pessoal de navegação, não dado nenhum.
-// v2: layout salvo antes das colunas equilibradas é descartado uma vez.
-const LAYOUT_STORAGE_KEY = 'exto_ramais_layout_v2'
 
 function initialsOf(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean)
@@ -38,30 +34,6 @@ function cargoRank(cargo: string): number {
   return i === -1 ? CARGO_ORDEM.length : i
 }
 
-// Reconcilia um layout (padrão ou salvo) com os departamentos que existem
-// hoje — se um colaborador novo trouxer departamento novo, ou um
-// departamento ficar sem ninguém, a organização se ajusta sem perder a
-// posição dos que continuam.
-function reconciliarLayout(base: string[][], departamentosAtuais: string[]): string[][] {
-  const atuais = new Set(departamentosAtuais)
-  const colocados = new Set<string>()
-  const cols = base.map(col =>
-    col.filter(d => {
-      if (!atuais.has(d) || colocados.has(d)) return false
-      colocados.add(d)
-      return true
-    })
-  )
-  for (const d of departamentosAtuais) {
-    if (colocados.has(d)) continue
-    let menor = 0
-    for (let i = 1; i < cols.length; i++) if (cols[i].length < cols[menor].length) menor = i
-    cols[menor].push(d)
-    colocados.add(d)
-  }
-  return cols
-}
-
 // Layout padrão calculado pra que as colunas terminem com alturas parecidas:
 // distribui pela altura estimada de cada card (nº de pessoas + cabeçalho),
 // maiores primeiro, cada um na coluna mais curta até então (greedy).
@@ -78,18 +50,6 @@ function layoutPadrao(departamentosAtuais: string[], contagem: Record<string, nu
     altura[menor] += (contagem[d] ?? 0) + 1 // +1 ≈ cabeçalho do card
   }
   return cols
-}
-
-function carregarLayout(departamentosAtuais: string[], contagem: Record<string, number>): string[][] {
-  try {
-    const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
-    if (!raw) return layoutPadrao(departamentosAtuais, contagem)
-    const salvo = JSON.parse(raw) as string[][]
-    if (!Array.isArray(salvo) || salvo.length !== NUM_COLS) return layoutPadrao(departamentosAtuais, contagem)
-    return reconciliarLayout(salvo, departamentosAtuais)
-  } catch {
-    return layoutPadrao(departamentosAtuais, contagem)
-  }
 }
 
 function DetailRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
@@ -261,19 +221,16 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
     return Array.from(new Set(pessoas.map(p => p.departamento))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }, [pessoas])
 
-  // Carrega/reconcilia o layout salvo só depois que os departamentos reais
-  // chegaram da API (senão reconciliaria contra uma lista vazia).
+  // Layout sempre recalculado dos dados — colaborador novo, departamento
+  // que sumiu, tudo reequilibra sozinho. Arrastar cards ainda funciona,
+  // mas vale só na visita (nada persiste).
   useEffect(() => {
     if (!pessoas) return
     const contagem: Record<string, number> = {}
     for (const p of pessoas) contagem[p.departamento] = (contagem[p.departamento] ?? 0) + 1
-    setLayout(carregarLayout(departamentosAtuais, contagem))
+    setLayout(layoutPadrao(departamentosAtuais, contagem))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pessoas])
-
-  useEffect(() => {
-    if (layout) localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout))
-  }, [layout])
 
   const q = query.trim().toLowerCase()
   const buscando = q.length > 0
