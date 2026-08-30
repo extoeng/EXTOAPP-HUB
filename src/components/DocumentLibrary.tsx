@@ -8,7 +8,7 @@ import { delay } from '../utils/delay'
 
 // Tempo mínimo de exibição da animação de carregamento — sem isso, numa
 // resposta rápida da API ela pisca na tela e corta antes de completar um ciclo.
-const CARREGANDO_MIN_MS = 5000
+const CARREGANDO_MIN_MS = 3000
 
 interface Props {
   title: string
