@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Lottie } from 'lottie-react'
-import loadingDocsAnim from './assets/lottie/loading-docs.json'
 import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
 import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
@@ -776,11 +774,11 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
             </div>
 
             {!homeReady ? (
-              /* Revelação única: uma animação só enquanto TODOS os fetches da
-                 home resolvem, em vez de cada seção pipocar na sua vez. */
-              <div className="flex flex-col items-center justify-center gap-[12px] text-text-faint" style={{ minHeight: '55vh' }}>
-                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 'min(460px, 80vw)', height: 'min(460px, 80vw)' }} />
-                <span className="font-hanken text-[14px]">Carregando seu portal...</span>
+              /* Revelação única: as MESMAS barras da transição de app (não a
+                 Lottie das bibliotecas de documento) enquanto TODOS os fetches
+                 da home resolvem, em vez de cada seção pipocar na sua vez. */
+              <div className="flex items-center justify-center" style={{ minHeight: '55vh' }}>
+                <LoadingBars />
               </div>
             ) : (
             <>
