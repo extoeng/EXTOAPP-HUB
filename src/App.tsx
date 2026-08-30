@@ -89,10 +89,10 @@ export default function App() {
       if (!getToken() && !(await tryRefresh())) return
       await getMe().then(u => setUser(u)).catch(() => {})
     }
-    // Transição de app: a animação de barras fica pelo menos 3s na tela
+    // Transição de app: a animação de barras fica pelo menos 1,5s na tela
     // (pedido do produto) — o finally garante que uma falha em qualquer
     // passo acima não deixa a tela presa no loading.
-    Promise.all([restaurarSessao(), delay(3000)]).finally(() => setRestoring(false))
+    Promise.all([restaurarSessao(), delay(1500)]).finally(() => setRestoring(false))
   }, [])
 
   const handleLogout = async () => {
