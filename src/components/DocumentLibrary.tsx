@@ -4,6 +4,11 @@ import { Lottie } from 'lottie-react'
 import loadingDocsAnim from '../assets/lottie/loading-docs.json'
 import type { LibraryDoc } from '../types'
 import { fetchDocuments, uploadDocument, deleteDocument, setDestaque, type DocType } from '../services/documents'
+import { delay } from '../utils/delay'
+
+// Tempo mínimo de exibição da animação de carregamento — sem isso, numa
+// resposta rápida da API ela pisca na tela e corta antes de completar um ciclo.
+const CARREGANDO_MIN_MS = 5000
 
 interface Props {
   title: string
@@ -39,7 +44,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
 
   useEffect(() => {
     setDocs(null)
-    fetchDocuments(tipo).then(list => {
+    Promise.all([fetchDocuments(tipo), delay(CARREGANDO_MIN_MS)]).then(([list]) => {
       const resolved = list ?? fallbackItems
       setDocs(resolved)
       setSelected(resolved.find(c => c.id === initialId) ?? resolved[0])
@@ -370,7 +375,7 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] text-text-faint">
               {docs === null ? (
-                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 180, height: 180 }} />
+                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 320, height: 320 }} />
               ) : (
                 <FileText size={48} strokeWidth={1.2} />
               )}
