@@ -7,6 +7,8 @@ import {
   MapPin, Pencil, Plus, Trash2, Upload, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Lottie } from 'lottie-react'
+import loadingDocsAnim from '../assets/lottie/loading-docs.json'
 import type { Evento } from '../types'
 import type { AuthUser } from '../services/auth'
 import {
@@ -14,8 +16,12 @@ import {
   type EventoInput,
 } from '../services/eventos'
 import { formatarInicio } from '../utils/eventoData'
+import { delay } from '../utils/delay'
 
 const PAGE_SIZE = 10
+// Tempo mínimo de exibição da animação de carregamento — sem isso, numa
+// resposta rápida da API ela pisca na tela e corta antes de completar um ciclo.
+const CARREGANDO_MIN_MS = 5000
 
 interface Props {
   initialId?: number
@@ -39,7 +45,7 @@ export function EventosPage({ initialId, onBack, user, onEventosChange }: Props)
   const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchEventos().then(list => setEventos(list ?? []))
+    Promise.all([fetchEventos(), delay(CARREGANDO_MIN_MS)]).then(([list]) => setEventos(list ?? []))
   }, [])
 
   const atualizar = (updater: (prev: Evento[]) => Evento[]) => {
@@ -321,9 +327,13 @@ export function EventosPage({ initialId, onBack, user, onEventosChange }: Props)
             </div>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] text-text-faint">
-              <CalendarDays size={48} strokeWidth={1.2} />
+              {eventos === null ? (
+                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 320, height: 320 }} />
+              ) : (
+                <CalendarDays size={48} strokeWidth={1.2} />
+              )}
               <span className="font-hanken text-[14px]">
-                {eventos === null ? 'Carregando...' : 'Nenhum evento cadastrado'}
+                {eventos === null ? 'Carregando eventos...' : 'Nenhum evento cadastrado'}
               </span>
             </div>
           )}
