@@ -328,7 +328,7 @@ export function EventosPage({ initialId, onBack, user, onEventosChange }: Props)
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] text-text-faint">
               {eventos === null ? (
-                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 320, height: 320 }} />
+                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 'min(460px, 80vw)', height: 'min(460px, 80vw)' }} />
               ) : (
                 <CalendarDays size={48} strokeWidth={1.2} />
               )}
