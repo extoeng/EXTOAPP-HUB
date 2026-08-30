@@ -14,6 +14,7 @@ import { fetchObras } from './services/obras'
 import { fetchDiretorio, type ContatoPessoa } from './services/diretorio'
 import coverUrl from './assets/perfil-sede.webp'
 import { eventoFuturo } from './utils/eventoData'
+import { delay } from './utils/delay'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { ComunicadosPage } from './pages/ComunicadosPage'
@@ -32,6 +33,7 @@ import { AppCard } from './components/AppCard'
 import { EmptyState } from './components/EmptyState'
 import { Toast } from './components/Toast'
 import { RightPanel } from './components/RightPanel'
+import { LoadingBars } from './components/LoadingBars'
 
 // Bypass de login só em `npm run dev` (import.meta.env.DEV nunca é true em
 // build de produção) — evita ter que logar de verdade só pra ver o layout
@@ -67,7 +69,6 @@ export default function App() {
     async function restaurarSessao() {
       if (import.meta.env.DEV) {
         setUser(DEV_BYPASS_USER)
-        setRestoring(false)
         return
       }
 
@@ -85,15 +86,13 @@ export default function App() {
       // sem token, tenta renovar pelo cookie de refresh do domínio
       // (.extoapp.com.br) antes de mandar pro login — quem já logou em outro
       // app entra sem handoff. Falhou = sem sessão, cai no login como antes.
-      if (!getToken() && !(await tryRefresh())) {
-        setRestoring(false)
-        return
-      }
-      getMe()
-        .then(u => setUser(u))
-        .finally(() => setRestoring(false))
+      if (!getToken() && !(await tryRefresh())) return
+      await getMe().then(u => setUser(u)).catch(() => {})
     }
-    restaurarSessao()
+    // Transição de app: a animação de barras fica pelo menos 3s na tela
+    // (pedido do produto) — o finally garante que uma falha em qualquer
+    // passo acima não deixa a tela presa no loading.
+    Promise.all([restaurarSessao(), delay(3000)]).finally(() => setRestoring(false))
   }, [])
 
   const handleLogout = async () => {
@@ -120,7 +119,7 @@ export default function App() {
   }
 
   if (restoring) {
-    return <div className="h-screen bg-bg-app flex items-center justify-center"><div className="h-8 w-8 rounded-full border-2 border-accent/30 border-t-accent animate-spin" /></div>
+    return <div className="h-screen bg-bg-app flex items-center justify-center"><LoadingBars /></div>
   }
 
   if (!user) {
