@@ -1,5 +1,7 @@
 import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus, Trash2, Loader2, Star, Upload } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Lottie } from 'lottie-react'
+import loadingDocsAnim from '../assets/lottie/loading-docs.json'
 import type { LibraryDoc } from '../types'
 import { fetchDocuments, uploadDocument, deleteDocument, setDestaque, type DocType } from '../services/documents'
 
@@ -367,8 +369,12 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
             </>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-[12px] text-text-faint">
-              <FileText size={48} strokeWidth={1.2} />
-              <span className="font-hanken text-[14px]">{docs === null ? 'Carregando...' : emptyMessage}</span>
+              {docs === null ? (
+                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 180, height: 180 }} />
+              ) : (
+                <FileText size={48} strokeWidth={1.2} />
+              )}
+              <span className="font-hanken text-[14px]">{docs === null ? 'Carregando documentos...' : emptyMessage}</span>
             </div>
           )}
         </div>
