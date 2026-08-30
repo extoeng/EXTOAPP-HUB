@@ -354,12 +354,11 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     delay(6000).then(() => setTetoEstourado(true))
   }, [])
 
-  // Aquece as capas de eventos DURANTE o splash — senão a revelação única
-  // ainda teria imagem pipocando depois dela. (Ícones dos apps: efeito
-  // equivalente mais abaixo, depois da declaração de allApps.)
-  useEffect(() => {
-    (eventos ?? []).forEach(e => { if (e.coverUrl) { const img = new Image(); img.src = e.coverUrl } })
-  }, [eventos])
+  // As imagens visíveis (ícones dos apps, capas do banner de eventos) entram
+  // no gate — efeito mais abaixo, depois da declaração de allApps. Só aquecer
+  // não bastava: o download começava no splash mas a revelação não esperava,
+  // e ícone/capa lentos (redirect assinado do bucket) pipocavam por último.
+  const [imagensProntas, setImagensProntas] = useState(false)
 
   // RSVP do banner: otimista, reverte se a API recusar (mesmo padrão dos
   // favoritos).
@@ -413,15 +412,31 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
     })
   }, [])
 
-  // Aquece os ícones dos apps durante o splash (par do efeito das capas de
-  // eventos, lá em cima junto do gate da revelação única).
+  // Espera as imagens visíveis carregarem de verdade (onload/onerror), não só
+  // dispara o download: parte do gate da revelação única. Roda quando os dois
+  // fetches que trazem URL de imagem já resolveram; onerror também resolve
+  // (imagem quebrada não segura a home), e o teto de 6s cobre o resto.
   useEffect(() => {
-    allApps.forEach(a => { if (a.icon) { const img = new Image(); img.src = a.icon } })
-  }, [allApps])
+    if (!appsLoaded || eventos === null) return
+    const urls = [
+      ...allApps.map(a => a.icon).filter((u): u is string => !!u),
+      ...eventos.map(e => e.coverUrl).filter((u): u is string => !!u),
+    ]
+    if (urls.length === 0) { setImagensProntas(true); return }
+    let vivo = true
+    const carrega = (u: string) => new Promise<void>(res => {
+      const img = new Image()
+      img.onload = () => res()
+      img.onerror = () => res()
+      img.src = u
+    })
+    Promise.all(urls.map(carrega)).then(() => { if (vivo) setImagensProntas(true) })
+    return () => { vivo = false }
+  }, [appsLoaded, eventos, allApps])
 
   // Gate da revelação única (racional no bloco "Revelação única da Home").
   const homeReady = minHold &&
-    (tetoEstourado || (appsLoaded && favsLoaded && comunicados !== null && eventos !== null))
+    (tetoEstourado || (appsLoaded && favsLoaded && comunicados !== null && eventos !== null && imagensProntas))
 
   // Retorno automático pro app satélite que mandou o usuário de volta pro hub
   // (?return_to=<url>) — hoje é só fallback: o satélite renova o próprio access
