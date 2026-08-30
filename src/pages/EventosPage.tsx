@@ -9,6 +9,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Lottie } from 'lottie-react'
 import loadingDocsAnim from '../assets/lottie/loading-docs.json'
+import { LoadingBars } from '../components/LoadingBars'
 import type { Evento } from '../types'
 import type { AuthUser } from '../services/auth'
 import {
@@ -173,8 +174,8 @@ export function EventosPage({ initialId, onBack, user, onEventosChange }: Props)
 
           <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
             {eventos === null && (
-              <div className="px-[16px] py-[24px] text-center font-hanken text-[13px] text-text-faint">
-                Carregando...
+              <div className="flex justify-center px-[16px] py-[24px] scale-75">
+                <LoadingBars />
               </div>
             )}
             {eventos !== null && visible.length === 0 && (

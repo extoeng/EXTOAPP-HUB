@@ -2,6 +2,7 @@ import { ArrowLeft, Calendar, FileText, Download, ChevronDown, X, Plus, Trash2, 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Lottie } from 'lottie-react'
 import loadingDocsAnim from '../assets/lottie/loading-docs.json'
+import { LoadingBars } from './LoadingBars'
 import type { LibraryDoc } from '../types'
 import { fetchDocuments, uploadDocument, deleteDocument, setDestaque, type DocType } from '../services/documents'
 import { delay } from '../utils/delay'
@@ -238,8 +239,8 @@ export function DocumentLibrary({ title, tipo, fallbackItems, initialId, onBack,
           {/* Lista */}
           <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
             {docs === null && (
-              <div className="px-[16px] py-[24px] text-center font-hanken text-[13px] text-text-faint">
-                Carregando...
+              <div className="flex justify-center px-[16px] py-[24px] scale-75">
+                <LoadingBars />
               </div>
             )}
             {docs !== null && visible.length === 0 && (
