@@ -81,13 +81,18 @@ function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
       onClick={onClick}
       title={app.name}
       className={`
-        w-full flex items-center rounded-[10px] cursor-pointer
+        w-full flex items-center gap-[10px] rounded-[10px] cursor-pointer
         font-hanken font-medium text-[14px] leading-none
         transition-all duration-150 border-none px-[12px] py-[10px]
         bg-transparent text-white/90 hover:text-white hover:bg-white/[0.06]
       `}
     >
-      <span className="whitespace-nowrap overflow-hidden text-ellipsis">{app.name}</span>
+      {/* Ícone do próprio app, forçado a branco — mesmo padrão do Painel Admin. */}
+      {app.icon && (
+        <img src={app.icon} alt="" className="w-[16px] h-[16px] object-contain flex-shrink-0"
+          style={{ filter: 'brightness(0) invert(1)' }} />
+      )}
+      <span className="whitespace-nowrap overflow-hidden text-ellipsis leading-[1.4]">{app.name}</span>
     </button>
   )
 }
