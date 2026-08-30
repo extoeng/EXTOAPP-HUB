@@ -17,7 +17,8 @@ const NUM_COLS = 4
 const CARREGANDO_MIN_MS = 3000
 // Guarda a organização (coluna + ordem) dos cards de departamento que o
 // usuário escolheu — preferência pessoal de navegação, não dado nenhum.
-const LAYOUT_STORAGE_KEY = 'exto_ramais_layout'
+// v2: layout salvo antes das colunas equilibradas é descartado uma vez.
+const LAYOUT_STORAGE_KEY = 'exto_ramais_layout_v2'
 
 function initialsOf(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean)
@@ -25,17 +26,6 @@ function initialsOf(nome: string): string {
   if (partes.length === 1) return partes[0][0].toUpperCase()
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
 }
-
-// Organização padrão definida pelo usuário na versão estática — mantida aqui
-// pra preservar a mesma ordem agora que os departamentos vêm da API.
-// Departamentos reais que não aparecerem nessa lista (novos, ou nome
-// diferente) entram na coluna mais curta via reconciliarLayout.
-const DEFAULT_LAYOUT: string[][] = [
-  ['Guarita', 'Administração', 'Arquitetura', 'Engenharia', 'GR8', 'Restaurante', 'Espaço Beauty'],
-  ['Presidência', 'Diplayers', 'Financeiro', 'Controladoria', 'Contabilidade', 'Fiscal'],
-  ['Marketing', 'Novos Negócios', 'Operações', 'Jurídico', 'Incorporação', 'Gestão de Pessoas'],
-  ['Recursos Humanos', 'Sala de Reunião', 'Suprimentos', 'T.I', 'Casa Viva', 'Comercial'],
-]
 
 // Hierarquia de cargos pra ordenar colaboradores dentro do departamento.
 // Match por substring no nome do cargo (sem acento, minúsculo) — "Diretora
@@ -72,19 +62,33 @@ function reconciliarLayout(base: string[][], departamentosAtuais: string[]): str
   return cols
 }
 
-function layoutPadrao(departamentosAtuais: string[]): string[][] {
-  return reconciliarLayout(DEFAULT_LAYOUT, departamentosAtuais)
+// Layout padrão calculado pra que as colunas terminem com alturas parecidas:
+// distribui pela altura estimada de cada card (nº de pessoas + cabeçalho),
+// maiores primeiro, cada um na coluna mais curta até então (greedy).
+function layoutPadrao(departamentosAtuais: string[], contagem: Record<string, number>): string[][] {
+  const ordenados = [...departamentosAtuais].sort(
+    (a, b) => (contagem[b] ?? 0) - (contagem[a] ?? 0) || a.localeCompare(b, 'pt-BR'),
+  )
+  const cols: string[][] = Array.from({ length: NUM_COLS }, () => [])
+  const altura = new Array<number>(NUM_COLS).fill(0)
+  for (const d of ordenados) {
+    let menor = 0
+    for (let i = 1; i < NUM_COLS; i++) if (altura[i] < altura[menor]) menor = i
+    cols[menor].push(d)
+    altura[menor] += (contagem[d] ?? 0) + 1 // +1 ≈ cabeçalho do card
+  }
+  return cols
 }
 
-function carregarLayout(departamentosAtuais: string[]): string[][] {
+function carregarLayout(departamentosAtuais: string[], contagem: Record<string, number>): string[][] {
   try {
     const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
-    if (!raw) return layoutPadrao(departamentosAtuais)
+    if (!raw) return layoutPadrao(departamentosAtuais, contagem)
     const salvo = JSON.parse(raw) as string[][]
-    if (!Array.isArray(salvo) || salvo.length !== NUM_COLS) return layoutPadrao(departamentosAtuais)
+    if (!Array.isArray(salvo) || salvo.length !== NUM_COLS) return layoutPadrao(departamentosAtuais, contagem)
     return reconciliarLayout(salvo, departamentosAtuais)
   } catch {
-    return layoutPadrao(departamentosAtuais)
+    return layoutPadrao(departamentosAtuais, contagem)
   }
 }
 
@@ -260,7 +264,10 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
   // Carrega/reconcilia o layout salvo só depois que os departamentos reais
   // chegaram da API (senão reconciliaria contra uma lista vazia).
   useEffect(() => {
-    if (pessoas) setLayout(carregarLayout(departamentosAtuais))
+    if (!pessoas) return
+    const contagem: Record<string, number> = {}
+    for (const p of pessoas) contagem[p.departamento] = (contagem[p.departamento] ?? 0) + 1
+    setLayout(carregarLayout(departamentosAtuais, contagem))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pessoas])
 
