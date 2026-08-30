@@ -53,3 +53,9 @@ input::placeholder {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Transição de app — barras pulsantes (components/LoadingBars.tsx). */
+@keyframes loading-bars {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
