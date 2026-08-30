@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Lottie } from 'lottie-react'
+import loadingDocsAnim from './assets/lottie/loading-docs.json'
 import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
 import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
@@ -14,6 +16,7 @@ import { fetchObras } from './services/obras'
 import { fetchDiretorio, type ContatoPessoa } from './services/diretorio'
 import coverUrl from './assets/perfil-sede.webp'
 import { eventoFuturo } from './utils/eventoData'
+import { delay } from './utils/delay'
 import { useNarrow } from './hooks/useNarrow'
 import { useGreeting } from './hooks/useGreeting'
 import { ComunicadosPage } from './pages/ComunicadosPage'
@@ -297,10 +300,12 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // Favoritos: vem da API (por usuário, não por navegador) — DEFAULT_FAVS só
   // como fallback enquanto a chamada não responde (ou se ela falhar).
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
+  const [favsLoaded, setFavsLoaded] = useState(false)
 
   useEffect(() => {
     fetchFavoritos().then(list => {
       if (list) setFavs(list)
+      setFavsLoaded(true)
     })
   }, [])
 
@@ -336,6 +341,28 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
       .filter(e => eventoFuturo(e.inicioISO))
       .sort((a, b) => a.inicioISO.localeCompare(b.inicioISO))
       .slice(0, 5)
+  }, [eventos])
+
+  // ── Revelação única da Home ─────────────────────────────────────────
+  // Sem isso cada seção pipoca quando o próprio fetch responde: o grid troca
+  // de ordem quando /apps chega, Comunicados aparece e empurra tudo pra
+  // baixo, Eventos chega por último e empurra de novo. Os fetches já são
+  // paralelos — a home só segura a renderização numa animação única até
+  // todos resolverem, e revela tudo de uma vez. Teto de 6s (uma API lenta
+  // não pode travar o portal — revela com o que tiver) e piso de 600ms
+  // (resposta em cache não pode virar flash de splash).
+  const [minHold, setMinHold] = useState(false)
+  const [tetoEstourado, setTetoEstourado] = useState(false)
+  useEffect(() => {
+    delay(600).then(() => setMinHold(true))
+    delay(6000).then(() => setTetoEstourado(true))
+  }, [])
+
+  // Aquece as capas de eventos DURANTE o splash — senão a revelação única
+  // ainda teria imagem pipocando depois dela. (Ícones dos apps: efeito
+  // equivalente mais abaixo, depois da declaração de allApps.)
+  useEffect(() => {
+    (eventos ?? []).forEach(e => { if (e.coverUrl) { const img = new Image(); img.src = e.coverUrl } })
   }, [eventos])
 
   // RSVP do banner: otimista, reverte se a API recusar (mesmo padrão dos
@@ -389,6 +416,16 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
       setAppsLoaded(true)
     })
   }, [])
+
+  // Aquece os ícones dos apps durante o splash (par do efeito das capas de
+  // eventos, lá em cima junto do gate da revelação única).
+  useEffect(() => {
+    allApps.forEach(a => { if (a.icon) { const img = new Image(); img.src = a.icon } })
+  }, [allApps])
+
+  // Gate da revelação única (racional no bloco "Revelação única da Home").
+  const homeReady = minHold &&
+    (tetoEstourado || (appsLoaded && favsLoaded && comunicados !== null && eventos !== null))
 
   // Retorno automático pro app satélite que mandou o usuário de volta pro hub
   // (?return_to=<url>) — hoje é só fallback: o satélite renova o próprio access
@@ -740,6 +777,15 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
               </div>
             </div>
 
+            {!homeReady ? (
+              /* Revelação única: uma animação só enquanto TODOS os fetches da
+                 home resolvem, em vez de cada seção pipocar na sua vez. */
+              <div className="flex flex-col items-center justify-center gap-[12px] text-text-faint" style={{ minHeight: '55vh' }}>
+                <Lottie src={loadingDocsAnim} autoplay loop style={{ width: 320, height: 320 }} />
+                <span className="font-hanken text-[14px]">Carregando seu portal...</span>
+              </div>
+            ) : (
+            <>
             {showExtras && hasComunicados && (
               <Banner itens={comunicadosBanner} onRead={(id) => setPage({ name: 'comunicados', id })} />
             )}
@@ -809,6 +855,8 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
             ))}
 
             {isEmpty && <EmptyState />}
+            </>
+            )}
           </div>
           </main>
 
