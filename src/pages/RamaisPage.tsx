@@ -239,7 +239,6 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
   }, [pessoas])
 
   const q = query.trim().toLowerCase()
-  const buscando = q.length > 0
 
   const pessoasPorDepto = useMemo(() => {
     const map: Record<string, ContatoPessoa[]> = {}
