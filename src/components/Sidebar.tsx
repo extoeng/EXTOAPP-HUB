@@ -75,7 +75,7 @@ function NavItem({ label, Icon, active, expanded, onClick }: {
   )
 }
 
-function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
+function AppNavItem({ app, ordem, onClick }: { app: App; ordem: number; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
@@ -87,10 +87,8 @@ function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
         bg-transparent text-white/90 hover:text-white hover:bg-white/[0.06]
       `}
     >
-      {/* Ícone do próprio app, nas cores originais. */}
-      {app.icon && (
-        <img src={app.icon} alt="" className="w-[16px] h-[16px] object-contain flex-shrink-0" />
-      )}
+      {/* Numeração no lugar do ícone do app. */}
+      <span className="w-[16px] flex-shrink-0 text-right tabular-nums text-white/60">{ordem}.</span>
       <span className="whitespace-nowrap overflow-hidden text-ellipsis leading-[1.4]">{app.name}</span>
     </button>
   )
@@ -278,8 +276,8 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         {isExpanded && openGroup ? (
           <>
             <BackRow label={openGroup.label} onClick={() => setOpenCat(null)} />
-            {openGroup.items.map(app => (
-              <AppNavItem key={app.id} app={app}
+            {openGroup.items.map((app, i) => (
+              <AppNavItem key={app.id} app={app} ordem={i + 1}
                 onClick={() => { setLeaving(true); onOpenApp(app.name) }} />
             ))}
           </>
