@@ -87,10 +87,9 @@ function AppNavItem({ app, onClick }: { app: App; onClick: () => void }) {
         bg-transparent text-white/90 hover:text-white hover:bg-white/[0.06]
       `}
     >
-      {/* Ícone do próprio app, forçado a branco — mesmo padrão do Painel Admin. */}
+      {/* Ícone do próprio app, nas cores originais. */}
       {app.icon && (
-        <img src={app.icon} alt="" className="w-[16px] h-[16px] object-contain flex-shrink-0"
-          style={{ filter: 'brightness(0) invert(1)' }} />
+        <img src={app.icon} alt="" className="w-[16px] h-[16px] object-contain flex-shrink-0" />
       )}
       <span className="whitespace-nowrap overflow-hidden text-ellipsis leading-[1.4]">{app.name}</span>
     </button>
