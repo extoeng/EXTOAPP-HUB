@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Search, X, Phone, Mail, Smartphone, Building2 } from 'lucide-react'
+import { ArrowLeft, Search, X, Phone, Mail, Smartphone } from 'lucide-react'
 import { Lottie } from 'lottie-react'
 import loadingContatosAnim from '../assets/lottie/loading-contatos.json'
 import { delay } from '../utils/delay'
@@ -11,7 +11,6 @@ interface Props {
   initialContatoId?: string
 }
 
-const NUM_COLS = 4
 // Tempo mínimo de exibição da animação de carregamento — mesmo padrão de
 // Comunicados (DocumentLibrary): resposta rápida da API não corta a animação.
 const CARREGANDO_MIN_MS = 3000
@@ -34,22 +33,43 @@ function cargoRank(cargo: string): number {
   return i === -1 ? CARGO_ORDEM.length : i
 }
 
-// Layout padrão calculado pra que as colunas terminem com alturas parecidas:
-// distribui pela altura estimada de cada card (nº de pessoas + cabeçalho),
-// maiores primeiro, cada um na coluna mais curta até então (greedy).
-function layoutPadrao(departamentosAtuais: string[], contagem: Record<string, number>): string[][] {
-  const ordenados = [...departamentosAtuais].sort(
-    (a, b) => (contagem[b] ?? 0) - (contagem[a] ?? 0) || a.localeCompare(b, 'pt-BR'),
-  )
-  const cols: string[][] = Array.from({ length: NUM_COLS }, () => [])
-  const altura = new Array<number>(NUM_COLS).fill(0)
-  for (const d of ordenados) {
-    let menor = 0
-    for (let i = 1; i < NUM_COLS; i++) if (altura[i] < altura[menor]) menor = i
-    cols[menor].push(d)
-    altura[menor] += (contagem[d] ?? 0) + 1 // +1 ≈ cabeçalho do card
-  }
-  return cols
+// Cores por departamento \u2014 extra\u00eddas da lista oficial de ramais
+// (share geral: Informa\u00e7\u00f5es Gerais/Ramais/Ramais.pdf, junho 2026).
+// Chave normalizada (sem acento/pontua\u00e7\u00e3o, min\u00fasculo); departamento fora
+// da lista cai no vermelho padr\u00e3o da empresa.
+const CORES_DEPTO: Record<string, string> = {
+  administracao: '#D9E1F2',
+  arquitetura: '#C6E0B4',
+  casaviva: '#BDD7EE',
+  comercial: '#92D04F',
+  contabilidade: '#FFE699',
+  controladoria: '#FFE699',
+  diplayers: '#FFE699',
+  engenharia: '#9BC2E6',
+  espacobeauty: '#F4B084',
+  financeiro: '#BFBFBF',
+  fiscal: '#FFF2CC',
+  gestaodepessoas: '#8EA9DB',
+  gr8: '#FFCCFF',
+  guarita: '#F4B084',
+  incorporacao: '#92D04F',
+  juridico: '#D6DCE4',
+  marketing: '#FFC000',
+  novosnegocios: '#C9C9C9',
+  operacoes: '#F4B084',
+  presidencia: '#FFFF00',
+  recursoshumanos: '#AEAAAA',
+  restaurante: '#A9D08E',
+  saladereuniao: '#FFD966',
+  suprimentos: '#00B04F',
+  ti: '#D0CECE',
+}
+
+const COR_DEPTO_PADRAO = '#B31C1C' // accent (tailwind.config.js)
+
+function corDoDepto(nome: string): string {
+  const chave = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  return CORES_DEPTO[chave] ?? COR_DEPTO_PADRAO
 }
 
 function DetailRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
@@ -109,20 +129,6 @@ function ContatoModal({ pessoa, onClose }: { pessoa: ContatoPessoa; onClose: () 
   )
 }
 
-interface DeptoArrastado {
-  departamento: string
-}
-
-function lerDeptoArrastado(e: React.DragEvent): DeptoArrastado | null {
-  try {
-    const raw = e.dataTransfer.getData('text/plain')
-    if (!raw) return null
-    return JSON.parse(raw) as DeptoArrastado
-  } catch {
-    return null
-  }
-}
-
 function AvatarPessoa({ pessoa, size, textSize }: { pessoa: ContatoPessoa; size: number; textSize: number }) {
   if (pessoa.foto) {
     return (
@@ -144,56 +150,57 @@ function AvatarPessoa({ pessoa, size, textSize }: { pessoa: ContatoPessoa; size:
   )
 }
 
-function DepartamentoCard({
-  departamento, pessoasVisiveis, onSelect, onSoltarDepto, colIdx,
+// Card de pessoa — grid estilo "team page": avatar com anel na cor do
+// departamento, nome, cargo e ramal em pill.
+function PessoaCard({ pessoa, onSelect }: { pessoa: ContatoPessoa; onSelect: (pessoa: ContatoPessoa) => void }) {
+  const cor = corDoDepto(pessoa.departamento)
+  return (
+    <button
+      onClick={() => onSelect(pessoa)}
+      className="group flex-grow-0 basis-[calc((100%-56px)/5)] min-w-[170px] flex flex-col items-center text-center gap-[10px] px-[14px] pt-[20px] pb-[16px] bg-surface border border-border rounded-[16px] cursor-pointer transition-all duration-200 hover:shadow-card-hover hover:-translate-y-[2px] hover:border-border-hover"
+    >
+      <span className="rounded-full p-[3px]" style={{ boxShadow: `0 0 0 2px ${cor}` }}>
+        <AvatarPessoa pessoa={pessoa} size={52} textSize={18} />
+      </span>
+      <span className="flex flex-col gap-[2px] min-w-0 w-full">
+        <span className="font-archivo font-semibold text-[13.5px] leading-[1.25] text-ink truncate">{pessoa.nome}</span>
+        <span className="font-hanken text-[11.5px] text-text-faint truncate">{pessoa.cargo || '—'}</span>
+      </span>
+      <span className="inline-flex items-center gap-[6px] px-[11px] py-[4px] rounded-full bg-tile-bg font-hanken font-semibold text-[12px] text-ink tabular-nums group-hover:bg-bg-app transition-colors duration-200">
+        <Phone size={11} strokeWidth={2} />
+        {pessoa.ramal || '—'}
+      </span>
+    </button>
+  )
+}
+
+// Seção de um departamento: título com a cor oficial + grid de cards em
+// ordem hierárquica de cargo.
+function DepartamentoSection({
+  departamento, pessoas, onSelect,
 }: {
   departamento: string
-  pessoasVisiveis: ContatoPessoa[]
+  pessoas: ContatoPessoa[]
   onSelect: (pessoa: ContatoPessoa) => void
-  onSoltarDepto: (departamento: string, colDestino: number, antesDe: string | null) => void
-  colIdx?: number
 }) {
+  const cor = corDoDepto(departamento)
   return (
-    <div
-      className="group/depto bg-surface border border-border border-l-4 border-l-accent rounded-[14px] overflow-hidden"
-      onDragOver={e => e.preventDefault()}
-      onDrop={e => {
-        e.preventDefault()
-        const item = lerDeptoArrastado(e)
-        if (item && colIdx !== undefined && item.departamento !== departamento) {
-          e.stopPropagation()
-          onSoltarDepto(item.departamento, colIdx, departamento)
-        }
-      }}
-    >
-      <div
-        draggable={colIdx !== undefined}
-        onDragStart={e => {
-          if (colIdx === undefined) return
-          e.dataTransfer.effectAllowed = 'move'
-          e.dataTransfer.setData('text/plain', JSON.stringify({ departamento }))
-        }}
-        className={`flex items-center gap-[8px] px-[16px] py-[11px] border-b border-border bg-tile-bg ${colIdx !== undefined ? 'cursor-grab active:cursor-grabbing' : ''}`}
-      >
-        <Building2 size={14} strokeWidth={1.9} className="text-accent flex-shrink-0" />
-        <h4 className="m-0 flex-1 min-w-0 font-archivo font-semibold text-[12px] tracking-[0.04em] uppercase text-ink truncate">
+    <section className="mb-[34px]">
+      <div className="flex items-center gap-[10px] mb-[14px]">
+        <span className="w-[10px] h-[10px] rounded-full flex-shrink-0" style={{ background: cor }} />
+        <h3 className="m-0 font-archivo font-semibold text-[14px] tracking-[0.05em] uppercase text-ink whitespace-nowrap">
           {departamento}
-        </h4>
+        </h3>
+        <span className="font-hanken text-[12px] text-text-faint tabular-nums">{pessoas.length}</span>
+        <span className="flex-1 h-[1px] bg-border" />
       </div>
-      <div>
-        {pessoasVisiveis.map(pessoa => (
-          <button
-            key={pessoa.id}
-            onClick={() => onSelect(pessoa)}
-            className="w-full flex items-center gap-[10px] px-[16px] py-[10px] border-b border-border last:border-b-0 hover:bg-tile-bg transition-colors duration-150 border-none bg-transparent cursor-pointer text-left"
-          >
-            <AvatarPessoa pessoa={pessoa} size={28} textSize={10.5} />
-            <span className="flex-1 min-w-0 font-hanken font-medium text-[13px] text-ink truncate">{pessoa.nome}</span>
-            <span className="flex-shrink-0 font-hanken font-semibold text-[12.5px] text-ink tabular-nums">{pessoa.ramal}</span>
-          </button>
+      {/* Fileiras de 5; fileira incompleta termina centralizada. */}
+      <div className="flex flex-wrap justify-center gap-[14px]">
+        {pessoas.map(pessoa => (
+          <PessoaCard key={pessoa.id} pessoa={pessoa} onSelect={onSelect} />
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -202,7 +209,7 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
   const [selectedPessoa, setSelectedPessoa] = useState<ContatoPessoa | null>(null)
   const [pessoas, setPessoas] = useState<ContatoPessoa[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
-  const [layout, setLayout] = useState<string[][] | null>(null)
+  const [filtroDepto, setFiltroDepto] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([fetchDiretorio(), delay(CARREGANDO_MIN_MS)])
@@ -216,20 +223,19 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
     if (p) setSelectedPessoa(p)
   }, [pessoas, initialContatoId])
 
+  // Alfabético, com Presidência sempre em primeiro.
   const departamentosAtuais = useMemo(() => {
     if (!pessoas) return []
-    return Array.from(new Set(pessoas.map(p => p.departamento))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    const ehPresidencia = (d: string) => d.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes('presidencia')
+    return Array.from(new Set(pessoas.map(p => p.departamento))).sort(
+      (a, b) => Number(ehPresidencia(b)) - Number(ehPresidencia(a)) || a.localeCompare(b, 'pt-BR'),
+    )
   }, [pessoas])
 
-  // Layout sempre recalculado dos dados — colaborador novo, departamento
-  // que sumiu, tudo reequilibra sozinho. Arrastar cards ainda funciona,
-  // mas vale só na visita (nada persiste).
-  useEffect(() => {
-    if (!pessoas) return
+  const contagemPorDepto = useMemo(() => {
     const contagem: Record<string, number> = {}
-    for (const p of pessoas) contagem[p.departamento] = (contagem[p.departamento] ?? 0) + 1
-    setLayout(layoutPadrao(departamentosAtuais, contagem))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    for (const p of pessoas ?? []) contagem[p.departamento] = (contagem[p.departamento] ?? 0) + 1
+    return contagem
   }, [pessoas])
 
   const q = query.trim().toLowerCase()
@@ -243,26 +249,17 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
       map[p.departamento].push(p)
     }
     for (const lista of Object.values(map)) {
-      lista.sort((a, b) => cargoRank(a.cargo) - cargoRank(b.cargo) || a.nome.localeCompare(b.nome, 'pt-BR'))
+      lista.sort(
+        (a, b) =>
+          cargoRank(a.cargo) - cargoRank(b.cargo) ||
+          a.cargo.localeCompare(b.cargo, 'pt-BR') ||
+          a.nome.localeCompare(b.nome, 'pt-BR'),
+      )
     }
     return map
   }, [pessoas, q])
 
   const temResultado = Object.values(pessoasPorDepto).some(lista => lista.length > 0)
-
-  const moverDeptoParaPosicao = (departamento: string, colDestino: number, antesDe: string | null) => {
-    setLayout(prev => {
-      if (!prev) return prev
-      const semOrigem = prev.map(col => col.filter(d => d !== departamento))
-      const destino = [...semOrigem[colDestino]]
-      const idx = antesDe ? destino.indexOf(antesDe) : -1
-      if (idx === -1) destino.push(departamento)
-      else destino.splice(idx, 0, departamento)
-      const next = [...semOrigem]
-      next[colDestino] = destino
-      return next
-    })
-  }
 
   return (
     <div className="relative flex flex-col h-full overflow-hidden">
@@ -299,20 +296,31 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
               </button>
             )}
           </div>
+          <select
+            value={filtroDepto ?? ''}
+            onChange={e => setFiltroDepto(e.target.value || null)}
+            className="flex-shrink-0 w-[220px] font-hanken text-[13.5px] text-ink bg-surface border border-border rounded-[11px] px-[12px] py-[10px] outline-none focus:border-border-hover transition-colors cursor-pointer"
+          >
+            <option value="">Todos os departamentos</option>
+            {departamentosAtuais.map(departamento => (
+              <option key={departamento} value={departamento}>
+                {departamento} ({contagemPorDepto[departamento] ?? 0})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Departamentos — organização controlada pelo usuário (posição dos
-          cards); durante uma busca, vira uma grade centralizada com só quem
-          deu match. */}
+      {/* Diretório: nav lateral de departamentos + seções em ordem
+          alfabética, pessoas agrupadas por cargo. Busca filtra as seções. */}
       <div className="flex-1 overflow-y-auto scrollbar-none px-[24px] py-[20px]" style={{ scrollbarWidth: 'none' }}>
-        <div className="max-w-[1000px] mx-auto">
+        <div className="max-w-[1060px] mx-auto">
           {erro ? (
             <div className="flex flex-col items-center justify-center gap-[12px] py-[80px] text-center text-text-faint">
               <Phone size={44} strokeWidth={1.2} />
               <span className="font-hanken text-[14px]">{erro}</span>
             </div>
-          ) : !pessoas || !layout ? (
+          ) : !pessoas ? (
             <div className="flex flex-col items-center justify-center gap-[12px] py-[40px] text-center text-text-faint">
               <Lottie src={loadingContatosAnim} autoplay loop style={{ width: 320, height: 320 }} />
               <span className="font-hanken text-[14px]">Carregando contatos…</span>
@@ -322,53 +330,22 @@ export function RamaisPage({ onBack, initialContatoId }: Props) {
               <Phone size={44} strokeWidth={1.2} />
               <span className="font-hanken text-[14px]">Nenhum contato encontrado</span>
             </div>
-          ) : buscando ? (
-            <div className="flex flex-wrap justify-center gap-[16px]">
-              {layout.flat().map(departamento => {
+          ) : (
+            <>
+              {departamentosAtuais.map(departamento => {
+                if (filtroDepto && departamento !== filtroDepto) return null
                 const pessoasVisiveis = pessoasPorDepto[departamento] ?? []
                 if (pessoasVisiveis.length === 0) return null
                 return (
-                  <div key={departamento} className="w-[300px] flex-shrink-0">
-                    <DepartamentoCard
-                      departamento={departamento}
-                      pessoasVisiveis={pessoasVisiveis}
-                      onSelect={setSelectedPessoa}
-                      onSoltarDepto={() => {}}
-                    />
-                  </div>
+                  <DepartamentoSection
+                    key={departamento}
+                    departamento={departamento}
+                    pessoas={pessoasVisiveis}
+                    onSelect={setSelectedPessoa}
+                  />
                 )
               })}
-            </div>
-          ) : (
-            <div className="flex gap-[16px] items-start">
-              {layout.map((col, colIdx) => (
-                <div
-                  key={colIdx}
-                  className="flex-1 min-w-0 flex flex-col gap-[16px]"
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={e => {
-                    e.preventDefault()
-                    const item = lerDeptoArrastado(e)
-                    if (item) moverDeptoParaPosicao(item.departamento, colIdx, null)
-                  }}
-                >
-                  {col.map(departamento => {
-                    const pessoasVisiveis = pessoasPorDepto[departamento] ?? []
-                    if (pessoasVisiveis.length === 0) return null
-                    return (
-                      <DepartamentoCard
-                        key={departamento}
-                        departamento={departamento}
-                        pessoasVisiveis={pessoasVisiveis}
-                        onSelect={setSelectedPessoa}
-                        onSoltarDepto={moverDeptoParaPosicao}
-                        colIdx={colIdx}
-                      />
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
+            </>
           )}
         </div>
       </div>

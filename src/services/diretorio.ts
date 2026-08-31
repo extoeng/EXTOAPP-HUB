@@ -44,9 +44,34 @@ function mapContato(raw: RawContato): ContatoPessoa {
   }
 }
 
+// Mock só pro bypass de dev (mesma lógica do DEV_BYPASS_USER do App.tsx):
+// sem token real a API devolve 401 e a tela mostraria só o erro. Tamanhos
+// variados de propósito, pra dar pra ver a ordenação por nº de integrantes.
+const MOCK_DEPTOS: [string, number][] = [
+  ['Guarita', 1], ['Presidência', 2], ['T.I', 2], ['GR8', 3],
+  ['Casa Viva', 4], ['Jurídico', 4], ['Novos Negócios', 5], ['Suprimentos', 7],
+  ['Marketing', 8], ['Administração', 8], ['Engenharia', 10], ['Comercial', 12],
+]
+const MOCK_CARGOS = ['Diretor', 'Gerente', 'Coordenador', 'Analista', 'Assistente']
+const MOCK_DIRETORIO: ContatoPessoa[] = MOCK_DEPTOS.flatMap(([departamento, n], di) =>
+  Array.from({ length: n }, (_, i): ContatoPessoa => ({
+    id: `dev-${di}-${i}`,
+    nome: `Colaborador ${di + 1}.${i + 1}`,
+    cargo: MOCK_CARGOS[i % MOCK_CARGOS.length],
+    ramal: String(1000 + di * 20 + i),
+    email: `colab${di}${i}@exto.com.br`,
+    celular: '',
+    departamento,
+    foto: null,
+  })),
+)
+
 export async function fetchDiretorio(): Promise<ContatoPessoa[]> {
   const res = await apiFetch('/parties/diretorio/')
-  if (!res.ok) throw new Error('Falha ao carregar diretório de contatos.')
+  if (!res.ok) {
+    if (import.meta.env.DEV) return MOCK_DIRETORIO
+    throw new Error('Falha ao carregar diretório de contatos.')
+  }
   const data: RawContato[] = await res.json()
   return data.map(mapContato)
 }
