@@ -59,6 +59,9 @@ const DEV_MOCK_APPS: AppType[] = [
   // Liga o gate hasEventos no dev (slug está em HIDDEN_CATALOG_SLUGS, não
   // vira card) — sem backend local a lista vem vazia, banner some.
   { id: 'eventos', cat: 'geral', name: 'Eventos', desc: '' },
+  // Mesmo esquema: liga o gate hasRamais (botão Contatos) no dev —
+  // o diretório cai no mock de dev do fetchDiretorio.
+  { id: 'contatos', cat: 'geral', name: 'Contatos', desc: '' },
 ]
 
 export default function App() {
