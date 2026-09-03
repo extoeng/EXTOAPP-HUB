@@ -290,7 +290,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
             <NavItem
               label={openGroup.label}
               Icon={CAT_ICON[openGroup.cat]}
-              active={false}
+              active
               expanded
               centered
               onClick={() => setOpenCat(null)}
