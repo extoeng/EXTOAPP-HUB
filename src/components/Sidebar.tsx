@@ -135,7 +135,7 @@ function BackRow({ label, onClick }: { label: string; onClick: () => void }) {
       className="
         w-full flex items-center gap-[10px] rounded-[10px] px-[12px] py-[9px] cursor-pointer
         font-hanken font-medium text-[13px] leading-none border-none mb-[3px]
-        bg-transparent text-white/70 hover:text-white hover:bg-white/[0.06] transition-all duration-150
+        bg-transparent text-white/90 hover:text-white hover:bg-white/[0.06] transition-all duration-150
       "
     >
       <ArrowLeft size={15} className="flex-shrink-0" />
