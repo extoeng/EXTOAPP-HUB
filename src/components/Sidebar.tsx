@@ -13,7 +13,7 @@ export const SIDEBAR_EXPANDED_W = 248
 const SIDEBAR_GAP = 12
 
 const NAV_MENU = [
-  { id: 'all' as ActiveCat, label: 'Início', Icon: Home },
+  { id: 'all' as ActiveCat, label: 'Home', Icon: Home },
 ]
 
 // Ícone por categoria — mesmo usado no rótulo (menu expandido) e sozinho no
@@ -40,7 +40,7 @@ interface Props {
   onLogout: () => void
   onOpenProfile: () => void
   isProfileActive: boolean
-  /** Início: sempre volta pra home, mesmo estando em outra aba (Comunicados, Perfil...). */
+  /** Home: sempre volta pra home, mesmo estando em outra aba (Comunicados, Perfil...). */
   onGoHome: () => void
   /** Painel Administrativo: só quem tem acesso (MASTER) vê esse botão fixo. */
   showPainelAdmin: boolean
@@ -50,11 +50,13 @@ interface Props {
   onExpandedChange?: (expanded: boolean) => void
 }
 
-function NavItem({ label, Icon, active, expanded, onClick }: {
+function NavItem({ label, Icon, active, expanded, centered, onClick }: {
   label: string
   Icon: React.ElementType
   active: boolean
   expanded: boolean
+  /** Centraliza ícone + rótulo no menu expandido (o Home fica sob o logo). */
+  centered?: boolean
   onClick: () => void
 }) {
   return (
@@ -65,12 +67,12 @@ function NavItem({ label, Icon, active, expanded, onClick }: {
         w-full flex items-center rounded-[10px] cursor-pointer
         font-hanken font-medium text-[14px] leading-none
         transition-all duration-150 border-none
-        ${expanded ? 'gap-[12px] px-[12px] py-[10px]' : 'justify-center p-[12px]'}
+        ${expanded ? `gap-[12px] px-[12px] ${centered ? 'justify-center py-[12px]' : 'py-[10px]'}` : 'justify-center p-[12px]'}
         ${active ? 'bg-accent text-white' : 'bg-transparent text-white/90 hover:text-white hover:bg-white/[0.06]'}
       `}
     >
-      <Icon size={19} strokeWidth={1.7} className="flex-shrink-0" />
-      {expanded && <span className="whitespace-nowrap overflow-hidden uppercase tracking-[0.04em] text-[13px]">{label}</span>}
+      <Icon size={centered ? 22 : 19} strokeWidth={1.7} className="flex-shrink-0" />
+      {expanded && <span className={`whitespace-nowrap overflow-hidden uppercase tracking-[0.04em] ${centered ? 'text-[15px] font-semibold' : 'text-[13px]'}`}>{label}</span>}
     </button>
   )
 }
@@ -275,11 +277,23 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
         >
         {isExpanded && openGroup ? (
           <>
-            <BackRow label={openGroup.label} onClick={() => setOpenCat(null)} />
+            {/* Categoria aberta no mesmo padrão do Home, logo abaixo do logo. */}
+            <NavItem
+              label={openGroup.label}
+              Icon={CAT_ICON[openGroup.cat]}
+              active={false}
+              expanded
+              centered
+              onClick={() => setOpenCat(null)}
+            />
+            <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
             {openGroup.items.map((app, i) => (
               <AppNavItem key={app.id} app={app} ordem={i + 1}
                 onClick={() => { setLeaving(true); onOpenApp(app.name) }} />
             ))}
+            {/* Voltar sempre abaixo do último subitem. */}
+            <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
+            <BackRow label="Voltar" onClick={() => setOpenCat(null)} />
           </>
         ) : (
           <>
@@ -290,6 +304,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
                 Icon={Icon}
                 active={activeCat === id && !isProfileActive}
                 expanded={isExpanded}
+                centered
                 onClick={() => handleCat(id)}
               />
             ))}
@@ -297,6 +312,11 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
             {appGroups.length > 0 && (
               <>
                 <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
+                {isExpanded && (
+                  <span className="px-[12px] pt-[4px] pb-[6px] font-hanken font-medium text-[11px] uppercase tracking-[0.08em] text-side-muted select-none">
+                    Categorias
+                  </span>
+                )}
                 {appGroups.map(g => (
                   <AppGroupRow
                     key={g.cat}
