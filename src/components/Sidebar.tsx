@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
   Home, User, LogOut, X, ShieldCheck, Pin, PinOff, ChevronRight, ArrowLeft,
-  LayoutGrid, Users, HardHat, Wallet, Monitor, Scale, Briefcase,
 } from 'lucide-react'
-import type { ActiveCat, App, Category } from '../types'
+import type { ActiveCat, App, Categoria, Category } from '../types'
 import type { AuthUser } from '../services/auth'
-import { CAT_LABELS, CAT_ORDER } from '../data/apps'
+import { agruparPorCategoria } from '../data/apps'
+import { iconeCategoria } from '../lib/iconesCategoria'
 import logoUrl from '../assets/exto-logo-full.png'
 
 export const SIDEBAR_COLLAPSED_W = 68
@@ -16,24 +16,14 @@ const NAV_MENU = [
   { id: 'all' as ActiveCat, label: 'Home', Icon: Home },
 ]
 
-// Ícone por categoria — mesmo usado no rótulo (menu expandido) e sozinho no
-// lugar do nome quando o menu recolhe pra faixa de ícones.
-const CAT_ICON: Record<Category, React.ElementType> = {
-  geral: LayoutGrid,
-  rh: Users,
-  obras: HardHat,
-  fin: Wallet,
-  ti: Monitor,
-  juridico: Scale,
-  admin: Briefcase,
-}
-
 interface Props {
   activeCat: ActiveCat
   isNarrow: boolean
   menuOpen: boolean
   user: AuthUser
   apps: App[]
+  /** Categorias do menu (rótulo/ícone/ordem) — vindas da API, com fallback estático. */
+  categorias: Categoria[]
   onSetCat: (cat: ActiveCat) => void
   onOpenApp: (name: string) => void
   onClose: () => void
@@ -154,7 +144,7 @@ function BackRow({ label, onClick }: { label: string; onClick: () => void }) {
   )
 }
 
-export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
+export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, categorias, onSetCat, onOpenApp, onClose, onLogout, onOpenProfile, isProfileActive, onGoHome, showPainelAdmin, onOpenPainelAdmin, onExpandedChange }: Props) {
   const [hovered, setHovered] = useState(false)
   // Sem preferência salva ainda, começa fixado (aberto) — clicar no pin
   // (ou fechar) recolhe e passa a lembrar essa escolha daí pra frente.
@@ -214,9 +204,10 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
     if (!isExpanded) setOpenCat(null)
   }, [isExpanded])
 
-  const appGroups = CAT_ORDER
-    .map(cat => ({ cat, label: CAT_LABELS[cat], items: apps.filter(a => a.cat === cat) }))
-    .filter(g => g.items.length > 0)
+  // Ícone da categoria: mesmo no rótulo (menu expandido) e sozinho no lugar
+  // do nome quando o menu recolhe pra faixa de ícones.
+  const appGroups = agruparPorCategoria(apps, categorias)
+    .map(g => ({ cat: g.slug, label: g.nome, Icon: iconeCategoria(g.icone), items: g.apps }))
   const openGroup = appGroups.find(g => g.cat === openCat)
 
   return (
@@ -289,7 +280,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
             {/* Categoria aberta no mesmo padrão do Home, logo abaixo do logo. */}
             <NavItem
               label={openGroup.label}
-              Icon={CAT_ICON[openGroup.cat]}
+              Icon={openGroup.Icon}
               active
               expanded
               centered
@@ -327,7 +318,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, onSetCat, o
                   <AppGroupRow
                     key={g.cat}
                     label={g.label}
-                    Icon={CAT_ICON[g.cat]}
+                    Icon={g.Icon}
                     expanded={isExpanded}
                     onClick={() => setOpenCat(g.cat)}
                   />

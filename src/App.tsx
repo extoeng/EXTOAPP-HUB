@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { APPS, CAT_ORDER, CAT_LABELS, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
+import { APPS, CATEGORIAS_FALLBACK, agruparPorCategoria, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
 import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
 import { OBRAS, type Obra } from './data/obras'
-import type { ActiveCat, App as AppType, Evento, LibraryDoc, SearchResult } from './types'
+import type { ActiveCat, App as AppType, Categoria, Evento, LibraryDoc, SearchResult } from './types'
 import type { AuthUser } from './services/auth'
-import { getMe, fetchApps, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
+import { getMe, fetchApps, fetchCategorias, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
 import { getToken, setToken, goToLogin, tryRefresh } from './services/api'
 import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
 import { fetchDocuments } from './services/documents'
@@ -414,6 +414,12 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
       setAppsLoaded(true)
     })
   }, [])
+  // Categorias do menu (rótulo/ícone/ordem) — CRUD no painel-admin; o
+  // espelho estático fica só como fallback se a API falhar.
+  const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_FALLBACK)
+  useEffect(() => {
+    fetchCategorias().then(list => { if (list && list.length) setCategorias(list) })
+  }, [])
 
   // Espera as imagens visíveis carregarem de verdade (onload/onerror), não só
   // dispara o download: parte do gate da revelação única. Roda quando os dois
@@ -622,13 +628,8 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // não filtra a tela do Início, que fica sempre igual enquanto se digita.
   const q = query.trim().toLowerCase()
 
-  const groups = CAT_ORDER
-    .map(cat => ({
-      cat,
-      label: CAT_LABELS[cat],
-      apps: apps.filter(a => a.cat === cat && (activeCat === 'all' || activeCat === cat)),
-    }))
-    .filter(g => g.apps.length > 0)
+  const groups = agruparPorCategoria(apps.filter(a => activeCat === 'all' || a.cat === activeCat), categorias)
+    .map(g => ({ cat: g.slug, label: g.nome, apps: g.apps }))
 
   const showExtras = activeCat === 'all'
   const favApps = apps.filter(a => favs.includes(a.id))
@@ -697,6 +698,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
         menuOpen={menuOpen}
         user={user}
         apps={apps}
+        categorias={categorias}
         onSetCat={setActiveCat}
         onOpenApp={openApp}
         onClose={() => setMenuOpen(false)}

@@ -12,7 +12,17 @@ export interface App {
   ssoEnabled?: boolean
 }
 
-export type Category = 'rh' | 'obras' | 'fin' | 'ti' | 'geral' | 'juridico' | 'admin'
+// Slug de uma categoria do menu — CRUD no painel-admin (Gestão de Módulos ›
+// Categorias), lida via GET /apps/categorias. Não é mais união fixa.
+export type Category = string
+
+export interface Categoria {
+  slug: string
+  nome: string
+  /** Nome lucide em kebab-case — resolvido por lib/iconesCategoria. */
+  icone: string
+  ordem: number
+}
 export type ActiveCat = 'all' | Category
 
 export interface AppState {

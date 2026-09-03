@@ -1,4 +1,4 @@
-import type { App } from '../types'
+import type { App, Categoria } from '../types'
 import { apiFetch, setToken } from './api'
 
 export interface LoginCredentials {
@@ -104,6 +104,12 @@ interface RawApp {
   category: string
   permissions: string[]
   sso_enabled?: boolean
+}
+
+/** Categorias do menu (rótulo/ícone/ordem). null em falha → fallback estático. */
+export async function fetchCategorias(): Promise<Categoria[] | null> {
+  const res = await apiFetch('/apps/categorias')
+  return res.ok ? res.json() : null
 }
 
 /** Apps que o usuário pode acessar, mapeados para o tipo App do hub. */
