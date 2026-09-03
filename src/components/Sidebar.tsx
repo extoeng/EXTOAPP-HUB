@@ -119,6 +119,15 @@ function AppGroupRow({ label, Icon, expanded, onClick }: {
 }
 
 // Cabeçalho "<- Voltar" da cascata — some a listagem raiz e volta pra ela.
+/** Rótulo de seção do menu expandido ("Categorias", "Aplicativos"). */
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <span className="px-[12px] pt-[4px] pb-[6px] font-hanken font-medium text-[11px] uppercase tracking-[0.08em] text-side-muted select-none">
+      {children}
+    </span>
+  )
+}
+
 function BackRow({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
@@ -272,12 +281,13 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, categorias,
             <NavItem
               label={openGroup.label}
               Icon={openGroup.Icon}
-              active={false}
+              active
               expanded
               centered
               onClick={() => setOpenCat(null)}
             />
             <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
+            <SectionLabel>Aplicativos</SectionLabel>
             {openGroup.items.map((app, i) => (
               <AppNavItem key={app.id} app={app} ordem={i + 1}
                 onClick={() => { setLeaving(true); onOpenApp(app.name) }} />
@@ -303,11 +313,7 @@ export function Sidebar({ activeCat, isNarrow, menuOpen, user, apps, categorias,
             {appGroups.length > 0 && (
               <>
                 <div className="my-[6px] mx-[2px] h-px bg-white/[0.06]" />
-                {isExpanded && (
-                  <span className="px-[12px] pt-[4px] pb-[6px] font-hanken font-medium text-[11px] uppercase tracking-[0.08em] text-side-muted select-none">
-                    Categorias
-                  </span>
-                )}
+                {isExpanded && <SectionLabel>Categorias</SectionLabel>}
                 {appGroups.map(g => (
                   <AppGroupRow
                     key={g.cat}
