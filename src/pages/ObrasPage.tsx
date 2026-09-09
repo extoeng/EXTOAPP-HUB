@@ -5,9 +5,9 @@ import {
   HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive, Handshake,
   Pencil, Plus, Trash2, Save, Loader2, ArrowUpDown, GripVertical,
 } from 'lucide-react'
-import { OBRAS, OBRAS_REVISAO, type Obra, type EquipeMembro } from '../data/obras'
 import {
-  fetchObras, createObra, updateObra, deleteObra, type ObraApi, type ObraPatch,
+  fetchObras, createObra, updateObra, deleteObra,
+  type Obra, type EquipeMembro, type ObraApi, type ObraPatch,
 } from '../services/obras'
 
 interface Props {
@@ -19,9 +19,9 @@ interface Props {
   initialSelectKey?: string
 }
 
-// Linha de obra usada na tela: o shape do fallback estático + os campos de
-// organização que só vêm da API (id/grupo_override/ordem). Obra de fallback
-// não tem id — por isso edição só é liberada quando os dados vêm da API.
+// Linha de obra usada na tela: o shape do `Obra` + os campos de organização
+// (id/grupo_override/ordem). Todos vêm da API — `id` é opcional só porque a
+// linha do formulário de "nova obra" ainda não tem um.
 type ObraRow = Obra & { id?: number; grupo_override?: string; ordem?: number }
 
 const ABAS = [
@@ -714,24 +714,37 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     if (alteracoes.length === 0) return
     setSalvandoOrdem(true)
     await Promise.all(alteracoes.map(({ o, novaOrdem }) => updateObra(o.id!, { ordem: novaOrdem })))
-    const rows = await fetchObras()
-    if (rows) setObras(rows)
+    const r = await fetchObras()
+    // `erro == null`, não `!r.erro`: erro 0 (falha de rede) é falsy e apagaria
+    // a lista inteira num piscar de conexão.
+    if (r.erro == null) setObras(r.obras)
     setSalvandoOrdem(false)
   }
 
-  // Dados: começa com o fallback estático; substitui pela API quando responde.
-  const [obras, setObras] = useState<ObraRow[]>(OBRAS as ObraRow[])
-  const [fromApi, setFromApi] = useState(false)
+  // Dados: só da API (o espelho estático saiu do bundle — pentest E7).
+  const [obras, setObras] = useState<ObraRow[]>([])
+  const [revisao, setRevisao] = useState('')
+  const [erro, setErro] = useState<number | null>(null)
+  const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
     let cancel = false
-    fetchObras().then(rows => {
-      if (cancel || !rows) return
-      setObras(rows)
-      setFromApi(true)
+    fetchObras().then(r => {
+      if (cancel) return
+      setObras(r.obras)
+      setRevisao(r.revisao)
+      setErro(r.erro ?? null)
+      setCarregando(false)
     })
     return () => { cancel = true }
   }, [])
+
+  // Estado vazio: erro da API tem mensagem própria (nunca lista vazia calada).
+  const vazioMsg =
+    erro === 403 ? 'Você não tem acesso aos dados das obras.'
+    : erro != null ? 'Dados das obras indisponíveis no momento.'
+    : carregando ? 'Carregando…'
+    : 'Nenhuma obra encontrada'
 
   const q = query.trim().toLowerCase()
 
@@ -752,8 +765,8 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
 
   // Após salvar (criar/editar): recarrega a lista da API pra refletir a mudança.
   async function recarregar(selecionar?: ObraApi) {
-    const rows = await fetchObras()
-    if (rows) { setObras(rows); setFromApi(true) }
+    const r = await fetchObras()
+    if (r.erro == null) { setObras(r.obras); setRevisao(r.revisao) }
     setCreating(false)
     if (selecionar) setSelectedKey(`id:${selecionar.id}`)
   }
@@ -764,8 +777,8 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     const ok = await deleteObra(o.id)
     if (ok) {
       setSelectedKey(null)
-      const rows = await fetchObras()
-      if (rows) setObras(rows)
+      const r = await fetchObras()
+      if (r.erro == null) setObras(r.obras)
     } else {
       window.alert('Não foi possível excluir. Verifique sua permissão de Administrador.')
     }
@@ -784,26 +797,24 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
         </button>
         <span className="text-border">|</span>
         <span className="font-archivo font-semibold text-[20px] text-ink">Dados das Obras</span>
-        {!fromApi && <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{OBRAS_REVISAO}</span>}
+        {revisao && <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{revisao}</span>}
         {canManage && (
           <div className="ml-auto flex items-center gap-[8px]">
-            {fromApi && (
-              <button
-                onClick={toggleReordering}
-                title="Arraste os cards pra definir a ordem de exibição dentro de cada grupo"
-                className={`inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] rounded-[10px] px-[12px] py-[7px] border cursor-pointer transition-colors ${
-                  reordering
-                    ? 'bg-accent text-white border-accent hover:opacity-90'
-                    : 'bg-surface text-text-muted border-border hover:border-border-hover'
-                }`}
-              >
-                <ArrowUpDown size={14} /> {reordering ? 'Concluir reordenação' : 'Reordenar'}
-              </button>
-            )}
+            <button
+              onClick={toggleReordering}
+              title="Arraste os cards pra definir a ordem de exibição dentro de cada grupo"
+              className={`inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] rounded-[10px] px-[12px] py-[7px] border cursor-pointer transition-colors ${
+                reordering
+                  ? 'bg-accent text-white border-accent hover:opacity-90'
+                  : 'bg-surface text-text-muted border-border hover:border-border-hover'
+              }`}
+            >
+              <ArrowUpDown size={14} /> {reordering ? 'Concluir reordenação' : 'Reordenar'}
+            </button>
             <button
               onClick={() => { setCreating(true); setSelectedKey(null) }}
-              disabled={!fromApi || reordering}
-              title={fromApi ? 'Cadastrar nova obra' : 'Indisponível offline (dados de fallback)'}
+              disabled={reordering}
+              title="Cadastrar nova obra"
               className="inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] text-white bg-accent rounded-[10px] px-[12px] py-[7px] border-none cursor-pointer hover:opacity-90 disabled:opacity-50"
             >
               <Plus size={14} /> Nova obra
@@ -848,7 +859,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
                 )}
               </div>
               <span className="font-hanken text-[12.5px] text-text-muted whitespace-nowrap">
-                {results.length} de {obras.length} obras{!fromApi && ` · fonte ${OBRAS_REVISAO}`}
+                {results.length} de {obras.length} obras{revisao && ` · fonte ${revisao}`}
               </span>
             </div>
 
@@ -869,7 +880,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
           {results.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-[12px] py-[80px] text-center text-text-faint">
               <Briefcase size={44} strokeWidth={1.2} />
-              <span className="font-hanken text-[14px]">Nenhuma obra encontrada</span>
+              <span className="font-hanken text-[14px]">{vazioMsg}</span>
               {query && (
                 <button
                   onClick={() => setQuery('')}
@@ -930,7 +941,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
         <ObraDrawer
           key={creating ? 'novo' : selectedKey ?? ''}
           obra={selected}
-          canManage={canManage && fromApi}
+          canManage={canManage}
           onClose={() => { setSelectedKey(null); setCreating(false) }}
           onSaved={(o) => recarregar(o)}
           onDelete={excluir}
