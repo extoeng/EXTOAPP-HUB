@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { APPS, CATEGORIAS_FALLBACK, agruparPorCategoria, RECENT_IDS, DEFAULT_FAVS } from './data/apps'
 import { COMUNICADOS } from './data/comunicados'
 import { MANUAIS } from './data/manuais'
-import { OBRAS, type Obra } from './data/obras'
 import type { ActiveCat, App as AppType, Categoria, Evento, LibraryDoc, SearchResult } from './types'
 import type { AuthUser } from './services/auth'
 import { getMe, fetchApps, fetchCategorias, getSatelliteCode, exchangeCode, logout as apiLogout } from './services/auth'
@@ -10,7 +9,7 @@ import { getToken, setToken, goToLogin, tryRefresh } from './services/api'
 import { fetchFavoritos, addFavorito, removeFavorito } from './services/favoritos'
 import { fetchDocuments } from './services/documents'
 import { fetchEventos, setRsvp } from './services/eventos'
-import { fetchObras } from './services/obras'
+import { fetchObras, type Obra } from './services/obras'
 import { fetchDiretorio, type ContatoPessoa } from './services/diretorio'
 import coverUrl from './assets/perfil-sede.webp'
 import { eventoFuturo } from './utils/eventoData'
@@ -67,6 +66,8 @@ const DEV_MOCK_APPS: AppType[] = [
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [restoring, setRestoring] = useState(true)
+  // Redirect direto descartado (app único não é SSO/externo) → mostra o HUB.
+  const [semRedirect, setSemRedirect] = useState(false)
 
   useEffect(() => {
     async function restaurarSessao() {
@@ -129,15 +130,17 @@ export default function App() {
     return <SemSessao />
   }
 
-  const directTarget = DIRECT_APP_BY_EMAIL[user.email.trim().toLowerCase()]
-  const hasDirectAppAccess =
-    directTarget && (user.apps[directTarget.appSlug] ?? []).length > 0
+  // Quem tem acesso a exatamente UM app não precisa ver o grid do HUB: vai
+  // direto pra ele, se for app com SSO e URL externa (senão cai no HUB).
+  // Substitui o mapa fixo e-mail→app, que vazava e-mail no bundle (pentest E7).
+  const appSlugs = Object.keys(user.apps)
   const hasReturnTo = new URLSearchParams(window.location.search).has('return_to')
 
-  if (directTarget && hasDirectAppAccess && !hasReturnTo) {
+  if (appSlugs.length === 1 && !semRedirect && !hasReturnTo) {
     return (
       <DirectAppRedirect
-        target={directTarget}
+        appSlug={appSlugs[0]}
+        onAbort={() => setSemRedirect(true)}
         onSessionExpired={handleSessionExpired}
       />
     )
@@ -194,31 +197,21 @@ type Page =
 const PAGE_STORAGE_KEY = 'exto_hub_page'
 
 
-// INÍCIO — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
+// INÍCIO — REDIRECIONAMENTO DIRETO PARA APP ÚNICO
 //
-// Para desativar/remover esta regra, apague:
-// 1. este bloco DIRECT_APP_BY_EMAIL;
-// 2. o componente DirectAppRedirect abaixo;
-// 3. o bloco de decisão marcado dentro de App, antes de renderizar <Hub>.
+// Para desativar/remover esta regra, apague este componente e o bloco de
+// decisão marcado dentro de App, antes de renderizar <Hub>.
 //
-// O usuário só é direcionado se também tiver permissão para o app em user.apps.
-interface DirectAppTarget {
-  appSlug: string
-  url: string
-}
-
-const DIRECT_APP_BY_EMAIL: Record<string, DirectAppTarget> = {
-  'fabio.chaves@exto.com.br': {
-    appSlug: 'relatorio-seg-trab',
-    url: 'https://relatorioseg.extoapp.com.br',
-  },
-}
-
+// Sem lista de e-mails: o alvo vem do catálogo do próprio usuário (/apps).
+// `onAbort` = o app único não serve pra redirect (sem SSO ou sem URL
+// externa, ex.: app interno do hub) → App volta a renderizar o grid.
 function DirectAppRedirect({
-  target,
+  appSlug,
+  onAbort,
   onSessionExpired,
 }: {
-  target: DirectAppTarget
+  appSlug: string
+  onAbort: () => void
   onSessionExpired: () => void
 }) {
   const startedRef = useRef(false)
@@ -227,23 +220,29 @@ function DirectAppRedirect({
     if (startedRef.current) return
     startedRef.current = true
 
-    getSatelliteCode(target.appSlug)
-      .then(code => {
+    fetchApps()
+      .then(async apps => {
+        const alvo = apps?.find(a => a.id === appSlug)
+        if (!alvo?.ssoEnabled || !alvo.url) {
+          onAbort()
+          return
+        }
+
+        const code = await getSatelliteCode(appSlug)
         if (!code) {
           onSessionExpired()
           return
         }
 
-        const separator = target.url.includes('?') ? '&' : '?'
-        const destination = `${target.url}${separator}code=${encodeURIComponent(code)}`
-        window.location.replace(destination)
+        const separator = alvo.url.includes('?') ? '&' : '?'
+        window.location.replace(`${alvo.url}${separator}code=${encodeURIComponent(code)}`)
       })
       .catch(onSessionExpired)
-  }, [target, onSessionExpired])
+  }, [appSlug, onAbort, onSessionExpired])
 
   return <div className="h-screen bg-bg-app flex items-center justify-center"><LoadingBars /></div>
 }
-// FIM — REDIRECIONAMENTO PROVISÓRIO POR USUÁRIO
+// FIM — REDIRECIONAMENTO DIRETO PARA APP ÚNICO
 
 function loadStoredPage(): Page {
   // Deep-link vindo da cascata dos satélites: ?page=perfil abre o Meu Perfil
@@ -376,9 +375,9 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
 
   // Obras/Contatos pra busca global do Header — só busca pra quem tem acesso
   // (mesma capability que já decide a visibilidade do atalho, ver
-  // hasObras/hasRamais abaixo). Fallback estático (OBRAS) enquanto a API não
-  // responde, mesmo padrão do allApps.
-  const [obrasSearch, setObrasSearch] = useState<Obra[]>(OBRAS)
+  // hasObras/hasRamais abaixo). Começa vazio: os dados só vêm da API (não há
+  // mais espelho estático no bundle) — sem obras, a busca global não acha obra.
+  const [obrasSearch, setObrasSearch] = useState<Obra[]>([])
   const [contatosSearch, setContatosSearch] = useState<ContatoPessoa[]>([])
 
   // Aquece o cache do navegador pro plano de fundo do Perfil — sem isso, só
@@ -522,7 +521,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // acesso, mesmo critério de hasObras/hasRamais acima.
   useEffect(() => {
     if (!hasObras) return
-    fetchObras().then(list => { if (list && list.length) setObrasSearch(list) })
+    fetchObras().then(r => setObrasSearch(r.obras))
   }, [hasObras])
   useEffect(() => {
     if (!hasRamais) return
