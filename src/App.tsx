@@ -222,7 +222,14 @@ function DirectAppRedirect({
 
     fetchApps()
       .then(async apps => {
-        const alvo = apps?.find(a => a.id === appSlug)
+        // apps === null = /apps recusou (401/sessão morta) — não é "app sem
+        // SSO": aborta pro grid só quando a lista veio de verdade.
+        if (!apps) {
+          onSessionExpired()
+          return
+        }
+
+        const alvo = apps.find(a => a.id === appSlug)
         if (!alvo?.ssoEnabled || !alvo.url) {
           onAbort()
           return
@@ -521,7 +528,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // acesso, mesmo critério de hasObras/hasRamais acima.
   useEffect(() => {
     if (!hasObras) return
-    fetchObras().then(r => setObrasSearch(r.obras))
+    fetchObras().then(r => { if (r.erro == null) setObrasSearch(r.obras) })
   }, [hasObras])
   useEffect(() => {
     if (!hasRamais) return

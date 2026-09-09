@@ -715,7 +715,9 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     setSalvandoOrdem(true)
     await Promise.all(alteracoes.map(({ o, novaOrdem }) => updateObra(o.id!, { ordem: novaOrdem })))
     const r = await fetchObras()
-    if (!r.erro) setObras(r.obras)
+    // `erro == null`, não `!r.erro`: erro 0 (falha de rede) é falsy e apagaria
+    // a lista inteira num piscar de conexão.
+    if (r.erro == null) setObras(r.obras)
     setSalvandoOrdem(false)
   }
 
@@ -764,7 +766,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   // Após salvar (criar/editar): recarrega a lista da API pra refletir a mudança.
   async function recarregar(selecionar?: ObraApi) {
     const r = await fetchObras()
-    if (!r.erro) { setObras(r.obras); setRevisao(r.revisao) }
+    if (r.erro == null) { setObras(r.obras); setRevisao(r.revisao) }
     setCreating(false)
     if (selecionar) setSelectedKey(`id:${selecionar.id}`)
   }
@@ -776,7 +778,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     if (ok) {
       setSelectedKey(null)
       const r = await fetchObras()
-      if (!r.erro) setObras(r.obras)
+      if (r.erro == null) setObras(r.obras)
     } else {
       window.alert('Não foi possível excluir. Verifique sua permissão de Administrador.')
     }
