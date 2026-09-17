@@ -3,9 +3,19 @@ import {
   ArrowLeft, Search, Building2, MapPin, FileText, Phone, Mail,
   Users, Copy, Check, Hash, Briefcase, X, ChevronRight,
   HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive, Handshake,
-  Pencil, Plus, Trash2, Save, Loader2,
+  Pencil, Plus, Trash2, Save, Loader2, UserPlus, UserMinus,
 } from 'lucide-react'
-import { fetchObras, updateObra, type Obra, type EquipeMembro, type ObraApi, type ObraPatch } from '../services/obras'
+import {
+  fetchObras, updateObra, fetchEquipeObra, criarAlocacaoObra, encerrarAlocacaoObra,
+  buscarColaboradoresElegiveis,
+  type Obra, type EquipeMembro, type ObraApi, type ObraPatch, type AlocacaoObra, type ColaboradorElegivel,
+} from '../services/obras'
+
+// dd/mm/aaaa a partir de um `YYYY-MM-DD` — `T00:00:00` evita o fuso horário
+// jogar a data um dia pra trás.
+function formatDataBr(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR')
+}
 
 interface Props {
   onBack: () => void
@@ -226,7 +236,6 @@ function SectionTitle({ Icon, children }: { Icon: React.ElementType; children: R
 function ObraDetail({ obra }: { obra: ObraRow }) {
   const docs = Object.entries(obra.documentos)
   const ends = Object.entries(obra.enderecos)
-  const equipe = obra.equipe.filter(e => e.nome)
   const tels = obra.telefones.filter(Boolean)
 
   return (
@@ -268,33 +277,6 @@ function ObraDetail({ obra }: { obra: ObraRow }) {
             {tels.map((t, i) => (
               <Field key={i} label={i === 0 ? 'Telefone' : ''} value={t} copyable />
             ))}
-          </>
-        )}
-
-        {equipe.length > 0 && (
-          <>
-            <SectionTitle Icon={Users}>Equipe de obra</SectionTitle>
-            <div className="rounded-[12px] border border-border overflow-hidden">
-              {equipe.map((e, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-[12px] px-[14px] py-[10px] ${i > 0 ? 'border-t border-border' : ''}`}
-                >
-                  <div className="flex-shrink-0 w-[32px] h-[32px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[12px]">
-                    {(e.nome[0] || '?').toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-hanken font-medium text-[13px] text-ink truncate">{e.nome}</div>
-                    {e.cargo && <div className="font-hanken text-[11.5px] text-text-faint">{e.cargo}</div>}
-                  </div>
-                  {e.telefone && (
-                    <a href={`tel:${e.telefone}`} className="flex-shrink-0 inline-flex items-center gap-[5px] font-hanken text-[12.5px] text-text-muted no-underline hover:text-accent transition-colors">
-                      <Phone size={12} strokeWidth={1.8} />{e.telefone}
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
           </>
         )}
       </div>
@@ -440,6 +422,145 @@ function ObraEditForm({ obra, onCancel, onSaved }: {
   )
 }
 
+// ── Aba Equipe (mesma tabela `spe.AlocacaoSpe` da aba Equipe do painel-admin,
+// exposta aqui sob a capability `obras` — ver services/obras.ts) ──────────────
+function EquipeObraTab({ speId, podeGerenciar }: { speId: string; podeGerenciar: boolean }) {
+  const [equipe, setEquipe] = useState<AlocacaoObra[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    let cancel = false
+    setCarregando(true)
+    fetchEquipeObra(speId).then(lista => {
+      if (cancel) return
+      setEquipe(lista)
+      setCarregando(false)
+    })
+    return () => { cancel = true }
+  }, [speId, tick])
+
+  async function encerrar(a: AlocacaoObra) {
+    const ok = await encerrarAlocacaoObra(a.id, new Date().toISOString().slice(0, 10))
+    if (ok) setTick(t => t + 1)
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+      <div className="px-[28px] py-[20px] flex flex-col gap-[14px]">
+        {carregando ? (
+          <div className="font-hanken text-[13px] text-text-faint">Carregando…</div>
+        ) : equipe.length === 0 ? (
+          <div className="rounded-[12px] border border-dashed border-border px-[14px] py-[16px] font-hanken text-[12.5px] text-text-faint text-center">
+            Nenhum colaborador alocado nesta obra.
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-[8px]">
+            {equipe.map(a => (
+              <li key={a.id} className="flex items-center justify-between gap-[10px] bg-tile-bg rounded-[10px] px-[12px] py-[9px]">
+                <div className="min-w-0">
+                  <div className="font-hanken font-medium text-[13.5px] text-ink truncate">{a.colaborador_nome}</div>
+                  <div className="font-hanken text-[11.5px] text-text-faint truncate">
+                    {a.cargo || 'Sem cargo'} · desde {formatDataBr(a.data_inicio)}
+                  </div>
+                </div>
+                {podeGerenciar && (
+                  <button onClick={() => encerrar(a)} title="Remover da equipe"
+                    className="flex-shrink-0 inline-flex items-center justify-center w-[28px] h-[28px] rounded-[8px] border-none bg-transparent cursor-pointer text-text-faint hover:text-accent hover:bg-border/60">
+                    <UserMinus size={15} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {podeGerenciar && <AdicionarNaEquipeObra speId={speId} onAdicionado={() => setTick(t => t + 1)} />}
+      </div>
+    </div>
+  )
+}
+
+function AdicionarNaEquipeObra({ speId, onAdicionado }: { speId: string; onAdicionado: () => void }) {
+  const [busca, setBusca] = useState('')
+  const [resultados, setResultados] = useState<ColaboradorElegivel[]>([])
+  const [buscando, setBuscando] = useState(false)
+  const [selecionado, setSelecionado] = useState<ColaboradorElegivel | null>(null)
+  const [dataInicio, setDataInicio] = useState(() => new Date().toISOString().slice(0, 10))
+  const [adicionando, setAdicionando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (selecionado || busca.trim().length < 2) { setResultados([]); return }
+    let cancel = false
+    setBuscando(true)
+    const timer = setTimeout(() => {
+      buscarColaboradoresElegiveis(busca)
+        .then(r => { if (!cancel) setResultados(r) })
+        .finally(() => { if (!cancel) setBuscando(false) })
+    }, 300)
+    return () => { cancel = true; clearTimeout(timer) }
+  }, [busca, selecionado])
+
+  async function adicionar() {
+    if (!selecionado) return
+    setErro(null); setAdicionando(true)
+    const criado = await criarAlocacaoObra(speId, { vinculo_id: selecionado.vinculo_id, data_inicio: dataInicio })
+    setAdicionando(false)
+    if (!criado) { setErro('Não foi possível adicionar. Verifique sua permissão de Administrador.'); return }
+    setSelecionado(null); setBusca('')
+    onAdicionado()
+  }
+
+  return (
+    <div className="border-t border-border pt-[14px] flex flex-col gap-[10px]">
+      <label className="flex flex-col gap-[4px]">
+        <Rotulo>Adicionar colaborador</Rotulo>
+        <Input
+          value={selecionado ? selecionado.nome : busca}
+          onChange={v => { setSelecionado(null); setBusca(v) }}
+          placeholder="Buscar por nome ou e-mail…"
+        />
+      </label>
+
+      {!selecionado && busca.trim().length >= 2 && (
+        <div className="flex flex-col gap-[4px] max-h-[140px] overflow-y-auto">
+          {buscando ? (
+            <div className="font-hanken text-[12.5px] text-text-faint px-[4px]">Buscando…</div>
+          ) : resultados.length === 0 ? (
+            <div className="font-hanken text-[12.5px] text-text-faint px-[4px]">Nenhum colaborador com vínculo ativo encontrado.</div>
+          ) : resultados.map(c => (
+            <button
+              key={c.vinculo_id} type="button" onClick={() => setSelecionado(c)}
+              className="text-left px-[10px] py-[6px] rounded-[8px] hover:bg-tile-bg bg-transparent border-none cursor-pointer font-hanken text-[13px] text-ink"
+            >
+              {c.nome} <span className="text-text-faint">— {c.email}{c.cargo ? ` · ${c.cargo}` : ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selecionado && (
+        <div className="flex items-end gap-[10px]">
+          <label className="flex flex-col gap-[4px] flex-1">
+            <Rotulo>Alocado(a) desde</Rotulo>
+            <input
+              type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+              className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover"
+            />
+          </label>
+          <button onClick={adicionar} disabled={adicionando}
+            className="inline-flex items-center gap-[6px] font-hanken font-medium text-[13px] text-white bg-accent rounded-[10px] px-[14px] py-[8px] border-none cursor-pointer hover:opacity-90 disabled:opacity-60">
+            {adicionando ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />} Adicionar
+          </button>
+        </div>
+      )}
+
+      {erro && <div className="font-hanken text-[12.5px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[9px] px-[12px] py-[9px]">{erro}</div>}
+    </div>
+  )
+}
+
 // ── Cartão da grade ──────────────────────────────────────────────────────────
 function ObraCard({ obra, meta, onOpen }: { obra: ObraRow; meta: CategoriaMeta; onOpen: () => void }) {
   const cnpj = obra.documentos['CNPJ'] || ''
@@ -537,10 +658,9 @@ function ObraCard({ obra, meta, onOpen }: { obra: ObraRow; meta: CategoriaMeta; 
   )
 }
 
-// ── Gaveta lateral (detalhe ou edição dos campos manuais) ─────────────────────
-// Edição (2026-09-17): só os campos manuais de `ObraInfo` (ver
-// `ObraEditForm`) — nome/fantasia/CNPJ vêm do Mega e equipe vem de
-// `spe.AlocacaoSpe`, nunca editáveis aqui, mesmo com a capability `manage`
+// ── Gaveta lateral: abas "Dados" (detalhe/edição dos campos manuais) e
+// "Equipe" (spe.AlocacaoSpe) — mesmo desenho da tela SPE do painel-admin. ─────
+// Nome/fantasia/CNPJ vêm do Mega, nunca editáveis aqui, mesmo com `manage`
 // (o backend rejeita com 403 quem não tem `manage`, e o serializer de
 // escrita nem aceita esses campos — ver `ObraInfoUpdateSerializer` no
 // NEXUS). Sem criar/excluir obra: toda obra tem que se ligar a uma `spe.Spe`
@@ -551,6 +671,7 @@ function ObraDrawer({ obra, canManage, onClose, onSaved }: {
   onClose: () => void
   onSaved: (o: ObraApi) => void
 }) {
+  const [aba, setAba] = useState<'dados' | 'equipe'>('dados')
   const [editando, setEditando] = useState(false)
   const podeEditar = canManage && obra.id != null
 
@@ -593,7 +714,7 @@ function ObraDrawer({ obra, canManage, onClose, onSaved }: {
             })()}
           </div>
 
-          {podeEditar && !editando && (
+          {aba === 'dados' && podeEditar && !editando && (
             <button onClick={() => setEditando(true)} title="Editar dados manuais da obra"
               className="flex-shrink-0 inline-flex items-center gap-[5px] font-hanken font-medium text-[12.5px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[9px] px-[10px] py-[6px] border-none cursor-pointer hover:bg-[rgba(179,28,28,0.14)]">
               <Pencil size={13} /> Editar
@@ -605,10 +726,30 @@ function ObraDrawer({ obra, canManage, onClose, onSaved }: {
           </button>
         </div>
 
-        {editando
-          ? <ObraEditForm obra={obra} onCancel={() => setEditando(false)}
-              onSaved={(o) => { setEditando(false); onSaved(o) }} />
-          : <ObraDetail obra={obra} />}
+        {!editando && (
+          <div className="flex items-center gap-[4px] px-[28px] pt-[12px] border-b border-border flex-shrink-0">
+            {(['dados', 'equipe'] as const).map(a => (
+              <button
+                key={a}
+                onClick={() => setAba(a)}
+                className={`font-hanken font-medium text-[13px] px-[4px] pb-[10px] border-0 border-b-2 bg-transparent cursor-pointer transition-colors ${
+                  aba === a ? 'text-accent border-accent' : 'text-text-muted border-transparent hover:text-ink'
+                }`}
+              >
+                {a === 'dados' ? 'Dados' : 'Equipe'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {editando ? (
+          <ObraEditForm obra={obra} onCancel={() => setEditando(false)}
+            onSaved={(o) => { setEditando(false); onSaved(o) }} />
+        ) : aba === 'equipe' ? (
+          obra.id != null && <EquipeObraTab speId={obra.id} podeGerenciar={canManage} />
+        ) : (
+          <ObraDetail obra={obra} />
+        )}
       </div>
     </div>
   )
