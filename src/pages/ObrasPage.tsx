@@ -1,20 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft, Search, Building2, MapPin, FileText, Phone, Mail,
   Users, Copy, Check, Hash, Briefcase, X, ChevronRight,
   HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive, Handshake,
-  Pencil, Plus, Trash2, Save, Loader2, ArrowUpDown, GripVertical,
 } from 'lucide-react'
-import {
-  fetchObras, createObra, updateObra, deleteObra,
-  type Obra, type EquipeMembro, type ObraApi, type ObraPatch,
-} from '../services/obras'
+import { fetchObras, type Obra, type EquipeMembro } from '../services/obras'
 
 interface Props {
   onBack: () => void
-  // Só quem tem a capability `manage` ("Administrador") no app `obras` vê os
-  // controles de edição. O backend é a barreira real (403); isto só esconde a UI.
-  canManage?: boolean
   /** Abre direto o card desta obra (ver `rowKey`) — usado pela busca global do Header. */
   initialSelectKey?: string
 }
@@ -105,12 +98,8 @@ function categoriaMeta(categoria: string): CategoriaMeta {
   return CATEGORIA_META[categoria] || CATEGORIA_PADRAO
 }
 
-// Grupos oferecidos no editor (reenquadrar uma obra) — derivados do CATEGORIA_META.
-const GRUPO_OPTIONS = Object.entries(CATEGORIA_META).map(([value, meta]) => ({ value, label: meta.label }))
-
-// Curadoria de exibição legada (só para o fallback estático, que não tem o
-// campo `grupo_override` por obra). Quando os dados vêm da API, quem manda é
-// o `grupo_override` gravado na própria obra (editável pelo Painel Admin).
+// Curadoria de exibição legada (usada só se `grupo_override` vier vazio).
+// `grupo_override`/`ordem` só são ajustáveis via Django admin (`obras.ObraInfo`).
 const GRUPO_OVERRIDE: Record<string, string> = {
   'Casa Viva': 'PARCEIROS',
   'GR8': 'PARCEIROS',
@@ -296,204 +285,8 @@ function ObraDetail({ obra }: { obra: ObraRow }) {
   )
 }
 
-// ── Editor da obra (dados + organização/layout) ───────────────────────────────
-// Inputs simples e reutilizáveis (a tela não usa um kit de UI compartilhado).
-function Input({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <input
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint"
-    />
-  )
-}
-
-function Rotulo({ children }: { children: React.ReactNode }) {
-  return <span className="font-hanken font-medium text-[11.5px] text-label">{children}</span>
-}
-
-// Editor de mapa chave→valor (documentos, endereços): linhas com chave+valor.
-function MapaEditor({ obj, onChange }: { obj: Record<string, string>; onChange: (o: Record<string, string>) => void }) {
-  const rows = Object.entries(obj)
-  const set = (i: number, k: string, v: string) => {
-    const next = rows.slice()
-    next[i] = [k, v]
-    onChange(Object.fromEntries(next.filter(([kk]) => kk.trim())))
-  }
-  const add = () => onChange({ ...obj, '': '' })
-  const del = (i: number) => onChange(Object.fromEntries(rows.filter((_, j) => j !== i)))
-  return (
-    <div className="flex flex-col gap-[6px]">
-      {rows.map(([k, v], i) => (
-        <div key={i} className="flex items-center gap-[6px]">
-          <div className="w-[110px] flex-shrink-0"><Input value={k} onChange={nk => set(i, nk, v)} placeholder="Rótulo" /></div>
-          <div className="flex-1"><Input value={v} onChange={nv => set(i, k, nv)} placeholder="Valor" /></div>
-          <button onClick={() => del(i)} title="Remover" className="flex-shrink-0 w-[28px] h-[28px] inline-flex items-center justify-center rounded-[8px] text-text-faint hover:text-accent hover:bg-tile-bg">
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ))}
-      <button onClick={add} className="self-start inline-flex items-center gap-[5px] font-hanken text-[12px] text-accent hover:underline bg-transparent border-none cursor-pointer p-0">
-        <Plus size={13} /> Adicionar
-      </button>
-    </div>
-  )
-}
-
-// Editor de lista de telefones.
-function TelefonesEditor({ tels, onChange }: { tels: string[]; onChange: (t: string[]) => void }) {
-  const set = (i: number, v: string) => { const n = tels.slice(); n[i] = v; onChange(n) }
-  return (
-    <div className="flex flex-col gap-[6px]">
-      {tels.map((t, i) => (
-        <div key={i} className="flex items-center gap-[6px]">
-          <div className="flex-1"><Input value={t} onChange={v => set(i, v)} placeholder="Telefone" /></div>
-          <button onClick={() => onChange(tels.filter((_, j) => j !== i))} title="Remover" className="flex-shrink-0 w-[28px] h-[28px] inline-flex items-center justify-center rounded-[8px] text-text-faint hover:text-accent hover:bg-tile-bg">
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ))}
-      <button onClick={() => onChange([...tels, ''])} className="self-start inline-flex items-center gap-[5px] font-hanken text-[12px] text-accent hover:underline bg-transparent border-none cursor-pointer p-0">
-        <Plus size={13} /> Adicionar telefone
-      </button>
-    </div>
-  )
-}
-
-// Editor da equipe (cargo/nome/telefone).
-function EquipeEditor({ equipe, onChange }: { equipe: EquipeMembro[]; onChange: (e: EquipeMembro[]) => void }) {
-  const set = (i: number, patch: Partial<EquipeMembro>) => {
-    const n = equipe.slice(); n[i] = { ...n[i], ...patch }; onChange(n)
-  }
-  return (
-    <div className="flex flex-col gap-[8px]">
-      {equipe.map((m, i) => (
-        <div key={i} className="flex items-center gap-[6px]">
-          <div className="w-[120px] flex-shrink-0"><Input value={m.cargo} onChange={v => set(i, { cargo: v })} placeholder="Cargo" /></div>
-          <div className="flex-1"><Input value={m.nome} onChange={v => set(i, { nome: v })} placeholder="Nome" /></div>
-          <div className="w-[120px] flex-shrink-0"><Input value={m.telefone} onChange={v => set(i, { telefone: v })} placeholder="Telefone" /></div>
-          <button onClick={() => onChange(equipe.filter((_, j) => j !== i))} title="Remover" className="flex-shrink-0 w-[28px] h-[28px] inline-flex items-center justify-center rounded-[8px] text-text-faint hover:text-accent hover:bg-tile-bg">
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ))}
-      <button onClick={() => onChange([...equipe, { cargo: '', nome: '', telefone: '' }])} className="self-start inline-flex items-center gap-[5px] font-hanken text-[12px] text-accent hover:underline bg-transparent border-none cursor-pointer p-0">
-        <Plus size={13} /> Adicionar membro
-      </button>
-    </div>
-  )
-}
-
-const OBRA_VAZIA: ObraRow = {
-  nome: '', numero: '', organizacao: '', categoria: 'OBRAS EM ANDAMENTO', aba: 'Geral / Sedes',
-  documentos: {}, enderecos: {}, email: '', telefones: [], equipe: [], grupo_override: '', ordem: 0,
-}
-
-function ObraEditForm({ obra, onCancel, onSaved, onDeleted }: {
-  obra: ObraRow
-  onCancel: () => void
-  onSaved: (o: ObraApi) => void
-  onDeleted?: (o: ObraRow) => void
-}) {
-  const criando = obra.id == null
-  const [f, setF] = useState<ObraRow>(() => ({ ...OBRA_VAZIA, ...obra }))
-  const [salvando, setSalvando] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
-  const set = (patch: Partial<ObraRow>) => setF(prev => ({ ...prev, ...patch }))
-
-  async function salvar() {
-    if (!f.nome.trim()) { setErro('O nome da obra é obrigatório.'); return }
-    setErro(null); setSalvando(true)
-    const patch: ObraPatch = {
-      nome: f.nome, numero: f.numero, organizacao: f.organizacao, email: f.email,
-      categoria: f.categoria, aba: f.aba, grupo_override: f.grupo_override ?? '', ordem: f.ordem ?? 0,
-      documentos: f.documentos, enderecos: f.enderecos, telefones: f.telefones, equipe: f.equipe,
-    }
-    const saved = criando ? await createObra(patch) : await updateObra(obra.id!, patch)
-    setSalvando(false)
-    if (!saved) { setErro('Não foi possível salvar. Verifique sua permissão de Administrador e tente de novo.'); return }
-    onSaved(saved)
-  }
-
-  return (
-    <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-      <div className="px-[28px] py-[20px] flex flex-col gap-[16px]">
-        {/* Identidade */}
-        <div className="grid grid-cols-2 gap-[10px]">
-          <label className="col-span-2 flex flex-col gap-[4px]"><Rotulo>Nome da obra *</Rotulo><Input value={f.nome} onChange={v => set({ nome: v })} placeholder="Nome" /></label>
-          <label className="flex flex-col gap-[4px]"><Rotulo>Número</Rotulo><Input value={f.numero} onChange={v => set({ numero: v })} /></label>
-          <label className="flex flex-col gap-[4px]"><Rotulo>E-mail</Rotulo><Input value={f.email} onChange={v => set({ email: v })} /></label>
-          <label className="col-span-2 flex flex-col gap-[4px]"><Rotulo>Razão social</Rotulo><Input value={f.organizacao} onChange={v => set({ organizacao: v })} /></label>
-        </div>
-
-        {/* Organização / layout */}
-        <div className="rounded-[12px] border border-border bg-tile-bg/40 p-[12px] flex flex-col gap-[10px]">
-          <div className="flex items-center gap-[7px]"><Building2 size={13} className="text-accent" /><span className="font-archivo font-semibold text-[11.5px] uppercase tracking-[0.05em] text-label">Organização na tela</span></div>
-          <div className="grid grid-cols-2 gap-[10px]">
-            <label className="flex flex-col gap-[4px]">
-              <Rotulo>Grupo exibido</Rotulo>
-              <select value={f.grupo_override || ''} onChange={e => set({ grupo_override: e.target.value })}
-                className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover">
-                <option value="">(usar categoria da planilha)</option>
-                {GRUPO_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-[4px]"><Rotulo>Ordem no grupo</Rotulo><Input value={String(f.ordem ?? 0)} onChange={v => set({ ordem: Number(v.replace(/\D/g, '')) || 0 })} /></label>
-            <label className="col-span-2 flex flex-col gap-[4px]">
-              <Rotulo>Aba</Rotulo>
-              <select value={f.aba || ''} onChange={e => set({ aba: e.target.value })}
-                className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover">
-                {ABAS.map(a => <option key={a} value={a}>{a}</option>)}
-                {f.aba && !ABAS.includes(f.aba as typeof ABAS[number]) && <option value={f.aba}>{f.aba}</option>}
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-[6px]"><Rotulo>Documentos</Rotulo><MapaEditor obj={f.documentos} onChange={d => set({ documentos: d })} /></div>
-        <div className="flex flex-col gap-[6px]"><Rotulo>Endereços</Rotulo><MapaEditor obj={f.enderecos} onChange={d => set({ enderecos: d })} /></div>
-        <div className="flex flex-col gap-[6px]"><Rotulo>Telefones</Rotulo><TelefonesEditor tels={f.telefones} onChange={t => set({ telefones: t })} /></div>
-        <div className="flex flex-col gap-[6px]"><Rotulo>Equipe de obra</Rotulo><EquipeEditor equipe={f.equipe} onChange={e => set({ equipe: e })} /></div>
-
-        {erro && <div className="font-hanken text-[12.5px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[9px] px-[12px] py-[9px]">{erro}</div>}
-
-        <div className="flex items-center gap-[10px] pt-[4px]">
-          <button onClick={salvar} disabled={salvando}
-            className="inline-flex items-center gap-[6px] font-hanken font-medium text-[13px] text-white bg-accent rounded-[10px] px-[14px] py-[8px] border-none cursor-pointer hover:opacity-90 disabled:opacity-60">
-            {salvando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{criando ? 'Criar obra' : 'Salvar alterações'}
-          </button>
-          <button onClick={onCancel} disabled={salvando}
-            className="font-hanken font-medium text-[13px] text-text-muted bg-surface border border-border rounded-[10px] px-[14px] py-[8px] cursor-pointer hover:border-border-hover">
-            Cancelar
-          </button>
-          {!criando && onDeleted && (
-            <button onClick={() => onDeleted(obra)} disabled={salvando} title="Excluir obra"
-              className="ml-auto inline-flex items-center gap-[6px] font-hanken font-medium text-[13px] text-accent bg-transparent border-none cursor-pointer hover:underline">
-              <Trash2 size={14} /> Excluir
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Cartão da grade ──────────────────────────────────────────────────────────
-// Modo de reordenação: o card vira "alça de arraste" inteira (onOpen fica
-// desligado) — soltar sobre outro card do MESMO grupo troca a posição entre
-// eles; ver handleDrop em ObrasPage (persiste `ordem` sequencial via PATCH).
-function ObraCard({ obra, meta, onOpen, reordering, isDragOver, onDragStart, onDragOverCard, onDropCard, onDragEndCard }: {
-  obra: ObraRow
-  meta: CategoriaMeta
-  onOpen: () => void
-  reordering?: boolean
-  isDragOver?: boolean
-  onDragStart?: () => void
-  onDragOverCard?: (e: React.DragEvent) => void
-  onDropCard?: () => void
-  onDragEndCard?: () => void
-}) {
+function ObraCard({ obra, meta, onOpen }: { obra: ObraRow; meta: CategoriaMeta; onOpen: () => void }) {
   const cnpj = obra.documentos['CNPJ'] || ''
   const tel = obra.telefones.filter(Boolean)[0] || ''
   const endereco = enderecoPrincipal(obra)
@@ -502,23 +295,9 @@ function ObraCard({ obra, meta, onOpen, reordering, isDragOver, onDragStart, onD
 
   return (
     <button
-      onClick={reordering ? undefined : onOpen}
-      draggable={reordering}
-      onDragStart={onDragStart}
-      onDragOver={e => { e.preventDefault(); onDragOverCard?.(e) }}
-      onDrop={e => { e.preventDefault(); onDropCard?.() }}
-      onDragEnd={onDragEndCard}
-      className={`group relative text-left flex flex-col bg-surface border rounded-[14px] p-[16px] transition-all duration-150 ease-out overflow-hidden ${
-        reordering
-          ? `cursor-grab active:cursor-grabbing ${isDragOver ? 'border-accent border-2' : 'border-border'}`
-          : 'cursor-pointer border-border hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]'
-      }`}
+      onClick={onOpen}
+      className="group relative text-left flex flex-col bg-surface border rounded-[14px] p-[16px] transition-all duration-150 ease-out overflow-hidden cursor-pointer border-border hover:border-border-hover hover:shadow-chip-hover hover:-translate-y-[2px]"
     >
-      {reordering && (
-        <div className="absolute top-[12px] right-[12px] text-text-faint">
-          <GripVertical size={16} />
-        </div>
-      )}
       {/* Barra de categoria — reforça a diferenciação mesmo sem ler o selo */}
       <div className="h-[4px] w-full -mt-[16px] -mx-[16px] mb-[13px]" style={{ background: meta.color }} />
 
@@ -603,28 +382,25 @@ function ObraCard({ obra, meta, onOpen, reordering, isDragOver, onDragStart, onD
   )
 }
 
-// ── Gaveta lateral (detalhe ou edição) ────────────────────────────────────────
-function ObraDrawer({ obra, canManage, onClose, onSaved, onDelete }: {
-  obra: ObraRow
-  canManage: boolean
-  onClose: () => void
-  onSaved: (o: ObraApi) => void
-  onDelete: (o: ObraRow) => void
-}) {
-  const criando = obra.id == null && obra.nome === ''
-  const [editando, setEditando] = useState(criando)
-  // Edição só é possível em obra vinda da API (tem id). Fallback estático não edita.
-  const podeEditar = canManage && (obra.id != null || criando)
-
+// ── Gaveta lateral (detalhe, só leitura) ──────────────────────────────────────
+// "Dados das Obras" é só leitura no Hub de propósito (2026-09-17): os dados
+// vêm de spe.Spe (sincronizado do Mega — corrigir lá) e de spe.AlocacaoSpe
+// (equipe, gerenciada no Painel Administrativo). O backend (`obras/views.py`
+// no NEXUS) só expõe GET — não existe mais PATCH/POST/DELETE pra ObraInfo
+// fora do Django admin, então qualquer edição por aqui só confundia (dava
+// erro silencioso ou parecia "sem permissão" quando o endpoint nunca
+// existiu). Editor completo (criar/editar/excluir/reordenar) removido — ver
+// histórico deste arquivo se precisar recuperar a implementação antiga.
+function ObraDrawer({ obra, onClose }: { obra: ObraRow; onClose: () => void }) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !editando) onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, editando])
+  }, [onClose])
 
   return (
     <div className="absolute inset-0 z-[40] flex justify-end">
-      <div className="absolute inset-0 bg-[rgba(22,20,18,0.35)] animate-ex-float" onClick={editando ? undefined : onClose} />
+      <div className="absolute inset-0 bg-[rgba(22,20,18,0.35)] animate-ex-float" onClick={onClose} />
       <div
         className="relative w-[520px] max-w-[94%] h-full bg-surface border-l border-border flex flex-col shadow-card-hover"
         style={{ animation: 'exSlideIn 0.22s ease' }}
@@ -634,17 +410,17 @@ function ObraDrawer({ obra, canManage, onClose, onSaved, onDelete }: {
         <div className="flex items-start gap-[12px] px-[28px] py-[20px] border-b border-border flex-shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-[10px] mb-[6px]">
-              {obra.numero && !editando && (
+              {obra.numero && (
                 <span className="inline-flex items-center gap-[3px] font-hanken font-semibold text-[12px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[7px] px-[8px] py-[3px]">
                   <Hash size={11} strokeWidth={2.4} />{obra.numero}
                 </span>
               )}
               <span className="font-hanken text-[11.5px] text-text-faint uppercase tracking-[0.05em] truncate">
-                {editando ? (criando ? 'Nova obra' : 'Editando') : obra.aba}
+                {obra.aba}
               </span>
             </div>
-            <h2 className="m-0 font-archivo font-semibold text-[19px] leading-[1.2] text-ink break-words">{obra.nome || 'Nova obra'}</h2>
-            {!editando && obra.categoria && (() => {
+            <h2 className="m-0 font-archivo font-semibold text-[19px] leading-[1.2] text-ink break-words">{obra.nome}</h2>
+            {obra.categoria && (() => {
               const meta = categoriaMeta(catEfetiva(obra))
               const CatIcon = meta.Icon
               return (
@@ -655,71 +431,23 @@ function ObraDrawer({ obra, canManage, onClose, onSaved, onDelete }: {
             })()}
           </div>
 
-          {podeEditar && !editando && (
-            <button onClick={() => setEditando(true)} title="Editar obra"
-              className="flex-shrink-0 inline-flex items-center gap-[5px] font-hanken font-medium text-[12.5px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[9px] px-[10px] py-[6px] border-none cursor-pointer hover:bg-[rgba(179,28,28,0.14)]">
-              <Pencil size={13} /> Editar
-            </button>
-          )}
           <button onClick={onClose} title="Fechar (Esc)"
             className="flex-shrink-0 inline-flex items-center justify-center w-[30px] h-[30px] rounded-[9px] border-none bg-tile-bg cursor-pointer text-text-muted hover:text-ink hover:bg-border transition-colors">
             <X size={16} strokeWidth={2} />
           </button>
         </div>
 
-        {editando
-          ? <ObraEditForm obra={obra} onCancel={() => (criando ? onClose() : setEditando(false))}
-              onSaved={(o) => { if (!criando) setEditando(false); onSaved(o) }} onDeleted={onDelete} />
-          : <ObraDetail obra={obra} />}
+        <ObraDetail obra={obra} />
       </div>
     </div>
   )
 }
 
 // ── Página ────────────────────────────────────────────────────────────────────
-export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props) {
+export function ObrasPage({ onBack, initialSelectKey }: Props) {
   const [query, setQuery] = useState('')
   const [aba, setAba] = useState<'all' | typeof ABAS[number]>('all')
   const [selectedKey, setSelectedKey] = useState<string | null>(initialSelectKey ?? null)
-  const [creating, setCreating] = useState(false)
-
-  // Modo de reordenação (arrastar): força busca/filtro neutros pra garantir
-  // que cada grupo mostra todos os seus itens (senão a ordem sequencial
-  // calculada no drop ignoraria os que estão escondidos pelo filtro).
-  const [reordering, setReordering] = useState(false)
-  const [salvandoOrdem, setSalvandoOrdem] = useState(false)
-  const dragFrom = useRef<{ groupKey: string; index: number } | null>(null)
-  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
-
-  function toggleReordering() {
-    setReordering(r => {
-      if (!r) { setQuery(''); setAba('all'); setSelectedKey(null); setCreating(false) }
-      return !r
-    })
-  }
-
-  // Solta o card arrastado na posição de `targetIndex` dentro do mesmo grupo;
-  // grava `ordem` sequencial (0,1,2…) só nos itens cuja posição mudou.
-  async function handleDrop(groupKey: string, targetIndex: number, itens: ObraRow[]) {
-    const from = dragFrom.current
-    dragFrom.current = null
-    setDragOverKey(null)
-    if (!from || from.groupKey !== groupKey || from.index === targetIndex) return
-    const reordenados = itens.slice()
-    const [movido] = reordenados.splice(from.index, 1)
-    reordenados.splice(targetIndex, 0, movido)
-    const alteracoes = reordenados
-      .map((o, idx) => ({ o, novaOrdem: idx }))
-      .filter(({ o, novaOrdem }) => o.id != null && (o.ordem ?? 0) !== novaOrdem)
-    if (alteracoes.length === 0) return
-    setSalvandoOrdem(true)
-    await Promise.all(alteracoes.map(({ o, novaOrdem }) => updateObra(o.id!, { ordem: novaOrdem })))
-    const r = await fetchObras()
-    // `erro == null`, não `!r.erro`: erro 0 (falha de rede) é falsy e apagaria
-    // a lista inteira num piscar de conexão.
-    if (r.erro == null) setObras(r.obras)
-    setSalvandoOrdem(false)
-  }
 
   // Dados: só da API (o espelho estático saiu do bundle — pentest E7).
   const [obras, setObras] = useState<ObraRow[]>([])
@@ -756,33 +484,10 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     })
   }, [obras, q, aba])
 
-  const selected = creating
-    ? OBRA_VAZIA
-    : selectedKey ? obras.find(o => rowKey(o) === selectedKey) ?? null : null
+  const selected = selectedKey ? obras.find(o => rowKey(o) === selectedKey) ?? null : null
 
   const abaCount = (a: typeof ABAS[number]) => obras.filter(o => o.aba === a).length
   const grupos = useMemo(() => agruparPorCategoria(results), [results])
-
-  // Após salvar (criar/editar): recarrega a lista da API pra refletir a mudança.
-  async function recarregar(selecionar?: ObraApi) {
-    const r = await fetchObras()
-    if (r.erro == null) { setObras(r.obras); setRevisao(r.revisao) }
-    setCreating(false)
-    if (selecionar) setSelectedKey(`id:${selecionar.id}`)
-  }
-
-  async function excluir(o: ObraRow) {
-    if (o.id == null) return
-    if (!window.confirm(`Excluir a obra "${o.nome}"? Esta ação não pode ser desfeita.`)) return
-    const ok = await deleteObra(o.id)
-    if (ok) {
-      setSelectedKey(null)
-      const r = await fetchObras()
-      if (r.erro == null) setObras(r.obras)
-    } else {
-      window.alert('Não foi possível excluir. Verifique sua permissão de Administrador.')
-    }
-  }
 
   return (
     <div className="relative flex flex-col h-full overflow-hidden">
@@ -798,81 +503,43 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
         <span className="text-border">|</span>
         <span className="font-archivo font-semibold text-[20px] text-ink">Dados das Obras</span>
         {revisao && <span className="font-hanken text-[11px] text-text-faint bg-tile-bg rounded-[6px] px-[7px] py-[2px]">{revisao}</span>}
-        {canManage && (
-          <div className="ml-auto flex items-center gap-[8px]">
-            <button
-              onClick={toggleReordering}
-              title="Arraste os cards pra definir a ordem de exibição dentro de cada grupo"
-              className={`inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] rounded-[10px] px-[12px] py-[7px] border cursor-pointer transition-colors ${
-                reordering
-                  ? 'bg-accent text-white border-accent hover:opacity-90'
-                  : 'bg-surface text-text-muted border-border hover:border-border-hover'
-              }`}
-            >
-              <ArrowUpDown size={14} /> {reordering ? 'Concluir reordenação' : 'Reordenar'}
-            </button>
-            <button
-              onClick={() => { setCreating(true); setSelectedKey(null) }}
-              disabled={reordering}
-              title="Cadastrar nova obra"
-              className="inline-flex items-center gap-[6px] font-hanken font-medium text-[12.5px] text-white bg-accent rounded-[10px] px-[12px] py-[7px] border-none cursor-pointer hover:opacity-90 disabled:opacity-50"
-            >
-              <Plus size={14} /> Nova obra
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Toolbar: busca + filtros (substituída por uma dica enquanto reordena,
-          pra garantir que cada grupo mostre todos os itens durante o arraste) */}
-      {reordering ? (
-        <div className="px-[24px] pt-[14px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
-          <div className="max-w-[1760px] mx-auto flex items-center gap-[9px] font-hanken text-[13px] text-text-muted">
-            <ArrowUpDown size={15} className="flex-shrink-0 text-accent" />
-            Arraste os cards para definir a ordem de exibição dentro de cada grupo.
-            {salvandoOrdem && (
-              <span className="inline-flex items-center gap-[5px] text-accent">
-                <Loader2 size={13} className="animate-spin" /> Salvando…
-              </span>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="px-[24px] pt-[16px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
-          <div className="max-w-[1760px] mx-auto">
-            <div className="flex flex-wrap items-center gap-[12px]">
-              <div className="relative flex-1 min-w-[240px]">
-                <Search size={16} strokeWidth={1.8} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-text-faint pointer-events-none" />
-                <input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Buscar obra, CNPJ, endereço, responsável…"
-                  className="w-full font-hanken text-[13.5px] text-ink bg-surface border border-border rounded-[11px] pl-[38px] pr-[34px] py-[10px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint"
-                />
-                {query && (
-                  <button
-                    onClick={() => setQuery('')}
-                    className="absolute right-[9px] top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border-none bg-transparent cursor-pointer text-text-faint hover:text-ink"
-                  >
-                    <X size={14} strokeWidth={2} />
-                  </button>
-                )}
-              </div>
-              <span className="font-hanken text-[12.5px] text-text-muted whitespace-nowrap">
-                {results.length} de {obras.length} obras{revisao && ` · fonte ${revisao}`}
-              </span>
+      {/* Toolbar: busca + filtros */}
+      <div className="px-[24px] pt-[16px] pb-[14px] border-b border-border flex-shrink-0 bg-bg-app">
+        <div className="max-w-[1760px] mx-auto">
+          <div className="flex flex-wrap items-center gap-[12px]">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search size={16} strokeWidth={1.8} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-text-faint pointer-events-none" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Buscar obra, CNPJ, endereço, responsável…"
+                className="w-full font-hanken text-[13.5px] text-ink bg-surface border border-border rounded-[11px] pl-[38px] pr-[34px] py-[10px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint"
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  className="absolute right-[9px] top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border-none bg-transparent cursor-pointer text-text-faint hover:text-ink"
+                >
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
             </div>
+            <span className="font-hanken text-[12.5px] text-text-muted whitespace-nowrap">
+              {results.length} de {obras.length} obras{revisao && ` · fonte ${revisao}`}
+            </span>
+          </div>
 
-            {/* Filtros por aba */}
-            <div className="flex flex-wrap gap-[7px] mt-[12px]">
-              <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={obras.length} />
-              {ABAS.map(a => (
-                <FilterChip key={a} active={aba === a} onClick={() => setAba(a)} label={a} count={abaCount(a)} />
-              ))}
-            </div>
+          {/* Filtros por aba */}
+          <div className="flex flex-wrap gap-[7px] mt-[12px]">
+            <FilterChip active={aba === 'all'} onClick={() => setAba('all')} label="Todas" count={obras.length} />
+            {ABAS.map(a => (
+              <FilterChip key={a} active={aba === a} onClick={() => setAba(a)} label={a} count={abaCount(a)} />
+            ))}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Grade de cartões */}
       <div className="flex-1 overflow-y-auto scrollbar-none px-[24px] py-[20px]" style={{ scrollbarWidth: 'none' }}>
@@ -915,18 +582,12 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
                   className="grid gap-[16px]"
                   style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
                 >
-                  {g.itens.map((o, idx) => (
+                  {g.itens.map(o => (
                     <ObraCard
                       key={rowKey(o)}
                       obra={o}
                       meta={g.meta}
                       onOpen={() => setSelectedKey(rowKey(o))}
-                      reordering={reordering}
-                      isDragOver={dragOverKey === `${g.key}:${idx}`}
-                      onDragStart={() => { dragFrom.current = { groupKey: g.key, index: idx } }}
-                      onDragOverCard={() => { if (dragFrom.current?.groupKey === g.key) setDragOverKey(`${g.key}:${idx}`) }}
-                      onDropCard={() => handleDrop(g.key, idx, g.itens)}
-                      onDragEndCard={() => { dragFrom.current = null; setDragOverKey(null) }}
                     />
                   ))}
                 </div>
@@ -936,15 +597,12 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
         </div>
       </div>
 
-      {/* Gaveta de detalhe / edição */}
+      {/* Gaveta de detalhe */}
       {selected && (
         <ObraDrawer
-          key={creating ? 'novo' : selectedKey ?? ''}
+          key={selectedKey ?? ''}
           obra={selected}
-          canManage={canManage}
-          onClose={() => { setSelectedKey(null); setCreating(false) }}
-          onSaved={(o) => recarregar(o)}
-          onDelete={excluir}
+          onClose={() => setSelectedKey(null)}
         />
       )}
     </div>

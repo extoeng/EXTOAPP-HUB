@@ -1,10 +1,11 @@
 // Cliente da API de Dados das Obras (core-api, app `obras`).
 // Os dados (CNPJ, endereços, e-mails, equipe) só existem na API — nunca no
 // bundle público (pentest E7, 2026-08). Leitura exige qualquer capability no
-// app `obras`; criar/editar/excluir exige a capability `manage`
-// ("Administrador") — o backend rejeita com 403 quem não tiver (ver
-// obras/permissions.py na API). O front espelha isso só pra esconder os
-// controles (canManage), nunca como barreira real.
+// app `obras` (403 sem ela). Só leitura, de propósito (2026-09-17): o
+// backend (`obras/views.py` no NEXUS) só expõe GET desde a reescrita sobre
+// spe.Spe/AlocacaoSpe — identidade (nome/CNPJ) vem do Mega (corrigir lá) e
+// equipe vem de AlocacaoSpe (gerenciada no Painel Administrativo, aba SPE →
+// Equipe). Não existe POST/PATCH/DELETE pra ObraInfo fora do Django admin.
 import { apiFetch } from './api'
 
 export interface EquipeMembro { cargo: string; nome: string; telefone: string }
@@ -23,15 +24,13 @@ export interface Obra {
 }
 
 // A API acrescenta ao shape do `Obra` os campos de identidade/organização
-// editáveis. `id` é obrigatório pra editar/excluir.
+// (grupo_override/ordem, ajustáveis só via Django admin).
 export interface ObraApi extends Obra {
   id: number
   grupo_override: string
   ordem: number
   ativo?: boolean
 }
-
-export type ObraPatch = Partial<Omit<ObraApi, 'id'>>
 
 export interface ObrasResult {
   obras: ObraApi[]
@@ -51,21 +50,4 @@ export async function fetchObras(): Promise<ObrasResult> {
     obras: await res.json(),
     revisao: res.headers.get('X-Obras-Revisao') ?? '',
   }
-}
-
-export async function createObra(patch: ObraPatch): Promise<ObraApi | null> {
-  const res = await apiFetch('/obras/', { method: 'POST', body: JSON.stringify(patch) })
-  if (!res.ok) return null
-  return await res.json()
-}
-
-export async function updateObra(id: number, patch: ObraPatch): Promise<ObraApi | null> {
-  const res = await apiFetch(`/obras/${id}/`, { method: 'PATCH', body: JSON.stringify(patch) })
-  if (!res.ok) return null
-  return await res.json()
-}
-
-export async function deleteObra(id: number): Promise<boolean> {
-  const res = await apiFetch(`/obras/${id}/`, { method: 'DELETE' })
-  return res.ok
 }

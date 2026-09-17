@@ -495,9 +495,6 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // menu, acima do usuário, visível só pra quem a API já concedeu acesso
   // (o app só aparece em allApps se o usuário tiver capability lá).
   const hasPainelAdmin = allApps.some(a => a.id === 'painel-admin')
-  // Edição dos Dados das Obras: só quem tem a capability `manage` ("Administrador")
-  // no app `obras` (concedida via Painel Admin). O backend é a barreira real.
-  const canManageObras = (user.apps['obras'] ?? []).includes('manage')
   // Agenda Pública (atalho "Agendas" em Informações Úteis): a VISIBILIDADE do
   // atalho é decidida pela capability do app próprio `agenda-publica`
   // (Visualizador) — mesmo critério de allApps usado pra painel-admin. É o
@@ -779,7 +776,7 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
           )}
           {page.name === 'obras' && hasObras && (
             <div className="flex-1 overflow-hidden bg-bg-app">
-              <ObrasPage onBack={() => setPage({ name: 'home' })} canManage={canManageObras} initialSelectKey={page.openKey} />
+              <ObrasPage onBack={() => setPage({ name: 'home' })} initialSelectKey={page.openKey} />
             </div>
           )}
           {page.name === 'ramais' && hasRamais && (
