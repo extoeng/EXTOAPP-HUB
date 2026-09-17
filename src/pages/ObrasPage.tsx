@@ -354,7 +354,7 @@ function ObraEditForm({ obra, onCancel, onSaved }: {
     cno: obra.cno ?? '', ie: obra.ie ?? '',
     endereco_fatura: obra.endereco_fatura ?? '', endereco_entrega: obra.endereco_entrega ?? '',
     endereco_cobranca: obra.endereco_cobranca ?? '', email: obra.email,
-    telefones: obra.telefones, ativo: obra.ativo ?? true,
+    telefones: obra.telefones, ativo: obra.ativo ?? true, ordem: obra.ordem ?? 0,
   }))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -404,6 +404,16 @@ function ObraEditForm({ obra, onCancel, onSaved }: {
               {f.aba && !ABAS.includes(f.aba as typeof ABAS[number]) && <option value={f.aba}>{f.aba}</option>}
             </select>
           </label>
+          <label className="flex flex-col gap-[4px]">
+            <Rotulo>Ordem de exibição</Rotulo>
+            <input
+              type="number" value={f.ordem} onChange={e => set({ ordem: Number(e.target.value) || 0 })}
+              className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover"
+            />
+          </label>
+        </div>
+        <div className="font-hanken text-[11px] text-text-faint -mt-[4px]">
+          Define a posição do cartão dentro da aba/categoria — menor número aparece primeiro.
         </div>
 
         <div className="rounded-[12px] border border-border p-[12px] flex flex-col gap-[10px]">
