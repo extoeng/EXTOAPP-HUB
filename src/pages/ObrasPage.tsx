@@ -279,6 +279,25 @@ function ObraDetail({ obra }: { obra: ObraRow }) {
             ))}
           </>
         )}
+
+        {obra.equipe.length > 0 && (
+          <>
+            <SectionTitle Icon={Users}>Equipe</SectionTitle>
+            {obra.equipe.map((m, i) => (
+              <div key={i} className="flex items-center gap-[9px] py-[7px] border-b border-border last:border-b-0">
+                <div className="flex-shrink-0 w-[26px] h-[26px] rounded-full bg-avatar-bg text-white flex items-center justify-center font-archivo font-semibold text-[10.5px]">
+                  {(m.nome[0] || '?').toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-hanken font-medium text-[13px] text-ink truncate">{m.nome}</div>
+                  <div className="font-hanken text-[11.5px] text-text-faint truncate">
+                    {m.cargo || 'Sem cargo'}{m.telefone ? ` · ${m.telefone}` : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   )
@@ -335,7 +354,7 @@ function ObraEditForm({ obra, onCancel, onSaved }: {
     cno: obra.cno ?? '', ie: obra.ie ?? '',
     endereco_fatura: obra.endereco_fatura ?? '', endereco_entrega: obra.endereco_entrega ?? '',
     endereco_cobranca: obra.endereco_cobranca ?? '', email: obra.email,
-    telefones: obra.telefones, ativo: obra.ativo ?? true,
+    telefones: obra.telefones, ativo: obra.ativo ?? true, ordem: obra.ordem ?? 0,
   }))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -385,6 +404,16 @@ function ObraEditForm({ obra, onCancel, onSaved }: {
               {f.aba && !ABAS.includes(f.aba as typeof ABAS[number]) && <option value={f.aba}>{f.aba}</option>}
             </select>
           </label>
+          <label className="flex flex-col gap-[4px]">
+            <Rotulo>Ordem de exibição</Rotulo>
+            <input
+              type="number" value={f.ordem} onChange={e => set({ ordem: Number(e.target.value) || 0 })}
+              className="w-full font-hanken text-[13px] text-ink bg-surface border border-border rounded-[9px] px-[10px] py-[7px] outline-none focus:border-border-hover"
+            />
+          </label>
+        </div>
+        <div className="font-hanken text-[11px] text-text-faint -mt-[4px]">
+          Define a posição do cartão dentro da aba/categoria — menor número aparece primeiro.
         </div>
 
         <div className="rounded-[12px] border border-border p-[12px] flex flex-col gap-[10px]">
@@ -417,13 +446,24 @@ function ObraEditForm({ obra, onCancel, onSaved }: {
             Cancelar
           </button>
         </div>
+
+        {obra.id != null && (
+          <div className="pt-[8px] border-t border-border flex flex-col gap-[10px]">
+            <SectionTitle Icon={Users}>Equipe da obra</SectionTitle>
+            <EquipeObraTab speId={obra.id} podeGerenciar />
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-// ── Aba Equipe (mesma tabela `spe.AlocacaoSpe` da aba Equipe do painel-admin,
-// exposta aqui sob a capability `obras` — ver services/obras.ts) ──────────────
+// ── Equipe (mesma tabela `spe.AlocacaoSpe` da aba Equipe do painel-admin,
+// exposta aqui sob a capability `obras` — ver services/obras.ts). Embutida
+// dentro do próprio formulário de edição, sem aba separada — gerenciar
+// equipe e editar os campos manuais são a mesma ação de "Editar" pro
+// usuário. Alterações de equipe (adicionar/encerrar) aplicam na hora, sem
+// depender do botão "Salvar alterações" (que só grava os campos manuais).
 function EquipeObraTab({ speId, podeGerenciar }: { speId: string; podeGerenciar: boolean }) {
   const [equipe, setEquipe] = useState<AlocacaoObra[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -446,37 +486,35 @@ function EquipeObraTab({ speId, podeGerenciar }: { speId: string; podeGerenciar:
   }
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-      <div className="px-[28px] py-[20px] flex flex-col gap-[14px]">
-        {carregando ? (
-          <div className="font-hanken text-[13px] text-text-faint">Carregando…</div>
-        ) : equipe.length === 0 ? (
-          <div className="rounded-[12px] border border-dashed border-border px-[14px] py-[16px] font-hanken text-[12.5px] text-text-faint text-center">
-            Nenhum colaborador alocado nesta obra.
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-[8px]">
-            {equipe.map(a => (
-              <li key={a.id} className="flex items-center justify-between gap-[10px] bg-tile-bg rounded-[10px] px-[12px] py-[9px]">
-                <div className="min-w-0">
-                  <div className="font-hanken font-medium text-[13.5px] text-ink truncate">{a.colaborador_nome}</div>
-                  <div className="font-hanken text-[11.5px] text-text-faint truncate">
-                    {a.cargo || 'Sem cargo'} · desde {formatDataBr(a.data_inicio)}
-                  </div>
+    <div className="flex flex-col gap-[10px]">
+      {carregando ? (
+        <div className="font-hanken text-[13px] text-text-faint">Carregando…</div>
+      ) : equipe.length === 0 ? (
+        <div className="rounded-[12px] border border-dashed border-border px-[14px] py-[16px] font-hanken text-[12.5px] text-text-faint text-center">
+          Nenhum colaborador alocado nesta obra.
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-[8px]">
+          {equipe.map(a => (
+            <li key={a.id} className="flex items-center justify-between gap-[10px] bg-tile-bg rounded-[10px] px-[12px] py-[9px]">
+              <div className="min-w-0">
+                <div className="font-hanken font-medium text-[13.5px] text-ink truncate">{a.colaborador_nome}</div>
+                <div className="font-hanken text-[11.5px] text-text-faint truncate">
+                  {a.cargo || 'Sem cargo'} · desde {formatDataBr(a.data_inicio)}
                 </div>
-                {podeGerenciar && (
-                  <button onClick={() => encerrar(a)} title="Remover da equipe"
-                    className="flex-shrink-0 inline-flex items-center justify-center w-[28px] h-[28px] rounded-[8px] border-none bg-transparent cursor-pointer text-text-faint hover:text-accent hover:bg-border/60">
-                    <UserMinus size={15} />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+              </div>
+              {podeGerenciar && (
+                <button onClick={() => encerrar(a)} title="Remover da equipe"
+                  className="flex-shrink-0 inline-flex items-center justify-center w-[28px] h-[28px] rounded-[8px] border-none bg-transparent cursor-pointer text-text-faint hover:text-accent hover:bg-border/60">
+                  <UserMinus size={15} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
-        {podeGerenciar && <AdicionarNaEquipeObra speId={speId} onAdicionado={() => setTick(t => t + 1)} />}
-      </div>
+      {podeGerenciar && <AdicionarNaEquipeObra speId={speId} onAdicionado={() => setTick(t => t + 1)} />}
     </div>
   )
 }
@@ -658,20 +696,20 @@ function ObraCard({ obra, meta, onOpen }: { obra: ObraRow; meta: CategoriaMeta; 
   )
 }
 
-// ── Gaveta lateral: abas "Dados" (detalhe/edição dos campos manuais) e
-// "Equipe" (spe.AlocacaoSpe) — mesmo desenho da tela SPE do painel-admin. ─────
-// Nome/fantasia/CNPJ vêm do Mega, nunca editáveis aqui, mesmo com `manage`
-// (o backend rejeita com 403 quem não tem `manage`, e o serializer de
-// escrita nem aceita esses campos — ver `ObraInfoUpdateSerializer` no
-// NEXUS). Sem criar/excluir obra: toda obra tem que se ligar a uma `spe.Spe`
-// já existente (curadoria via Django admin/`import_obras_xls`).
+// ── Gaveta lateral: detalhe (leitura) e edição (campos manuais + equipe,
+// tudo junto por trás do botão "Editar") — mesmo princípio de trava da tela
+// SPE do painel-admin, sem abas separadas. Nome/fantasia/CNPJ vêm do Mega,
+// nunca editáveis aqui, mesmo com `manage` (o backend rejeita com 403 quem
+// não tem `manage`, e o serializer de escrita nem aceita esses campos — ver
+// `ObraInfoUpdateSerializer` no NEXUS). Sem criar/excluir obra: toda obra
+// tem que se ligar a uma `spe.Spe` já existente (curadoria via Django
+// admin/`import_obras_xls`).
 function ObraDrawer({ obra, canManage, onClose, onSaved }: {
   obra: ObraRow
   canManage: boolean
   onClose: () => void
   onSaved: (o: ObraApi) => void
 }) {
-  const [aba, setAba] = useState<'dados' | 'equipe'>('dados')
   const [editando, setEditando] = useState(false)
   const podeEditar = canManage && obra.id != null
 
@@ -714,8 +752,8 @@ function ObraDrawer({ obra, canManage, onClose, onSaved }: {
             })()}
           </div>
 
-          {aba === 'dados' && podeEditar && !editando && (
-            <button onClick={() => setEditando(true)} title="Editar dados manuais da obra"
+          {podeEditar && !editando && (
+            <button onClick={() => setEditando(true)} title="Editar dados e equipe da obra"
               className="flex-shrink-0 inline-flex items-center gap-[5px] font-hanken font-medium text-[12.5px] text-accent bg-[rgba(179,28,28,0.08)] rounded-[9px] px-[10px] py-[6px] border-none cursor-pointer hover:bg-[rgba(179,28,28,0.14)]">
               <Pencil size={13} /> Editar
             </button>
@@ -726,27 +764,9 @@ function ObraDrawer({ obra, canManage, onClose, onSaved }: {
           </button>
         </div>
 
-        {!editando && (
-          <div className="flex items-center gap-[4px] px-[28px] pt-[12px] border-b border-border flex-shrink-0">
-            {(['dados', 'equipe'] as const).map(a => (
-              <button
-                key={a}
-                onClick={() => setAba(a)}
-                className={`font-hanken font-medium text-[13px] px-[4px] pb-[10px] border-0 border-b-2 bg-transparent cursor-pointer transition-colors ${
-                  aba === a ? 'text-accent border-accent' : 'text-text-muted border-transparent hover:text-ink'
-                }`}
-              >
-                {a === 'dados' ? 'Dados' : 'Equipe'}
-              </button>
-            ))}
-          </div>
-        )}
-
         {editando ? (
           <ObraEditForm obra={obra} onCancel={() => setEditando(false)}
             onSaved={(o) => { setEditando(false); onSaved(o) }} />
-        ) : aba === 'equipe' ? (
-          obra.id != null && <EquipeObraTab speId={obra.id} podeGerenciar={canManage} />
         ) : (
           <ObraDetail obra={obra} />
         )}
