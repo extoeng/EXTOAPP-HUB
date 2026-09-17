@@ -341,9 +341,10 @@ function TelefonesEditor({ tels, onChange }: { tels: string[]; onChange: (t: str
 }
 
 // Só os campos manuais de `ObraInfo` (ver `ObraPatch`/`ObraInfoUpdateSerializer`
-// no NEXUS) — identidade (nome/fantasia/CNPJ, de `spe.Spe`) e equipe (de
-// `spe.AlocacaoSpe`) ficam de fora de propósito, mesmo que apareçam na
-// exibição/detalhe: corrigir no Mega ou no Painel Administrativo.
+// no NEXUS) — identidade (nome/fantasia/CNPJ, de `spe.Spe`) fica de fora de
+// propósito, mesmo que apareça na exibição/detalhe: corrigir no Mega. Equipe
+// (de `spe.AlocacaoSpe`) também não é campo deste formulário, mas tem seção
+// própria logo abaixo (`EquipeObraTab`) — essa sim editável por aqui.
 function ObraEditForm({ obra, onCancel, onSaved }: {
   obra: ObraRow
   onCancel: () => void
@@ -374,8 +375,8 @@ function ObraEditForm({ obra, onCancel, onSaved }: {
     <div className="flex-1 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
       <div className="px-[28px] py-[20px] flex flex-col gap-[16px]">
         <div className="rounded-[10px] bg-tile-bg/60 px-[12px] py-[9px] font-hanken text-[12px] text-text-muted leading-[1.5]">
-          Nome, razão social, CNPJ e equipe vêm do Mega/Painel Administrativo e não são
-          editáveis aqui — corrija na origem.
+          Nome, razão social e CNPJ vêm do Mega e não são editáveis aqui —
+          corrija na origem. Equipe você edita logo abaixo.
         </div>
 
         <div className="grid grid-cols-2 gap-[10px]">
