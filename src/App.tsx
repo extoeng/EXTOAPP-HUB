@@ -413,13 +413,37 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
 
   // Catálogo de apps vem da API (apps que o usuário pode acessar);
   // mantém o estático como fallback se a API falhar.
+  //
+  // fetchApps() devolve null em qualquer falha (rede, cold start do Cloud Run,
+  // 401 que nem o refresh salvou) — isso batia de frente com o boot mais
+  // hostil que a API recebe: navegação cross-origin fria vinda do app de
+  // login (ex.: reentrada logo depois de trocar uma senha provisória), com
+  // vários fetches em paralelo (apps/categorias/favoritos/documentos/eventos).
+  // Sem retry, list vinha null, allApps travava no fallback estático vazio
+  // (data/apps.ts) e o grid ficava em branco até um F5 manual refazer o boot.
+  // Tenta mais algumas vezes com backoff antes de desistir; se persistir,
+  // trata como sessão morta (mesmo critério do DirectAppRedirect acima) em
+  // vez de silenciar o erro e deixar o grid vazio sem explicação.
   const [appsLoaded, setAppsLoaded] = useState(false)
   useEffect(() => {
-    fetchApps().then(list => {
-      if (list && list.length) setAllApps(sortByCatalogOrder(list))
+    let cancelado = false
+    async function carregarApps() {
+      for (let tentativa = 0; tentativa < 3; tentativa++) {
+        if (tentativa > 0) await delay(800 * tentativa)
+        const list = await fetchApps()
+        if (cancelado) return
+        if (list) {
+          if (list.length) setAllApps(sortByCatalogOrder(list))
+          setAppsLoaded(true)
+          return
+        }
+      }
       setAppsLoaded(true)
-    })
-  }, [])
+      onSessionExpired()
+    }
+    carregarApps()
+    return () => { cancelado = true }
+  }, [onSessionExpired])
   // Categorias do menu (rótulo/ícone/ordem) — CRUD no painel-admin; o
   // espelho estático fica só como fallback se a API falhar.
   const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_FALLBACK)
