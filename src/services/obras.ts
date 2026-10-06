@@ -1,140 +1,144 @@
-// Cliente da API de Dados das Obras (core-api, app `obras`).
+// Cliente da API de Dados das Obras (NEXUS, app `obras`).
+// Desde 2026-10 a obra é cadastro manual próprio (sem vínculo com SPE/Mega):
+// - qualquer capability do app `obras` lê (obras inativas só vêm pra quem tem `manage`);
+// - `manage` ("Administrador") cria/edita/exclui tudo, faz ações em massa,
+//   reordena e importa/exporta a planilha no modelo da Suprimentos.
 // Os dados (CNPJ, endereços, e-mails, equipe) só existem na API — nunca no
-// bundle público (pentest E7, 2026-08). Leitura exige qualquer capability no
-// app `obras` (403 sem ela). Edição (PATCH) exige a capability `manage` —
-// só dos campos manuais de `ObraInfo` (ver `ObraPatch`) e da equipe (ver
-// `AlocacaoObra`/`ColaboradorElegivel` abaixo — mesma tabela `spe.AlocacaoSpe`
-// da aba Equipe do painel-admin, só que sob a capability `obras`). Identidade
-// (nome/CNPJ) vem do Mega via `spe.Spe` — corrigir lá, nunca editável aqui.
-// Não existe criar/excluir obra (toda obra tem que se ligar a uma SPE já
-// existente).
+// bundle público (pentest E7, 2026-08).
 import { apiFetch } from './api'
 
-export interface EquipeMembro { cargo: string; nome: string; telefone: string }
+export interface EquipeMembro { cargo: string; nome: string; telefone: string; email: string }
 
 export interface Obra {
+  id: string
   nome: string
   numero: string
   organizacao: string
-  categoria: string
   aba: string
-  documentos: Record<string, string>
-  enderecos: Record<string, string>
+  categoria: string
+  ativo: boolean
+  ordem: number
+  cnpj: string
+  cno: string
+  ie: string
+  im: string
+  endereco_fatura: string
+  endereco_entrega: string
+  endereco_cobranca: string
   email: string
   telefones: string[]
   equipe: EquipeMembro[]
+  observacoes: string
+  /** Só exibição: CNPJ/CNO/IE/IM preenchidos. */
+  documentos: Record<string, string>
+  /** Só exibição: Fatura/Entrega/Cobrança preenchidos. */
+  enderecos: Record<string, string>
+  criado_em: string
+  atualizado_em: string
 }
 
-// A API acrescenta ao shape do `Obra` os campos de identidade/organização e
-// os campos manuais "crus" (sem a mistura de `documentos`/`enderecos`, que
-// tem CNPJ do Mega misturado com CNO/IE manuais) — usados pela edição.
-// `id` é o pk real de `spe.Spe` (estável), não uma posição na lista.
-export interface ObraApi extends Obra {
-  id: string
-  grupo_override: string
-  ordem: number
-  ativo?: boolean
-  cno: string
-  ie: string
-  endereco_fatura: string
-  endereco_entrega: string
-  endereco_cobranca: string
-}
-
-// Só os campos manuais de `ObraInfo` — o backend (`ObraInfoUpdateSerializer`)
-// ignora silenciosamente qualquer outra chave (nome/organização/documentos/
-// equipe não fazem parte do serializer de escrita).
-export type ObraPatch = Partial<{
-  numero: string
-  categoria: string
-  aba: string
-  cno: string
-  ie: string
-  endereco_fatura: string
-  endereco_entrega: string
-  endereco_cobranca: string
-  email: string
-  telefones: string[]
-  ordem: number
-  ativo: boolean
-}>
+export type ObraDados = Omit<Obra, 'id' | 'documentos' | 'enderecos' | 'criado_em' | 'atualizado_em'>
 
 export interface ObrasResult {
-  obras: ObraApi[]
-  /** Revisão da tabela publicada por Suprimentos (header X-Obras-Revisao). */
-  revisao: string
+  obras: Obra[]
+  /** ISO da última alteração em qualquer obra (header X-Obras-Atualizacao). */
+  atualizadoEm: string
   /** Status HTTP quando a leitura falhou: 403 = sem capability, 0 = rede. */
   erro?: number
 }
 
-/** Lista todas as obras. Sem fallback local: falha vem como `erro` e a tela
- *  mostra o estado vazio correspondente. */
+/** Erros de validação do DRF: `{campo: [mensagens]}` ou `{detail: "..."}`. */
+export type ErrosApi = Record<string, string[] | string>
+
+export type Resultado<T> = { ok: true; data: T } | { ok: false; erros: ErrosApi; status: number }
+
+async function resultado<T>(res: Response | null): Promise<Resultado<T>> {
+  if (!res) return { ok: false, status: 0, erros: { detail: 'Sem conexão com o servidor. Tente de novo.' } }
+  if (res.ok) return { ok: true, data: res.status === 204 ? (undefined as T) : await res.json() }
+  let erros: ErrosApi = { detail: `Erro ${res.status}.` }
+  try { erros = await res.json() } catch { /* corpo não-JSON */ }
+  if (res.status === 403 && !erros.detail) erros = { detail: 'Você não tem permissão de Administrador de Dados das Obras.' }
+  return { ok: false, status: res.status, erros }
+}
+
+/** Primeira mensagem legível de um erro da API (pra avisos curtos). */
+export function mensagemErro(erros: ErrosApi): string {
+  const detail = erros.detail ?? erros.non_field_errors
+  const primeiro = detail ?? Object.values(erros)[0]
+  if (!primeiro) return 'Não foi possível concluir.'
+  return Array.isArray(primeiro) ? String(primeiro[0]) : String(primeiro)
+}
+
 export async function fetchObras(): Promise<ObrasResult> {
   const res = await apiFetch('/obras/').catch(() => null)
-  if (!res) return { obras: [], revisao: '', erro: 0 }
-  if (!res.ok) return { obras: [], revisao: '', erro: res.status }
-  return {
-    obras: await res.json(),
-    revisao: res.headers.get('X-Obras-Revisao') ?? '',
-  }
+  if (!res) return { obras: [], atualizadoEm: '', erro: 0 }
+  if (!res.ok) return { obras: [], atualizadoEm: '', erro: res.status }
+  return { obras: await res.json(), atualizadoEm: res.headers.get('X-Obras-Atualizacao') ?? '' }
 }
 
-/** Exige capability `manage` no app `obras` — 403 sem ela (ver
- *  `HasObrasAccess.write_capability` no NEXUS). */
-export async function updateObra(id: string, patch: ObraPatch): Promise<ObraApi | null> {
-  const res = await apiFetch(`/obras/${id}/`, { method: 'PATCH', body: JSON.stringify(patch) })
-  if (!res.ok) return null
-  return await res.json()
+export async function criarObra(dados: Partial<ObraDados>): Promise<Resultado<Obra>> {
+  return resultado(await apiFetch('/obras/', { method: 'POST', body: JSON.stringify(dados) }).catch(() => null))
 }
 
-// ── Equipe (spe.AlocacaoSpe, exposta sob a capability `obras`) ────────────────
-
-export interface AlocacaoObra {
-  id: string
-  data_inicio: string
-  data_fim: string | null
-  colaborador_nome: string
-  colaborador_email: string
-  cargo: string
+export async function atualizarObra(id: string, dados: Partial<ObraDados>): Promise<Resultado<Obra>> {
+  return resultado(await apiFetch(`/obras/${id}/`, { method: 'PATCH', body: JSON.stringify(dados) }).catch(() => null))
 }
 
-/** Candidato a alocar — só quem já tem vínculo ativo (exigência de
- *  `AlocacaoSpe.vinculo_id`). */
-export interface ColaboradorElegivel {
-  colaborador_id: string
-  vinculo_id: string
-  nome: string
-  email: string
-  cargo: string
+export async function excluirObra(id: string): Promise<Resultado<void>> {
+  return resultado(await apiFetch(`/obras/${id}/`, { method: 'DELETE' }).catch(() => null))
 }
 
-/** Só a equipe ATIVA (`data_fim` nula) — histórico encerrado não aparece
- *  aqui, mesmo padrão da aba Equipe do painel-admin. */
-export async function fetchEquipeObra(speId: string): Promise<AlocacaoObra[]> {
-  const res = await apiFetch(`/obras/${speId}/equipe/`).catch(() => null)
-  if (!res || !res.ok) return []
-  return await res.json()
+export type AcaoEmMassa =
+  | { acao: 'ativar' | 'desativar' | 'excluir' }
+  | { acao: 'mover'; aba?: string; categoria?: string }
+
+export async function acaoEmMassa(ids: string[], acao: AcaoEmMassa): Promise<Resultado<{ afetadas: number }>> {
+  return resultado(await apiFetch('/obras/em-massa/', { method: 'POST', body: JSON.stringify({ ids, ...acao }) }).catch(() => null))
 }
 
-/** Exige capability `manage` — 403 sem ela. */
-export async function criarAlocacaoObra(
-  speId: string, payload: { vinculo_id: string; data_inicio: string },
-): Promise<AlocacaoObra | null> {
-  const res = await apiFetch(`/obras/${speId}/equipe/`, { method: 'POST', body: JSON.stringify(payload) })
-  if (!res.ok) return null
-  return await res.json()
+/** `ids` na nova ordem — o backend redistribui entre eles as posições que já ocupavam. */
+export async function reordenarObras(ids: string[]): Promise<Resultado<Obra[]>> {
+  return resultado(await apiFetch('/obras/reordenar/', { method: 'POST', body: JSON.stringify({ ids }) }).catch(() => null))
 }
 
-/** Encerra a alocação (não apaga — histórico continua existindo). Exige
- *  capability `manage`. */
-export async function encerrarAlocacaoObra(id: string, dataFim: string): Promise<boolean> {
-  const res = await apiFetch(`/obras/equipe/${id}/`, { method: 'PATCH', body: JSON.stringify({ data_fim: dataFim }) })
-  return res.ok
+export type AusentesAcao = 'manter' | 'desativar'
+
+export interface ResumoImportacao {
+  total: number
+  abas: { nome: string; obras: number }[]
+  novas: { nome: string; numero: string; aba: string; categoria: string }[]
+  atualizadas: { id: string; nome: string; campos: string[] }[]
+  sem_mudanca: number
+  ausentes: { id: string; nome: string; aba: string; ativo: boolean }[]
+  avisos: string[]
+  aplicado: boolean
 }
 
-export async function buscarColaboradoresElegiveis(q: string): Promise<ColaboradorElegivel[]> {
-  if (q.trim().length < 2) return []
-  const res = await apiFetch(`/obras/colaboradores-elegiveis/?q=${encodeURIComponent(q)}`).catch(() => null)
-  if (!res || !res.ok) return []
-  return await res.json()
+/** Sem `aplicar`, o backend só compara o arquivo com o que já existe (prévia). */
+export async function importarPlanilha(
+  arquivo: File, opts: { aplicar: boolean; ausentes: AusentesAcao },
+): Promise<Resultado<ResumoImportacao>> {
+  const form = new FormData()
+  form.append('arquivo', arquivo)
+  form.append('aplicar', opts.aplicar ? '1' : '0')
+  form.append('ausentes', opts.ausentes)
+  return resultado(await apiFetch('/obras/importar/', { method: 'POST', body: form }).catch(() => null))
+}
+
+/** Baixa o .xlsx no modelo da planilha da Suprimentos. */
+export async function exportarPlanilha(incluirInativas: boolean): Promise<Resultado<void>> {
+  const res = await apiFetch(`/obras/exportar/${incluirInativas ? '?inativas=1' : ''}`).catch(() => null)
+  if (!res || !res.ok) return resultado(res)
+  const blob = await res.blob()
+  const nome = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1]
+    ?? `Exto - Tabela de Obras - ${new Date().toISOString().slice(0, 10)}.xlsx`
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nome
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  return { ok: true, data: undefined }
 }
