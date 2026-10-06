@@ -19,7 +19,8 @@ import { useGreeting } from './hooks/useGreeting'
 import { ComunicadosPage } from './pages/ComunicadosPage'
 import { EventosPage } from './pages/EventosPage'
 import { ManuaisPage } from './pages/ManuaisPage'
-import { ObrasPage, rowKey as obraRowKey } from './pages/ObrasPage'
+import { ObrasPage } from './pages/ObrasPage'
+import { rowKey as obraRowKey } from './pages/obras/util'
 import { RamaisPage } from './pages/RamaisPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { Sidebar, SIDEBAR_COLLAPSED_W, SIDEBAR_EXPANDED_W } from './components/Sidebar'
@@ -519,9 +520,9 @@ function Hub({ user, onLogout, onUserChange, onSessionExpired }: HubProps) {
   // menu, acima do usuário, visível só pra quem a API já concedeu acesso
   // (o app só aparece em allApps se o usuário tiver capability lá).
   const hasPainelAdmin = allApps.some(a => a.id === 'painel-admin')
-  // Edição dos campos manuais de "Dados das Obras" (ver ObrasPage): só quem
-  // tem a capability `manage` ("Administrador") no app `obras`. O backend é
-  // a barreira real (403 no PATCH sem ela) — isto só mostra/esconde o botão.
+  // Administração de "Dados das Obras" (criar/editar/importar/exportar — ver
+  // ObrasPage): só quem tem a capability `manage` ("Administrador") no app
+  // `obras`. O backend é a barreira real (403 sem ela) — isto só mostra/esconde.
   const canManageObras = (user.apps['obras'] ?? []).includes('manage')
   // Agenda Pública (atalho "Agendas" em Informações Úteis): a VISIBILIDADE do
   // atalho é decidida pela capability do app próprio `agenda-publica`
