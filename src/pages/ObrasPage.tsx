@@ -6,11 +6,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, Search, Briefcase, X, Hash, FileText, Phone, MapPin, Users, ChevronRight, ChevronDown,
-  Plus, Upload, Download, EllipsisVertical, ListChecks, LayoutGrid, List, Eye, EyeOff, ArrowUp, ArrowDown,
+  Plus, Upload, Download, EllipsisVertical, ListChecks, LayoutGrid, List, Eye, EyeOff, ArrowUpDown,
   Square, SquareCheck, FolderInput, Power, Trash2, Loader2,
 } from 'lucide-react'
 import {
-  acaoEmMassa, excluirObra, atualizarObra, exportarPlanilha, fetchObras, mensagemErro, reordenarObras,
+  acaoEmMassa, excluirObra, atualizarObra, exportarPlanilha, fetchObras, mensagemErro,
   type Obra, type ObraDados, type ResumoImportacao,
 } from '../services/obras'
 import {
@@ -21,6 +21,7 @@ import { Aviso, Botao, ConfirmDialog, CopyButton, Modal, Painel, Selo, type Conf
 import { ObraDetalhe } from './obras/ObraDetalhe'
 import { ObraForm, type Sugestoes } from './obras/ObraForm'
 import { ImportarModal } from './obras/ImportarModal'
+import { OrganizarOrdem } from './obras/OrganizarOrdem'
 
 interface Props {
   onBack: () => void
@@ -149,11 +150,10 @@ function ObraCard({ obra, meta, onOpen, selecionando, selecionada, onToggle }: {
 }
 
 // ── Linha (modo lista, computador) ───────────────────────────────────────────
-const COLS_LISTA = 'grid-cols-[28px_64px_minmax(180px,1.4fr)_minmax(150px,1fr)_150px_140px_minmax(160px,1fr)_minmax(130px,0.8fr)_72px]'
+const COLS_LISTA = 'grid-cols-[28px_64px_minmax(180px,1.4fr)_minmax(150px,1fr)_150px_140px_minmax(160px,1fr)_minmax(130px,0.8fr)]'
 
-function ObraLinha({ obra, onOpen, selecionando, selecionada, onToggle, podeMover, onMover, primeira, ultima }: {
+function ObraLinha({ obra, onOpen, selecionando, selecionada, onToggle }: {
   obra: Obra; onOpen: () => void; selecionando: boolean; selecionada: boolean; onToggle: () => void
-  podeMover: boolean; onMover: (d: -1 | 1) => void; primeira: boolean; ultima: boolean
 }) {
   const tel = telefonePrincipal(obra)
   const resp = responsavel(obra)
@@ -181,20 +181,6 @@ function ObraLinha({ obra, onOpen, selecionando, selecionada, onToggle, podeMove
       </span>
       <span className="min-w-0 font-hanken text-[12.5px] text-ink-soft truncate" title={enderecoPrincipal(obra)}>{enderecoResumo(enderecoPrincipal(obra))}</span>
       <span className="min-w-0 font-hanken text-[12.5px] text-ink-soft truncate">{resp ? `${resp.nome}${resp.cargo ? ` · ${resp.cargo}` : ''}` : ''}</span>
-      <span className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
-        {podeMover && !selecionando && (
-          <>
-            <button type="button" title="Subir" aria-label="Subir" disabled={primeira} onClick={() => onMover(-1)}
-              className="inline-flex items-center justify-center w-[28px] h-[28px] rounded-[7px] border-none bg-transparent cursor-pointer text-text-faint hover:text-accent hover:bg-tile-bg disabled:opacity-25 disabled:cursor-default">
-              <ArrowUp size={14} />
-            </button>
-            <button type="button" title="Descer" aria-label="Descer" disabled={ultima} onClick={() => onMover(1)}
-              className="inline-flex items-center justify-center w-[28px] h-[28px] rounded-[7px] border-none bg-transparent cursor-pointer text-text-faint hover:text-accent hover:bg-tile-bg disabled:opacity-25 disabled:cursor-default">
-              <ArrowDown size={14} />
-            </button>
-          </>
-        )}
-      </span>
     </div>
   )
 }
@@ -291,6 +277,8 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   const [recolhidos, setRecolhidos] = useState<Set<string>>(new Set())
 
   const [selecionando, setSelecionando] = useState(false)
+  const [organizando, setOrganizando] = useState(false)
+  const conteudoRef = useRef<HTMLDivElement>(null)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
 
   const [painel, setPainel] = useState<PainelEstado | null>(
@@ -388,22 +376,18 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     })
   }
 
-  async function mover(grupo: Grupo, indice: number, d: -1 | 1) {
-    const ids = grupo.itens.map(o => o.id)
-    ;[ids[indice], ids[indice + d]] = [ids[indice + d], ids[indice]]
-    const posicoes = grupo.itens.map(o => o.ordem)
-    // Otimista: troca as posições na hora, o servidor confirma em seguida.
-    setObras(prev => prev.map(o => { const i = ids.indexOf(o.id); return i >= 0 ? { ...o, ordem: posicoes[i] } : o }))
-    const r = await reordenarObras(ids)
-    if (!r.ok) { avisar(mensagemErro(r.erros), true); void carregar(); return }
-    setObras(prev => prev.map(o => r.data.find(n => n.id === o.id) ?? o))
-  }
-
   function toggleSel(id: string) {
     setSelecionados(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
 
   function sairSelecao() { setSelecionando(false); setSelecionados(new Set()) }
+
+  function organizar() {
+    sairSelecao()
+    setQuery('')
+    setOrganizando(true)
+    conteudoRef.current?.scrollTo({ top: 0 })
+  }
 
   async function emMassa(acao: Parameters<typeof acaoEmMassa>[1], sucesso: string) {
     const ids = [...selecionados]
@@ -443,13 +427,13 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     : 'Nenhuma obra encontrada'
 
   const todosVisiveisSelecionados = resultados.length > 0 && resultados.every(o => selecionados.has(o.id))
-  const podeMover = canManage && modo === 'lista' && termos.length === 0
 
   const itensMenu = [
     ...(canManage ? [
       { label: 'Importar planilha', Icon: Upload, onClick: () => setImportando(true) },
       { label: exportando ? 'Exportando…' : 'Exportar planilha', Icon: Download, onClick: () => { if (!exportando) void exportar() } },
-      { label: 'Selecionar várias', Icon: ListChecks, onClick: () => setSelecionando(true) },
+      { label: 'Organizar ordem', Icon: ArrowUpDown, onClick: organizar },
+      { label: 'Selecionar várias', Icon: ListChecks, onClick: () => { setOrganizando(false); setSelecionando(true) } },
       { label: verInativas ? 'Ocultar inativas' : `Mostrar inativas${inativasQtd ? ` (${inativasQtd})` : ''}`, Icon: verInativas ? EyeOff : Eye, onClick: () => setVerInativas(v => !v), ativo: verInativas },
     ] : []),
   ]
@@ -490,9 +474,10 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
+                disabled={organizando}
                 type="search"
                 enterKeyHint="search"
-                placeholder="Buscar obra, nº, CNPJ, endereço, pessoa…"
+                placeholder={organizando ? 'Busca desligada enquanto organiza a ordem' : 'Buscar obra, nº, CNPJ, endereço, pessoa…'}
                 className="w-full font-hanken text-[15px] sm:text-[13.5px] text-ink bg-surface border border-border rounded-[11px] pl-[38px] pr-[38px] py-[10px] outline-none focus:border-border-hover transition-colors placeholder:text-text-faint [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
@@ -516,7 +501,8 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
                   title={verInativas ? 'Ocultar obras inativas' : 'Mostrar obras inativas'}>
                   Inativas{inativasQtd ? ` (${inativasQtd})` : ''}
                 </Botao>
-                <Botao variante={selecionando ? 'perigo' : 'secundario'} Icon={ListChecks} onClick={() => (selecionando ? sairSelecao() : setSelecionando(true))}>
+                <Botao Icon={ArrowUpDown} onClick={organizar} disabled={organizando}>Organizar ordem</Botao>
+                <Botao variante={selecionando ? 'perigo' : 'secundario'} Icon={ListChecks} disabled={organizando} onClick={() => (selecionando ? sairSelecao() : setSelecionando(true))}>
                   {selecionando ? 'Cancelar seleção' : 'Selecionar'}
                 </Botao>
               </div>
@@ -536,9 +522,22 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
       </div>
 
       {/* Conteúdo */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-[14px] sm:px-[24px] py-[16px] sm:py-[20px] pb-[110px]">
+      <div ref={conteudoRef} className="flex-1 overflow-y-auto overscroll-contain px-[14px] sm:px-[24px] py-[16px] sm:py-[20px] pb-[110px]">
         <div className="max-w-[1760px] mx-auto">
-          {carregando ? (
+          {organizando && canManage ? (
+            <OrganizarOrdem
+              key={`${aba}|${verInativas}`}
+              obras={visiveis.filter(o => aba === 'todas' || o.aba === aba)}
+              aba={aba}
+              scrollRef={conteudoRef}
+              onSair={() => setOrganizando(false)}
+              onSalvo={atualizadas => {
+                setObras(prev => prev.map(o => atualizadas.find(n => n.id === o.id) ?? o))
+                setOrganizando(false)
+              }}
+              avisar={avisar}
+            />
+          ) : carregando ? (
             <div className="flex items-center justify-center gap-[10px] py-[80px] text-text-faint font-hanken text-[14px]">
               <Loader2 size={18} className="animate-spin" /> Carregando…
             </div>
@@ -581,12 +580,11 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
                       <div className="hidden md:block bg-surface border border-border rounded-[14px] overflow-x-auto">
                         <div className="min-w-[1080px]">
                           <div className={`grid ${COLS_LISTA} gap-[10px] px-[12px] py-[8px] border-b border-border bg-tile-bg/50 font-hanken font-semibold text-[11px] uppercase tracking-[0.04em] text-label`}>
-                            <span /><span>Nº</span><span>Obra</span><span>Organização</span><span>CNPJ</span><span>Telefone</span><span>Endereço</span><span>Responsável</span><span />
+                            <span /><span>Nº</span><span>Obra</span><span>Organização</span><span>CNPJ</span><span>Telefone</span><span>Endereço</span><span>Responsável</span>
                           </div>
-                          {g.itens.map((o, i) => (
+                          {g.itens.map(o => (
                             <ObraLinha key={o.id} obra={o} onOpen={() => setPainel({ tipo: 'detalhe', id: o.id })}
-                              selecionando={selecionando} selecionada={selecionados.has(o.id)} onToggle={() => toggleSel(o.id)}
-                              podeMover={podeMover} onMover={d => void mover(g, i, d)} primeira={i === 0} ultima={i === g.itens.length - 1} />
+                              selecionando={selecionando} selecionada={selecionados.has(o.id)} onToggle={() => toggleSel(o.id)} />
                           ))}
                         </div>
                       </div>
@@ -609,7 +607,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
       </div>
 
       {/* Botão flutuante "Nova obra" (celular/tablet) */}
-      {canManage && !selecionando && (
+      {canManage && !selecionando && !organizando && (
         <button type="button" onClick={() => novaObra()} aria-label="Nova obra"
           className="lg:hidden fixed right-[18px] bottom-[calc(20px+env(safe-area-inset-bottom))] z-[40] inline-flex items-center gap-[8px] h-[52px] pl-[18px] pr-[20px] rounded-full bg-accent text-white border-none shadow-toast cursor-pointer font-hanken font-semibold text-[14px] active:scale-95 transition-transform">
           <Plus size={20} /> Nova obra
