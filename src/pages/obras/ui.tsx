@@ -216,3 +216,34 @@ export function Aviso({ texto, erro, onFim }: { texto: string; erro?: boolean; o
     </div>
   )
 }
+
+/** "Quem pode ver": Padrão e/ou Avançado (ao menos um). Não deixa desmarcar o último. */
+export function QuemPodeVer({ valor, onChange, nome = 'quem-ve' }: {
+  valor: { visivel_padrao: boolean; visivel_avancado: boolean }
+  onChange: (v: { visivel_padrao: boolean; visivel_avancado: boolean }) => void
+  nome?: string
+}) {
+  const opcoes = [
+    ['visivel_padrao', 'Padrão', 'Quem tem o acesso Padrão aos Dados das Obras.'],
+    ['visivel_avancado', 'Avançado', 'Quem tem o acesso Avançado aos Dados das Obras.'],
+  ] as const
+  const marcadas = Number(valor.visivel_padrao) + Number(valor.visivel_avancado)
+  return (
+    <div className="flex flex-col gap-[8px]" role="group" aria-label="Quem pode ver">
+      {opcoes.map(([campo, rotulo, desc]) => {
+        const ligado = valor[campo]
+        return (
+          <label key={campo} className={`flex items-start gap-[10px] rounded-[12px] border p-[10px] cursor-pointer ${ligado ? 'border-accent bg-[rgba(179,28,28,0.05)]' : 'border-border'}`}>
+            <input type="checkbox" name={`${nome}-${campo}`} checked={ligado} disabled={ligado && marcadas === 1}
+              onChange={e => onChange({ ...valor, [campo]: e.target.checked })} className="mt-[3px] w-[17px] h-[17px] accent-[#B31C1C]" />
+            <span>
+              <span className="block font-hanken font-semibold text-[13.5px] text-ink">{rotulo}</span>
+              <span className="block font-hanken text-[12px] text-text-muted">{desc}</span>
+            </span>
+          </label>
+        )
+      })}
+      <span className="font-hanken text-[11.5px] text-text-faint">Marque os dois para a obra aparecer pros dois perfis. O Administrador vê todas.</span>
+    </div>
+  )
+}

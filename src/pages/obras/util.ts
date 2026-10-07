@@ -2,7 +2,7 @@ import type { ElementType } from 'react'
 import {
   Building2, Handshake, HardHat, Rocket, Hourglass, Wrench, CheckCircle2, Archive, Briefcase,
 } from 'lucide-react'
-import type { EquipeMembro, Obra, ObraDados } from '../../services/obras'
+import type { EquipeMembro, Obra, ObraDados, Visibilidade } from '../../services/obras'
 
 // ── Abas (= abas da planilha da Suprimentos) ────────────────────────────────
 // `aba` guarda o nome da aba da planilha (é o que a importação/exportação
@@ -154,10 +154,16 @@ export function formatarDataHora(iso: string): string {
 
 export function obraVazia(parcial: Partial<ObraDados> = {}): ObraDados {
   return {
-    nome: '', numero: '', organizacao: '', aba: '', categoria: '', ativo: true, nivel: 'padrao', ordem: 0,
+    nome: '', numero: '', organizacao: '', aba: '', categoria: '', ativo: true, visivel_padrao: true, visivel_avancado: true, ordem: 0,
     cnpj: '', cno: '', ie: '', im: '', endereco_fatura: '', endereco_entrega: '', endereco_cobranca: '',
     email: '', telefones: [], equipe: [], observacoes: '', ...parcial,
   }
+}
+
+/** Texto curto quando a obra NÃO é visível pros dois perfis (null = pros dois). */
+export function restricaoDeVisibilidade(o: Visibilidade): string | null {
+  if (o.visivel_padrao && o.visivel_avancado) return null
+  return o.visivel_avancado ? 'Só Avançado' : 'Só Padrão'
 }
 
 export function dadosDaObra(o: Obra): ObraDados {

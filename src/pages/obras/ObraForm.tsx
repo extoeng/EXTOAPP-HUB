@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import {
   X, Save, Plus, Trash2, ArrowUp, ArrowDown, Building2, FileText, MapPin, Phone, Users, StickyNote, LayoutGrid,
 } from 'lucide-react'
-import { atualizarObra, criarObra, mensagemErro, type EquipeMembro, type ErrosApi, type NivelObra, type Obra, type ObraDados } from '../../services/obras'
+import { atualizarObra, criarObra, mensagemErro, type EquipeMembro, type ErrosApi, type Obra, type ObraDados } from '../../services/obras'
 import { ABAS_CONHECIDAS, inputCls, rotuloAba } from './util'
-import { Botao, ErroCampo, Rotulo, SectionTitle } from './ui'
+import { Botao, ErroCampo, QuemPodeVer, Rotulo, SectionTitle } from './ui'
 
 const CARGOS_SUGERIDOS = ['Gerente', 'Engº Coord.', 'Engº Resid.', 'Administr.', 'Estagiário', 'Técnico de Segurança']
 
@@ -140,12 +140,11 @@ export function ObraForm({ obraId, inicial, sugestoes, onCancel, onSalvo }: {
                 </datalist>
               </Campo>
             </div>
-            <Campo rotulo="Quem pode ver" erro={erroDe(erros, 'nivel')}>
-              <select className={inputCls} value={f.nivel} onChange={e => set({ nivel: e.target.value as NivelObra })}>
-                <option value="padrao">Padrão — todos que têm acesso aos Dados das Obras</option>
-                <option value="avancado">Avançado — só quem tem o acesso Avançado ou Administrador</option>
-              </select>
-            </Campo>
+            <div className="flex flex-col gap-[5px]">
+              <Rotulo>Quem pode ver</Rotulo>
+              <QuemPodeVer valor={f} onChange={set} nome="obra" />
+              <ErroCampo erro={erroDe(erros, 'visivel_padrao')} />
+            </div>
             <label className="flex items-center gap-[10px] cursor-pointer select-none">
               <input type="checkbox" checked={f.ativo} onChange={e => set({ ativo: e.target.checked })} className="w-[18px] h-[18px] accent-[#B31C1C]" />
               <span className="font-hanken text-[13.5px] text-ink-soft">
