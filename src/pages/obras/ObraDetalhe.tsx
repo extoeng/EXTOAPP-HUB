@@ -1,6 +1,6 @@
 import {
   Building2, FileText, MapPin, Phone, Mail, Users, Hash, X, Pencil, ClipboardCopy, Share2,
-  MessageCircle, Navigation, StickyNote, CopyPlus, Power, Trash2, EyeOff,
+  MessageCircle, Navigation, StickyNote, CopyPlus, Power, Lock, EyeOff,
 } from 'lucide-react'
 import type { Obra } from '../../services/obras'
 import {
@@ -28,14 +28,13 @@ function AcaoRapida({ href, onClick, Icon, children, externo }: {
     : <button type="button" onClick={onClick} className={cls}>{conteudo}</button>
 }
 
-export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, onAlternarAtivo, onExcluir, avisar }: {
+export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, onAlternarAtivo, avisar }: {
   obra: Obra
   canManage: boolean
   onClose: () => void
   onEditar: () => void
   onDuplicar: () => void
   onAlternarAtivo: () => void
-  onExcluir: () => void
   avisar: (texto: string, erro?: boolean) => void
 }) {
   const meta = categoriaMeta(obra.categoria)
@@ -67,6 +66,7 @@ export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, on
           <div className="flex flex-wrap items-center gap-[6px] mt-[8px]">
             <Selo cor={meta.color} bg={meta.bg} Icon={meta.Icon}>{meta.label}</Selo>
             {!obra.ativo && <Selo cor="#6E6B67" bg="rgba(110,107,103,0.12)" Icon={EyeOff}>Inativa</Selo>}
+            {obra.nivel === 'avancado' && <Selo cor="#7A5C99" bg="rgba(122,92,153,0.12)" Icon={Lock}>Avançada</Selo>}
           </div>
         </div>
         {canManage && (
@@ -182,7 +182,6 @@ export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, on
             <div className="mt-[28px] pt-[16px] border-t border-border flex flex-wrap gap-[8px]">
               <Botao Icon={CopyPlus} onClick={onDuplicar}>Duplicar</Botao>
               <Botao Icon={Power} onClick={onAlternarAtivo}>{obra.ativo ? 'Desativar' : 'Reativar'}</Botao>
-              <Botao variante="perigo" Icon={Trash2} onClick={onExcluir}>Excluir</Botao>
             </div>
           )}
         </div>

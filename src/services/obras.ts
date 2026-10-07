@@ -1,11 +1,19 @@
 // Cliente da API de Dados das Obras (NEXUS, app `obras`).
 // Desde 2026-10 a obra é cadastro manual próprio (sem vínculo com SPE/Mega):
-// - qualquer capability do app `obras` lê (obras inativas só vêm pra quem tem `manage`);
-// - `manage` ("Administrador") cria/edita/exclui tudo, faz ações em massa,
-//   reordena e importa/exporta a planilha no modelo da Suprimentos.
+// - qualquer capability do app `obras` lê: `view` ("Padrão") vê as obras de
+//   nível `padrao`; `avancado` ("Avançado") vê também as de nível `avancado`;
+//   `manage` ("Administrador") vê tudo, inclusive inativas;
+// - `manage` cria/edita, faz ações em massa, reordena obras, renomeia grupos,
+//   ordena abas e importa/exporta a planilha no modelo da Suprimentos.
+//   Obra NÃO se exclui (a API não tem DELETE): ocultar = desativar.
 // Os dados (CNPJ, endereços, e-mails, equipe) só existem na API — nunca no
 // bundle público (pentest E7, 2026-08).
 import { apiFetch } from './api'
+
+/** Menor nível de acesso que enxerga a obra. */
+export type NivelObra = 'padrao' | 'avancado'
+
+export const ROTULO_NIVEL: Record<NivelObra, string> = { padrao: 'Padrão', avancado: 'Avançado' }
 
 export interface EquipeMembro { cargo: string; nome: string; telefone: string; email: string }
 
@@ -17,6 +25,7 @@ export interface Obra {
   aba: string
   categoria: string
   ativo: boolean
+  nivel: NivelObra
   ordem: number
   cnpj: string
   cno: string
@@ -84,13 +93,10 @@ export async function atualizarObra(id: string, dados: Partial<ObraDados>): Prom
   return resultado(await apiFetch(`/obras/${id}/`, { method: 'PATCH', body: JSON.stringify(dados) }).catch(() => null))
 }
 
-export async function excluirObra(id: string): Promise<Resultado<void>> {
-  return resultado(await apiFetch(`/obras/${id}/`, { method: 'DELETE' }).catch(() => null))
-}
-
 export type AcaoEmMassa =
-  | { acao: 'ativar' | 'desativar' | 'excluir' }
+  | { acao: 'ativar' | 'desativar' }
   | { acao: 'mover'; aba?: string; categoria?: string }
+  | { acao: 'nivel'; nivel: NivelObra }
 
 export async function acaoEmMassa(ids: string[], acao: AcaoEmMassa): Promise<Resultado<{ afetadas: number }>> {
   return resultado(await apiFetch('/obras/em-massa/', { method: 'POST', body: JSON.stringify({ ids, ...acao }) }).catch(() => null))
@@ -99,6 +105,22 @@ export async function acaoEmMassa(ids: string[], acao: AcaoEmMassa): Promise<Res
 /** `ids` na nova ordem — o backend redistribui entre eles as posições que já ocupavam. */
 export async function reordenarObras(ids: string[]): Promise<Resultado<Obra[]>> {
   return resultado(await apiFetch('/obras/reordenar/', { method: 'POST', body: JSON.stringify({ ids }) }).catch(() => null))
+}
+
+/** Renomeia a aba/categoria em todas as obras que a usam (nome já existente = junta os grupos). */
+export async function renomearGrupo(tipo: 'aba' | 'categoria', de: string, para: string): Promise<Resultado<{ afetadas: number }>> {
+  return resultado(await apiFetch('/obras/renomear-grupo/', { method: 'POST', body: JSON.stringify({ tipo, de, para }) }).catch(() => null))
+}
+
+/** Nomes das abas na ordem escolhida pelo Administrador (vazio = ordem padrão). */
+export async function fetchOrdemAbas(): Promise<string[]> {
+  const res = await apiFetch('/obras/ordem-abas/').catch(() => null)
+  if (!res || !res.ok) return []
+  return res.json()
+}
+
+export async function salvarOrdemAbas(abas: string[]): Promise<Resultado<string[]>> {
+  return resultado(await apiFetch('/obras/ordem-abas/', { method: 'POST', body: JSON.stringify({ abas }) }).catch(() => null))
 }
 
 export type AusentesAcao = 'manter' | 'desativar'

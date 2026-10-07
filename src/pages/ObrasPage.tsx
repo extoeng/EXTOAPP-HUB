@@ -1,17 +1,19 @@
 // Dados das Obras — cadastro manual (sem vínculo com SPE/Mega desde 2026-10).
-// Quem tem `view` consulta (busca, filtros, copiar/ligar/WhatsApp/mapa,
-// compartilhar). Quem tem `manage` ("Administrador") também cria/edita tudo,
-// duplica, ativa/desativa, exclui, reordena, age em massa e importa/exporta a
-// planilha no modelo da Suprimentos. O backend é a barreira real (403).
+// Quem tem `view` ("Padrão") ou `avancado` consulta (busca, filtros, copiar/
+// ligar/WhatsApp/mapa, compartilhar) — a API já devolve só as obras do nível
+// de cada um. Quem tem `manage` ("Administrador") também cria/edita tudo,
+// duplica, ativa/desativa (nunca exclui), define o nível de cada obra,
+// reordena obras, renomeia grupos e ordena abas, age em massa e importa/exporta
+// a planilha no modelo da Suprimentos. O backend é a barreira real (403).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, Search, Briefcase, X, Hash, FileText, Phone, MapPin, Users, ChevronRight, ChevronDown,
   Plus, Upload, Download, EllipsisVertical, ListChecks, LayoutGrid, List, Eye, EyeOff, ArrowUpDown,
-  Square, SquareCheck, FolderInput, Power, Trash2, Loader2,
+  Square, SquareCheck, FolderInput, Power, Loader2, Lock, Layers,
 } from 'lucide-react'
 import {
-  acaoEmMassa, excluirObra, atualizarObra, exportarPlanilha, fetchObras, mensagemErro,
-  type Obra, type ObraDados, type ResumoImportacao,
+  acaoEmMassa, atualizarObra, exportarPlanilha, fetchObras, fetchOrdemAbas, mensagemErro, renomearGrupo, salvarOrdemAbas,
+  type NivelObra, type Obra, type ObraDados, type ResumoImportacao,
 } from '../services/obras'
 import {
   abasDe, casaBusca, categoriaMeta, dadosDaObra, enderecoPrincipal, enderecoResumo, formatarDataHora, guardar,
@@ -22,6 +24,7 @@ import { ObraDetalhe } from './obras/ObraDetalhe'
 import { ObraForm, type Sugestoes } from './obras/ObraForm'
 import { ImportarModal } from './obras/ImportarModal'
 import { OrganizarOrdem } from './obras/OrganizarOrdem'
+import { GruposModal } from './obras/GruposModal'
 
 interface Props {
   onBack: () => void
@@ -98,6 +101,7 @@ function ObraCard({ obra, meta, onOpen, selecionando, selecionada, onToggle }: {
       <div className="flex flex-wrap items-center gap-[5px] mb-[10px]">
         <Selo cor={meta.color} bg={meta.bg} Icon={meta.Icon}>{meta.label}</Selo>
         {!obra.ativo && <Selo cor="#6E6B67" bg="rgba(110,107,103,0.12)" Icon={EyeOff}>Inativa</Selo>}
+        {obra.nivel === 'avancado' && <Selo cor="#7A5C99" bg="rgba(122,92,153,0.12)" Icon={Lock}>Avançada</Selo>}
       </div>
 
       <div className="flex flex-col gap-[2px] pt-[8px] border-t border-border">
@@ -171,6 +175,7 @@ function ObraLinha({ obra, onOpen, selecionando, selecionada, onToggle }: {
       <span className="font-hanken font-semibold text-[12.5px] text-text-muted tabular-nums">{obra.numero || '—'}</span>
       <span className="min-w-0 font-hanken font-medium text-[13.5px] text-ink truncate" title={obra.nome}>
         {obra.nome}{!obra.ativo && <span className="ml-[6px] text-[11px] text-text-faint">(inativa)</span>}
+        {obra.nivel === 'avancado' && <Lock size={11} className="ml-[6px] inline text-[#7A5C99]" aria-label="Avançada" />}
       </span>
       <span className="min-w-0 font-hanken text-[12.5px] text-text-muted truncate" title={obra.organizacao}>{obra.organizacao}</span>
       <span className="flex items-center min-w-0 font-hanken text-[12.5px] text-ink-soft tabular-nums">
@@ -263,6 +268,40 @@ function MoverModal({ qtd, sugestoes, onClose, onConfirmar }: {
   )
 }
 
+// ── Nível em massa ───────────────────────────────────────────────────────────
+function NivelModal({ qtd, onClose, onConfirmar }: {
+  qtd: number; onClose: () => void; onConfirmar: (nivel: NivelObra) => Promise<void>
+}) {
+  const [nivel, setNivel] = useState<NivelObra>('padrao')
+  const [rodando, setRodando] = useState(false)
+  const opcoes: [NivelObra, string, string][] = [
+    ['padrao', 'Padrão', 'Todos que têm acesso aos Dados das Obras veem.'],
+    ['avancado', 'Avançado', 'Só quem tem o acesso Avançado ou Administrador vê.'],
+  ]
+  return (
+    <Modal titulo={`Nível de ${qtd} obra${qtd > 1 ? 's' : ''}`} onClose={rodando ? () => {} : onClose} largura={440}
+      rodape={<>
+        <Botao onClick={onClose} disabled={rodando}>Cancelar</Botao>
+        <Botao variante="primario" Icon={Lock} carregando={rodando}
+          onClick={async () => { setRodando(true); await onConfirmar(nivel); setRodando(false) }}>
+          Aplicar
+        </Botao>
+      </>}>
+      <div className="flex flex-col gap-[8px]">
+        {opcoes.map(([valor, rotulo, desc]) => (
+          <label key={valor} className={`flex items-start gap-[10px] rounded-[12px] border p-[12px] cursor-pointer ${nivel === valor ? 'border-accent bg-[rgba(179,28,28,0.05)]' : 'border-border'}`}>
+            <input type="radio" name="nivel-massa" checked={nivel === valor} onChange={() => setNivel(valor)} className="mt-[3px] accent-[#B31C1C]" />
+            <span>
+              <span className="block font-hanken font-semibold text-[14px] text-ink">{rotulo}</span>
+              <span className="block font-hanken text-[12.5px] text-text-muted">{desc}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </Modal>
+  )
+}
+
 // ── Página ────────────────────────────────────────────────────────────────────
 export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props) {
   const [obras, setObras] = useState<Obra[]>([])
@@ -286,6 +325,9 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   )
   const [importando, setImportando] = useState(false)
   const [movendo, setMovendo] = useState(false)
+  const [definindoNivel, setDefinindoNivel] = useState(false)
+  const [gerindoGrupos, setGerindoGrupos] = useState(false)
+  const [ordemAbas, setOrdemAbas] = useState<string[]>([])
   const [exportando, setExportando] = useState(false)
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null)
   const [aviso, setAviso] = useState<{ texto: string; erro?: boolean } | null>(null)
@@ -294,7 +336,8 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   const fecharAviso = useCallback(() => setAviso(null), [])
 
   const carregar = useCallback(async () => {
-    const r = await fetchObras()
+    const [r, ordem] = await Promise.all([fetchObras(), fetchOrdemAbas()])
+    setOrdemAbas(ordem)
     setObras(r.obras)
     setAtualizadoEm(r.atualizadoEm)
     setErro(r.erro ?? null)
@@ -319,7 +362,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   ), [visiveis, aba, termos, indices])
 
   const grupos = useMemo(() => agrupar(resultados), [resultados])
-  const abas = useMemo(() => abasDe(visiveis), [visiveis])
+  const abas = useMemo(() => abasDe(visiveis, ordemAbas), [visiveis, ordemAbas])
   const contagemAba = useMemo(() => {
     const m = new Map<string, number>()
     for (const o of visiveis) m.set(o.aba, (m.get(o.aba) ?? 0) + 1)
@@ -328,10 +371,10 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   const inativasQtd = useMemo(() => obras.filter(o => !o.ativo).length, [obras])
 
   const sugestoes: Sugestoes = useMemo(() => ({
-    abas: abasDe(obras),
+    abas: abasDe(obras, ordemAbas),
     categorias: agrupar(obras).map(g => g.key).filter(Boolean),
     cargos: [...new Set(obras.flatMap(o => o.equipe.map(m => m.cargo)).filter(Boolean))].sort(),
-  }), [obras])
+  }), [obras, ordemAbas])
 
   // Se a aba filtrada sumiu (ex. depois de mover/importar), volta pra "Todas".
   useEffect(() => { if (aba !== 'todas' && !abas.includes(aba)) setAba('todas') }, [aba, abas])
@@ -360,22 +403,6 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     })
   }
 
-  function excluir(obra: Obra) {
-    setConfirmacao({
-      titulo: 'Excluir obra?',
-      mensagem: <>“{obra.nome}” será excluída de vez, com todos os dados e a equipe. Se for só pra esconder, prefira <b>Desativar</b>.</>,
-      confirmar: 'Excluir',
-      perigo: true,
-      onConfirmar: async () => {
-        const r = await excluirObra(obra.id)
-        if (!r.ok) { avisar(mensagemErro(r.erros), true); return }
-        setObras(prev => prev.filter(o => o.id !== obra.id))
-        setPainel(null)
-        avisar('Obra excluída')
-      },
-    })
-  }
-
   function toggleSel(id: string) {
     setSelecionados(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
@@ -397,6 +424,24 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
     if (acao.acao === 'desativar' && !verInativas) setVerInativas(true)
     sairSelecao()
     avisar(sucesso.replace('{n}', String(r.data.afetadas)))
+  }
+
+  /** Devolve a mensagem de erro (ou null se deu certo) pro modal de grupos. */
+  async function renomear(tipo: 'aba' | 'categoria', de: string, para: string): Promise<string | null> {
+    const r = await renomearGrupo(tipo, de, para)
+    if (!r.ok) return mensagemErro(r.erros)
+    if (tipo === 'aba' && aba === de) setAba(para)
+    await carregar()
+    avisar(`${tipo === 'aba' ? 'Aba' : 'Categoria'} renomeada em ${r.data.afetadas} obra${r.data.afetadas === 1 ? '' : 's'}`)
+    return null
+  }
+
+  async function ordenarAbas(nomes: string[]): Promise<string | null> {
+    const r = await salvarOrdemAbas(nomes)
+    if (!r.ok) return mensagemErro(r.erros)
+    setOrdemAbas(r.data)
+    avisar('Ordem das abas salva')
+    return null
   }
 
   async function exportar() {
@@ -433,6 +478,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
       { label: 'Importar planilha', Icon: Upload, onClick: () => setImportando(true) },
       { label: exportando ? 'Exportando…' : 'Exportar planilha', Icon: Download, onClick: () => { if (!exportando) void exportar() } },
       { label: 'Organizar ordem', Icon: ArrowUpDown, onClick: organizar },
+      { label: 'Abas e categorias', Icon: Layers, onClick: () => setGerindoGrupos(true) },
       { label: 'Selecionar várias', Icon: ListChecks, onClick: () => { setOrganizando(false); setSelecionando(true) } },
       { label: verInativas ? 'Ocultar inativas' : `Mostrar inativas${inativasQtd ? ` (${inativasQtd})` : ''}`, Icon: verInativas ? EyeOff : Eye, onClick: () => setVerInativas(v => !v), ativo: verInativas },
     ] : []),
@@ -502,6 +548,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
                   Inativas{inativasQtd ? ` (${inativasQtd})` : ''}
                 </Botao>
                 <Botao Icon={ArrowUpDown} onClick={organizar} disabled={organizando}>Organizar ordem</Botao>
+                <Botao Icon={Layers} onClick={() => setGerindoGrupos(true)} disabled={organizando}>Abas e categorias</Botao>
                 <Botao variante={selecionando ? 'perigo' : 'secundario'} Icon={ListChecks} disabled={organizando} onClick={() => (selecionando ? sairSelecao() : setSelecionando(true))}>
                   {selecionando ? 'Cancelar seleção' : 'Selecionar'}
                 </Botao>
@@ -625,12 +672,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
               ['Mover', FolderInput, () => setMovendo(true)],
               ['Ativar', Power, () => void emMassa({ acao: 'ativar' }, '{n} obra(s) ativada(s)')],
               ['Desativar', EyeOff, () => void emMassa({ acao: 'desativar' }, '{n} obra(s) desativada(s)')],
-              ['Excluir', Trash2, () => setConfirmacao({
-                titulo: `Excluir ${selecionados.size} obra(s)?`,
-                mensagem: 'As obras selecionadas serão excluídas de vez. Se for só pra esconder, use Desativar.',
-                confirmar: 'Excluir', perigo: true,
-                onConfirmar: () => emMassa({ acao: 'excluir' }, '{n} obra(s) excluída(s)'),
-              })],
+              ['Nível', Lock, () => setDefinindoNivel(true)],
             ] as const).map(([rot, Icon, fn]) => (
               <button key={rot} type="button" disabled={selecionados.size === 0} onClick={fn}
                 className="inline-flex items-center gap-[6px] min-h-[38px] px-[11px] rounded-[10px] border border-white/20 bg-white/10 hover:bg-white/20 text-white cursor-pointer font-hanken font-medium text-[13px] disabled:opacity-40 disabled:cursor-default">
@@ -660,7 +702,6 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
               onEditar={() => setPainel({ tipo: 'editar', id: obraDoPainel.id })}
               onDuplicar={() => novaObra({ ...dadosDaObra(obraDoPainel), nome: `${obraDoPainel.nome} (cópia)`, ordem: obraDoPainel.ordem + 1 })}
               onAlternarAtivo={() => alternarAtivo(obraDoPainel)}
-              onExcluir={() => excluir(obraDoPainel)}
               avisar={avisar}
             />
           ) : (
@@ -688,6 +729,23 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
             await emMassa({ acao: 'mover', ...(novaAba ? { aba: novaAba } : {}), ...(categoria ? { categoria } : {}) }, '{n} obra(s) movida(s)')
             setMovendo(false)
           }} />
+      )}
+      {definindoNivel && (
+        <NivelModal qtd={selecionados.size} onClose={() => setDefinindoNivel(false)}
+          onConfirmar={async nivel => {
+            await emMassa({ acao: 'nivel', nivel }, `{n} obra(s) agora ${nivel === 'avancado' ? 'avançada(s)' : 'de nível padrão'}`)
+            setDefinindoNivel(false)
+          }} />
+      )}
+      {gerindoGrupos && (
+        <GruposModal
+          abas={abasDe(obras, ordemAbas)}
+          contagemAbas={obras.reduce((m, o) => m.set(o.aba, (m.get(o.aba) ?? 0) + 1), new Map<string, number>())}
+          categorias={agrupar(obras).map(g => ({ nome: g.key, qtd: g.itens.length }))}
+          onClose={() => setGerindoGrupos(false)}
+          onRenomear={renomear}
+          onSalvarOrdem={ordenarAbas}
+        />
       )}
       {confirmacao && <ConfirmDialog conf={confirmacao} onClose={() => setConfirmacao(null)} />}
       {aviso && <Aviso texto={aviso.texto} erro={aviso.erro} onFim={fecharAviso} />}
