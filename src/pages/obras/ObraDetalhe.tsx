@@ -4,7 +4,7 @@ import {
 } from 'lucide-react'
 import type { Obra } from '../../services/obras'
 import {
-  categoriaMeta, copiar, enderecoPrincipal, mapaHref, rotuloAba, telHref, telefonePrincipal, textoDaObra, whatsappHref,
+  categoriaMeta, copiar, enderecoPrincipal, mapaHref, restricaoDeVisibilidade, rotuloAba, telHref, telefonePrincipal, textoDaObra, whatsappHref,
 } from './util'
 import { Botao, CopyButton, IconLink, SectionTitle, Selo } from './ui'
 
@@ -66,7 +66,7 @@ export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, on
           <div className="flex flex-wrap items-center gap-[6px] mt-[8px]">
             <Selo cor={meta.color} bg={meta.bg} Icon={meta.Icon}>{meta.label}</Selo>
             {!obra.ativo && <Selo cor="#6E6B67" bg="rgba(110,107,103,0.12)" Icon={EyeOff}>Inativa</Selo>}
-            {obra.nivel === 'avancado' && <Selo cor="#7A5C99" bg="rgba(122,92,153,0.12)" Icon={Lock}>Avançada</Selo>}
+            {restricaoDeVisibilidade(obra) && <Selo cor="#7A5C99" bg="rgba(122,92,153,0.12)" Icon={Lock}>{restricaoDeVisibilidade(obra)}</Selo>}
           </div>
         </div>
         {canManage && (

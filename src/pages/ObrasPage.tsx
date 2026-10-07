@@ -13,13 +13,13 @@ import {
 } from 'lucide-react'
 import {
   acaoEmMassa, atualizarObra, exportarPlanilha, fetchObras, fetchOrdemAbas, mensagemErro, renomearGrupo, salvarOrdemAbas,
-  type NivelObra, type Obra, type ObraDados, type ResumoImportacao,
+  type Obra, type ObraDados, type ResumoImportacao, type Visibilidade,
 } from '../services/obras'
 import {
   abasDe, casaBusca, categoriaMeta, dadosDaObra, enderecoPrincipal, enderecoResumo, formatarDataHora, guardar,
-  indiceBusca, inputCls, ler, normalizar, obraVazia, responsavel, rotuloAba, telHref, telefonePrincipal, type CategoriaMeta,
+  indiceBusca, inputCls, ler, normalizar, obraVazia, responsavel, restricaoDeVisibilidade, rotuloAba, telHref, telefonePrincipal, type CategoriaMeta,
 } from './obras/util'
-import { Aviso, Botao, ConfirmDialog, CopyButton, Modal, Painel, Selo, type Confirmacao } from './obras/ui'
+import { Aviso, Botao, ConfirmDialog, CopyButton, Modal, Painel, QuemPodeVer, Selo, type Confirmacao } from './obras/ui'
 import { ObraDetalhe } from './obras/ObraDetalhe'
 import { ObraForm, type Sugestoes } from './obras/ObraForm'
 import { ImportarModal } from './obras/ImportarModal'
@@ -101,7 +101,7 @@ function ObraCard({ obra, meta, onOpen, selecionando, selecionada, onToggle }: {
       <div className="flex flex-wrap items-center gap-[5px] mb-[10px]">
         <Selo cor={meta.color} bg={meta.bg} Icon={meta.Icon}>{meta.label}</Selo>
         {!obra.ativo && <Selo cor="#6E6B67" bg="rgba(110,107,103,0.12)" Icon={EyeOff}>Inativa</Selo>}
-        {obra.nivel === 'avancado' && <Selo cor="#7A5C99" bg="rgba(122,92,153,0.12)" Icon={Lock}>Avançada</Selo>}
+        {restricaoDeVisibilidade(obra) && <Selo cor="#7A5C99" bg="rgba(122,92,153,0.12)" Icon={Lock}>{restricaoDeVisibilidade(obra)}</Selo>}
       </div>
 
       <div className="flex flex-col gap-[2px] pt-[8px] border-t border-border">
@@ -175,7 +175,7 @@ function ObraLinha({ obra, onOpen, selecionando, selecionada, onToggle }: {
       <span className="font-hanken font-semibold text-[12.5px] text-text-muted tabular-nums">{obra.numero || '—'}</span>
       <span className="min-w-0 font-hanken font-medium text-[13.5px] text-ink truncate" title={obra.nome}>
         {obra.nome}{!obra.ativo && <span className="ml-[6px] text-[11px] text-text-faint">(inativa)</span>}
-        {obra.nivel === 'avancado' && <Lock size={11} className="ml-[6px] inline text-[#7A5C99]" aria-label="Avançada" />}
+        {restricaoDeVisibilidade(obra) && <Lock size={11} className="ml-[6px] inline text-[#7A5C99]" aria-label={restricaoDeVisibilidade(obra)!} />}
       </span>
       <span className="min-w-0 font-hanken text-[12.5px] text-text-muted truncate" title={obra.organizacao}>{obra.organizacao}</span>
       <span className="flex items-center min-w-0 font-hanken text-[12.5px] text-ink-soft tabular-nums">
@@ -268,36 +268,23 @@ function MoverModal({ qtd, sugestoes, onClose, onConfirmar }: {
   )
 }
 
-// ── Nível em massa ───────────────────────────────────────────────────────────
-function NivelModal({ qtd, onClose, onConfirmar }: {
-  qtd: number; onClose: () => void; onConfirmar: (nivel: NivelObra) => Promise<void>
+// ── Quem pode ver (reativar / em massa) ──────────────────────────────────────
+function VisibilidadeModal({ titulo, aplicar, inicial, onClose, onConfirmar }: {
+  titulo: string; aplicar: string; inicial: Visibilidade; onClose: () => void
+  onConfirmar: (v: Visibilidade) => Promise<void>
 }) {
-  const [nivel, setNivel] = useState<NivelObra>('padrao')
+  const [valor, setValor] = useState<Visibilidade>(inicial)
   const [rodando, setRodando] = useState(false)
-  const opcoes: [NivelObra, string, string][] = [
-    ['padrao', 'Padrão', 'Todos que têm acesso aos Dados das Obras veem.'],
-    ['avancado', 'Avançado', 'Só quem tem o acesso Avançado ou Administrador vê.'],
-  ]
   return (
-    <Modal titulo={`Nível de ${qtd} obra${qtd > 1 ? 's' : ''}`} onClose={rodando ? () => {} : onClose} largura={440}
+    <Modal titulo={titulo} onClose={rodando ? () => {} : onClose} largura={440}
       rodape={<>
         <Botao onClick={onClose} disabled={rodando}>Cancelar</Botao>
         <Botao variante="primario" Icon={Lock} carregando={rodando}
-          onClick={async () => { setRodando(true); await onConfirmar(nivel); setRodando(false) }}>
-          Aplicar
+          onClick={async () => { setRodando(true); await onConfirmar(valor); setRodando(false) }}>
+          {aplicar}
         </Botao>
       </>}>
-      <div className="flex flex-col gap-[8px]">
-        {opcoes.map(([valor, rotulo, desc]) => (
-          <label key={valor} className={`flex items-start gap-[10px] rounded-[12px] border p-[12px] cursor-pointer ${nivel === valor ? 'border-accent bg-[rgba(179,28,28,0.05)]' : 'border-border'}`}>
-            <input type="radio" name="nivel-massa" checked={nivel === valor} onChange={() => setNivel(valor)} className="mt-[3px] accent-[#B31C1C]" />
-            <span>
-              <span className="block font-hanken font-semibold text-[14px] text-ink">{rotulo}</span>
-              <span className="block font-hanken text-[12.5px] text-text-muted">{desc}</span>
-            </span>
-          </label>
-        ))}
-      </div>
+      <QuemPodeVer valor={valor} onChange={setValor} nome="modal" />
     </Modal>
   )
 }
@@ -325,7 +312,12 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   )
   const [importando, setImportando] = useState(false)
   const [movendo, setMovendo] = useState(false)
-  const [definindoNivel, setDefinindoNivel] = useState(false)
+  const [visibilidade, setVisibilidade] = useState<
+    | { modo: 'reativar'; obra: Obra }
+    | { modo: 'ativar-massa' }
+    | { modo: 'definir-massa' }
+    | null
+  >(null)
   const [gerindoGrupos, setGerindoGrupos] = useState(false)
   const [ordemAbas, setOrdemAbas] = useState<string[]>([])
   const [exportando, setExportando] = useState(false)
@@ -387,20 +379,28 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
   }
 
   function alternarAtivo(obra: Obra) {
-    const executar = async () => {
-      const r = await atualizarObra(obra.id, { ativo: !obra.ativo })
-      if (!r.ok) { avisar(mensagemErro(r.erros), true); return }
-      aplicarObra(r.data)
-      if (!r.data.ativo && !verInativas) setVerInativas(true)
-      avisar(r.data.ativo ? 'Obra reativada' : 'Obra desativada')
-    }
-    if (!obra.ativo) { void executar(); return }
+    // Reativar pede quem pode ver a obra (modal); desativar só confirma.
+    if (!obra.ativo) { setVisibilidade({ modo: 'reativar', obra }); return }
     setConfirmacao({
       titulo: 'Desativar obra?',
       mensagem: <>“{obra.nome}” deixa de aparecer pra quem não é Administrador. Dá pra reativar quando quiser.</>,
       confirmar: 'Desativar',
-      onConfirmar: executar,
+      onConfirmar: async () => {
+        const r = await atualizarObra(obra.id, { ativo: false })
+        if (!r.ok) { avisar(mensagemErro(r.erros), true); return }
+        aplicarObra(r.data)
+        if (!verInativas) setVerInativas(true)
+        avisar('Obra desativada')
+      },
     })
+  }
+
+  async function reativar(obra: Obra, v: Visibilidade) {
+    const r = await atualizarObra(obra.id, { ativo: true, ...v })
+    if (!r.ok) { avisar(mensagemErro(r.erros), true); return }
+    aplicarObra(r.data)
+    setVisibilidade(null)
+    avisar('Obra reativada')
   }
 
   function toggleSel(id: string) {
@@ -670,9 +670,9 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
             </span>
             {([
               ['Mover', FolderInput, () => setMovendo(true)],
-              ['Ativar', Power, () => void emMassa({ acao: 'ativar' }, '{n} obra(s) ativada(s)')],
+              ['Ativar', Power, () => setVisibilidade({ modo: 'ativar-massa' })],
               ['Desativar', EyeOff, () => void emMassa({ acao: 'desativar' }, '{n} obra(s) desativada(s)')],
-              ['Nível', Lock, () => setDefinindoNivel(true)],
+              ['Quem vê', Lock, () => setVisibilidade({ modo: 'definir-massa' })],
             ] as const).map(([rot, Icon, fn]) => (
               <button key={rot} type="button" disabled={selecionados.size === 0} onClick={fn}
                 className="inline-flex items-center gap-[6px] min-h-[38px] px-[11px] rounded-[10px] border border-white/20 bg-white/10 hover:bg-white/20 text-white cursor-pointer font-hanken font-medium text-[13px] disabled:opacity-40 disabled:cursor-default">
@@ -730,11 +730,21 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
             setMovendo(false)
           }} />
       )}
-      {definindoNivel && (
-        <NivelModal qtd={selecionados.size} onClose={() => setDefinindoNivel(false)}
-          onConfirmar={async nivel => {
-            await emMassa({ acao: 'nivel', nivel }, `{n} obra(s) agora ${nivel === 'avancado' ? 'avançada(s)' : 'de nível padrão'}`)
-            setDefinindoNivel(false)
+      {visibilidade?.modo === 'reativar' && (
+        <VisibilidadeModal titulo="Reativar obra" aplicar="Reativar" onClose={() => setVisibilidade(null)}
+          inicial={{ visivel_padrao: visibilidade.obra.visivel_padrao, visivel_avancado: visibilidade.obra.visivel_avancado }}
+          onConfirmar={v => reativar(visibilidade.obra, v)} />
+      )}
+      {visibilidade && visibilidade.modo !== 'reativar' && (
+        <VisibilidadeModal
+          titulo={visibilidade.modo === 'ativar-massa' ? `Ativar ${selecionados.size} obra${selecionados.size === 1 ? '' : 's'}` : `Quem vê ${selecionados.size} obra${selecionados.size === 1 ? '' : 's'}`}
+          aplicar={visibilidade.modo === 'ativar-massa' ? 'Ativar' : 'Aplicar'}
+          inicial={{ visivel_padrao: true, visivel_avancado: true }}
+          onClose={() => setVisibilidade(null)}
+          onConfirmar={async v => {
+            const ativar = visibilidade.modo === 'ativar-massa'
+            await emMassa({ acao: ativar ? 'ativar' : 'visibilidade', ...v }, ativar ? '{n} obra(s) ativada(s)' : 'Visibilidade de {n} obra(s) atualizada')
+            setVisibilidade(null)
           }} />
       )}
       {gerindoGrupos && (

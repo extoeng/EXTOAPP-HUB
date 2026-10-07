@@ -1,8 +1,10 @@
 // Cliente da API de Dados das Obras (NEXUS, app `obras`).
 // Desde 2026-10 a obra é cadastro manual próprio (sem vínculo com SPE/Mega):
-// - qualquer capability do app `obras` lê: `view` ("Padrão") vê as obras de
-//   nível `padrao`; `avancado` ("Avançado") vê também as de nível `avancado`;
+// - qualquer capability do app `obras` lê: `view` ("Padrão") vê as obras
+//   marcadas `visivel_padrao`; `avancado` ("Avançado") vê as marcadas
+//   `visivel_avancado` (cada obra pode ter as duas marcações);
 //   `manage` ("Administrador") vê tudo, inclusive inativas;
+// - reativar uma obra inativa exige informar quem pode vê-la;
 // - `manage` cria/edita, faz ações em massa, reordena obras, renomeia grupos,
 //   ordena abas e importa/exporta a planilha no modelo da Suprimentos.
 //   Obra NÃO se exclui (a API não tem DELETE): ocultar = desativar.
@@ -10,14 +12,12 @@
 // bundle público (pentest E7, 2026-08).
 import { apiFetch } from './api'
 
-/** Menor nível de acesso que enxerga a obra. */
-export type NivelObra = 'padrao' | 'avancado'
-
-export const ROTULO_NIVEL: Record<NivelObra, string> = { padrao: 'Padrão', avancado: 'Avançado' }
+/** Quem enxerga a obra (as duas marcações podem estar ligadas; ao menos uma). */
+export interface Visibilidade { visivel_padrao: boolean; visivel_avancado: boolean }
 
 export interface EquipeMembro { cargo: string; nome: string; telefone: string; email: string }
 
-export interface Obra {
+export interface Obra extends Visibilidade {
   id: string
   nome: string
   numero: string
@@ -25,7 +25,6 @@ export interface Obra {
   aba: string
   categoria: string
   ativo: boolean
-  nivel: NivelObra
   ordem: number
   cnpj: string
   cno: string
@@ -94,9 +93,9 @@ export async function atualizarObra(id: string, dados: Partial<ObraDados>): Prom
 }
 
 export type AcaoEmMassa =
-  | { acao: 'ativar' | 'desativar' }
+  | { acao: 'desativar' }
+  | ({ acao: 'ativar' | 'visibilidade' } & Visibilidade)
   | { acao: 'mover'; aba?: string; categoria?: string }
-  | { acao: 'nivel'; nivel: NivelObra }
 
 export async function acaoEmMassa(ids: string[], acao: AcaoEmMassa): Promise<Resultado<{ afetadas: number }>> {
   return resultado(await apiFetch('/obras/em-massa/', { method: 'POST', body: JSON.stringify({ ids, ...acao }) }).catch(() => null))
