@@ -18,12 +18,15 @@ export function rotuloAba(aba: string): string {
   return ABAS_CONHECIDAS.find(a => a.valor === aba)?.rotulo || aba || 'Sem aba'
 }
 
-/** Abas presentes nos dados, conhecidas primeiro (na ordem da planilha). */
-export function abasDe(obras: Obra[]): string[] {
+/** Abas presentes nos dados: primeiro as da ordem escolhida pelo Administrador
+ *  (`ordem`, vinda da API), depois as conhecidas (ordem da planilha) e por fim
+ *  as outras em ordem alfabética. */
+export function abasDe(obras: Obra[], ordem: string[] = []): string[] {
   const presentes = new Set(obras.map(o => o.aba))
-  const conhecidas = ABAS_CONHECIDAS.map(a => a.valor).filter(a => presentes.has(a))
-  const outras = [...presentes].filter(a => !conhecidas.includes(a)).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  return [...conhecidas, ...outras]
+  const escolhidas = ordem.filter(a => presentes.has(a))
+  const conhecidas = ABAS_CONHECIDAS.map(a => a.valor).filter(a => presentes.has(a) && !escolhidas.includes(a))
+  const outras = [...presentes].filter(a => !escolhidas.includes(a) && !conhecidas.includes(a)).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  return [...escolhidas, ...conhecidas, ...outras]
 }
 
 // ── Categorias (= seções dentro da aba) ─────────────────────────────────────
@@ -151,7 +154,7 @@ export function formatarDataHora(iso: string): string {
 
 export function obraVazia(parcial: Partial<ObraDados> = {}): ObraDados {
   return {
-    nome: '', numero: '', organizacao: '', aba: '', categoria: '', ativo: true, ordem: 0,
+    nome: '', numero: '', organizacao: '', aba: '', categoria: '', ativo: true, nivel: 'padrao', ordem: 0,
     cnpj: '', cno: '', ie: '', im: '', endereco_fatura: '', endereco_entrega: '', endereco_cobranca: '',
     email: '', telefones: [], equipe: [], observacoes: '', ...parcial,
   }
