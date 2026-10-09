@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import {
-  X, Save, Plus, Trash2, ArrowUp, ArrowDown, Building2, FileText, MapPin, Phone, Users, StickyNote, LayoutGrid,
+  X, Save, Plus, Trash2, Building2, FileText, MapPin, Phone, Users, StickyNote, LayoutGrid,
 } from 'lucide-react'
 import { atualizarObra, criarObra, mensagemErro, type EquipeMembro, type ErrosApi, type Obra, type ObraDados } from '../../services/obras'
 import { ABAS_CONHECIDAS, inputCls, rotuloAba } from './util'
+import { EquipeMembroCampo } from './EquipeMembroCampo'
 import { Botao, ErroCampo, QuemPodeVer, Rotulo, SectionTitle } from './ui'
 
 const CARGOS_SUGERIDOS = ['Gerente', 'Engº Coord.', 'Engº Resid.', 'Administr.', 'Estagiário', 'Técnico de Segurança']
@@ -204,29 +205,18 @@ export function ObraForm({ obraId, inicial, sugestoes, onCancel, onSalvo }: {
           <Bloco Icon={Users} titulo={`Equipe${f.equipe.length ? ` (${f.equipe.length})` : ''}`}>
             {f.equipe.length === 0 && (
               <div className="rounded-[12px] border border-dashed border-border px-[14px] py-[14px] font-hanken text-[13px] text-text-faint text-center">
-                Nenhuma pessoa na equipe.
+                Nenhuma pessoa na equipe. A equipe é escolhida entre os colaboradores cadastrados.
               </div>
             )}
             <datalist id="obras-cargos">{cargos.map(c => <option key={c} value={c} />)}</datalist>
             {f.equipe.map((m, i) => (
-              <div key={i} className="rounded-[12px] bg-tile-bg/60 p-[10px] sm:p-[12px] flex flex-col gap-[8px]">
-                <div className="flex items-center gap-[4px]">
-                  <span className="flex-1 font-hanken font-semibold text-[12px] text-label">Pessoa {i + 1}</span>
-                  <BotaoIcone onClick={() => moverMembro(i, -1)} title="Subir" Icon={ArrowUp} disabled={i === 0} />
-                  <BotaoIcone onClick={() => moverMembro(i, 1)} title="Descer" Icon={ArrowDown} disabled={i === f.equipe.length - 1} />
-                  <BotaoIcone onClick={() => set({ equipe: f.equipe.filter((_, j) => j !== i) })} title="Remover da equipe" Icon={Trash2} />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-[8px]">
-                  <input className={inputCls} list="obras-cargos" value={m.cargo} onChange={e => setMembro(i, { cargo: e.target.value })} placeholder="Cargo" aria-label="Cargo" maxLength={80} />
-                  <input className={inputCls} value={m.nome} onChange={e => setMembro(i, { nome: e.target.value })} placeholder="Nome" aria-label="Nome" maxLength={120} />
-                  <input className={inputCls} type="tel" inputMode="tel" value={m.telefone} onChange={e => setMembro(i, { telefone: e.target.value })} placeholder="Telefone" aria-label="Telefone" maxLength={60} />
-                  <input className={inputCls} type="email" inputMode="email" value={m.email} onChange={e => setMembro(i, { email: e.target.value })} placeholder="E-mail" aria-label="E-mail" maxLength={254} />
-                </div>
-              </div>
+              <EquipeMembroCampo key={i} indice={i} total={f.equipe.length} membro={m}
+                onChange={patch => setMembro(i, patch)} onMover={d => moverMembro(i, d)}
+                onRemover={() => set({ equipe: f.equipe.filter((_, j) => j !== i) })} />
             ))}
-            <ErroCampo erro={erros.equipe ? 'Confira os dados da equipe.' : undefined} />
+            <ErroCampo erro={erroDe(erros, 'equipe') ? 'Confira a equipe: ' + erroDe(erros, 'equipe') : undefined} />
             <Botao variante="fantasma" Icon={Plus} className="self-start text-accent px-[6px]"
-              onClick={() => set({ equipe: [...f.equipe, { cargo: '', nome: '', telefone: '', email: '' }] })}>
+              onClick={() => set({ equipe: [...f.equipe, { colaborador_id: null, cargo: '', nome: '', telefone: '', email: '' }] })}>
               Adicionar pessoa
             </Botao>
           </Bloco>
