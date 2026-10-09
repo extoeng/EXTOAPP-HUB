@@ -15,7 +15,13 @@ import { apiFetch } from './api'
 /** Quem enxerga a obra (as duas marcações podem estar ligadas; ao menos uma). */
 export interface Visibilidade { visivel_padrao: boolean; visivel_avancado: boolean }
 
-export interface EquipeMembro { cargo: string; nome: string; telefone: string; email: string }
+/** Pessoa da equipe da obra. Com `colaborador_id`, nome/telefone/e-mail vêm do
+ *  cadastro do colaborador (RH) e acompanham mudanças dele; só `cargo` (função
+ *  na obra) é editável. Sem `colaborador_id` = texto antigo da planilha. */
+export interface EquipeMembro { colaborador_id: string | null; cargo: string; nome: string; telefone: string; email: string }
+
+/** Resultado da busca de colaboradores (autocomplete da equipe). */
+export interface ColaboradorBusca { colaborador_id: string; nome: string; email: string; telefone: string; cargo: string }
 
 export interface Obra extends Visibilidade {
   id: string
@@ -90,6 +96,13 @@ export async function criarObra(dados: Partial<ObraDados>): Promise<Resultado<Ob
 
 export async function atualizarObra(id: string, dados: Partial<ObraDados>): Promise<Resultado<Obra>> {
   return resultado(await apiFetch(`/obras/${id}/`, { method: 'PATCH', body: JSON.stringify(dados) }).catch(() => null))
+}
+
+/** Colaboradores com vínculo ativo cujo nome/e-mail bate com `q` (mín. 2 letras). Só Administrador. */
+export async function buscarColaboradores(q: string): Promise<ColaboradorBusca[]> {
+  const res = await apiFetch(`/obras/colaboradores/?q=${encodeURIComponent(q)}`).catch(() => null)
+  if (!res || !res.ok) return []
+  return res.json()
 }
 
 export type AcaoEmMassa =
