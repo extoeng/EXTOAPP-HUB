@@ -167,7 +167,7 @@ export function restricaoDeVisibilidade(o: Visibilidade): string | null {
 }
 
 export function dadosDaObra(o: Obra): ObraDados {
-  const { id: _id, documentos: _d, enderecos: _e, criado_em: _c, atualizado_em: _a, ...dados } = o
+  const { id: _id, documentos: _d, enderecos: _e, cartao_cnpj: _k, criado_em: _c, atualizado_em: _a, ...dados } = o
   return { ...dados, telefones: [...o.telefones], equipe: o.equipe.map(m => ({ ...m })) }
 }
 

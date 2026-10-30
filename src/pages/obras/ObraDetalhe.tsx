@@ -7,6 +7,7 @@ import {
   categoriaMeta, copiar, enderecoPrincipal, mapaHref, restricaoDeVisibilidade, rotuloAba, telHref, telefonePrincipal, textoDaObra, whatsappHref,
 } from './util'
 import { Botao, CopyButton, IconLink, SectionTitle, Selo } from './ui'
+import { CartaoCnpjSecao } from './CartaoCnpjSecao'
 
 function Linha({ rotulo, children, acoes }: { rotulo: string; children: React.ReactNode; acoes?: React.ReactNode }) {
   return (
@@ -28,13 +29,15 @@ function AcaoRapida({ href, onClick, Icon, children, externo }: {
     : <button type="button" onClick={onClick} className={cls}>{conteudo}</button>
 }
 
-export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, onAlternarAtivo, avisar }: {
+export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, onAlternarAtivo, onAtualizada, avisar }: {
   obra: Obra
   canManage: boolean
   onClose: () => void
   onEditar: () => void
   onDuplicar: () => void
   onAlternarAtivo: () => void
+  /** A obra mudou fora do formulário (ex. cartão CNPJ anexado): troca na lista. */
+  onAtualizada: (obra: Obra) => void
   avisar: (texto: string, erro?: boolean) => void
 }) {
   const meta = categoriaMeta(obra.categoria)
@@ -106,6 +109,8 @@ export function ObraDetalhe({ obra, canManage, onClose, onEditar, onDuplicar, on
               {docs.map(([k, v]) => <Linha key={k} rotulo={k} acoes={<CopyButton value={v} label={`Copiar ${k}`} />}><span className="tabular-nums">{v}</span></Linha>)}
             </>
           )}
+
+          <CartaoCnpjSecao obra={obra} canManage={canManage} onAtualizada={onAtualizada} avisar={avisar} />
 
           {ends.length > 0 && (
             <>
