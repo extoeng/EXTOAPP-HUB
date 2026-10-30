@@ -47,11 +47,22 @@ export interface Obra extends Visibilidade {
   documentos: Record<string, string>
   /** Só exibição: Fatura/Entrega/Cobrança preenchidos. */
   enderecos: Record<string, string>
+  /** Cartão CNPJ anexado (null = sem anexo). Só os dados de exibição; o arquivo sai por `abrirCartaoCnpj`. */
+  cartao_cnpj: CartaoCnpj | null
   criado_em: string
   atualizado_em: string
 }
 
-export type ObraDados = Omit<Obra, 'id' | 'documentos' | 'enderecos' | 'criado_em' | 'atualizado_em'>
+export interface CartaoCnpj {
+  nome: string
+  tamanho: number
+  /** ISO de quando foi anexada a última versão. */
+  enviado_em: string
+  /** O CNPJ da obra mudou depois deste anexo. */
+  desatualizado: boolean
+}
+
+export type ObraDados = Omit<Obra, 'id' | 'documentos' | 'enderecos' | 'cartao_cnpj' | 'criado_em' | 'atualizado_em'>
 
 export interface ObrasResult {
   obras: Obra[]
@@ -96,6 +107,22 @@ export async function criarObra(dados: Partial<ObraDados>): Promise<Resultado<Ob
 
 export async function atualizarObra(id: string, dados: Partial<ObraDados>): Promise<Resultado<Obra>> {
   return resultado(await apiFetch(`/obras/${id}/`, { method: 'PATCH', body: JSON.stringify(dados) }).catch(() => null))
+}
+
+/** URL assinada (vale 1h) do cartão CNPJ da obra. Qualquer um que veja a obra. */
+export async function abrirCartaoCnpj(id: string): Promise<Resultado<{ nome: string; url: string }>> {
+  return resultado(await apiFetch(`/obras/${id}/cartao-cnpj/`).catch(() => null))
+}
+
+/** Anexa (ou troca) o cartão CNPJ — PDF/JPG/PNG até 10 MB. Só Administrador. Devolve a obra atualizada. */
+export async function anexarCartaoCnpj(id: string, arquivo: File): Promise<Resultado<Obra>> {
+  const form = new FormData()
+  form.append('arquivo', arquivo)
+  return resultado(await apiFetch(`/obras/${id}/cartao-cnpj/`, { method: 'POST', body: form }).catch(() => null))
+}
+
+export async function removerCartaoCnpj(id: string): Promise<Resultado<void>> {
+  return resultado(await apiFetch(`/obras/${id}/cartao-cnpj/`, { method: 'DELETE' }).catch(() => null))
 }
 
 /** Colaboradores com vínculo ativo cujo nome/e-mail bate com `q` (mín. 2 letras). Só Administrador. */

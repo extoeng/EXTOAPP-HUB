@@ -702,6 +702,7 @@ export function ObrasPage({ onBack, canManage = false, initialSelectKey }: Props
               onEditar={() => setPainel({ tipo: 'editar', id: obraDoPainel.id })}
               onDuplicar={() => novaObra({ ...dadosDaObra(obraDoPainel), nome: `${obraDoPainel.nome} (cópia)`, ordem: obraDoPainel.ordem + 1 })}
               onAlternarAtivo={() => alternarAtivo(obraDoPainel)}
+              onAtualizada={aplicarObra}
               avisar={avisar}
             />
           ) : (
